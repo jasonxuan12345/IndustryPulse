@@ -1,0 +1,15 @@
+{
+  "title": "TimestampPrecision",
+  "type": "string",
+  "enum": [
+    "second",
+    "minute",
+    "day",
+    "month",
+    "unknown"
+  ],
+  "description": "发布时点精度（§7.5）：影响 release_evidence 分级与保守滞后。",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://industrypulse.local/contracts/1.0.0/sources.TimestampPrecision.schema.json",
+  "x-contracts-version": "1.0.0"
+}

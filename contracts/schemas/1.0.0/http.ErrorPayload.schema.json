@@ -1,0 +1,61 @@
+{
+  "$defs": {
+    "ErrorCode": {
+      "description": "§14.3 错误码全集：前端凭 code 而非字符串匹配做分支。",
+      "enum": [
+        "SOURCE_UNAVAILABLE",
+        "LICENSE_NOT_GRANTED",
+        "EVIDENCE_UNVERIFIED",
+        "PIT_NOT_ELIGIBLE",
+        "SERIES_NOT_FOUND",
+        "INDUSTRY_MAPPING_MISSING",
+        "INSUFFICIENT_HISTORY",
+        "MODEL_NOT_VALIDATED",
+        "UNSCORABLE_TARGET",
+        "NO_TRADABLE_ETF",
+        "CONTRACT_MISMATCH",
+        "SNAPSHOT_CORRUPT"
+      ],
+      "title": "ErrorCode",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "错误响应体（§14.3）：code + remediation，避免前端猜字符串。",
+  "properties": {
+    "request_id": {
+      "minLength": 1,
+      "title": "Request Id",
+      "type": "string"
+    },
+    "code": {
+      "$ref": "#/$defs/ErrorCode"
+    },
+    "message": {
+      "minLength": 1,
+      "title": "Message",
+      "type": "string"
+    },
+    "remediation": {
+      "minLength": 1,
+      "title": "Remediation",
+      "type": "string"
+    },
+    "http_status": {
+      "title": "Http Status",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "request_id",
+    "code",
+    "message",
+    "remediation",
+    "http_status"
+  ],
+  "title": "ErrorPayload",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://industrypulse.local/contracts/1.0.0/http.ErrorPayload.schema.json",
+  "x-contracts-version": "1.0.0"
+}

@@ -1,0 +1,22 @@
+{
+  "title": "ErrorCode",
+  "type": "string",
+  "enum": [
+    "SOURCE_UNAVAILABLE",
+    "LICENSE_NOT_GRANTED",
+    "EVIDENCE_UNVERIFIED",
+    "PIT_NOT_ELIGIBLE",
+    "SERIES_NOT_FOUND",
+    "INDUSTRY_MAPPING_MISSING",
+    "INSUFFICIENT_HISTORY",
+    "MODEL_NOT_VALIDATED",
+    "UNSCORABLE_TARGET",
+    "NO_TRADABLE_ETF",
+    "CONTRACT_MISMATCH",
+    "SNAPSHOT_CORRUPT"
+  ],
+  "description": "§14.3 错误码全集：前端凭 code 而非字符串匹配做分支。",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://industrypulse.local/contracts/1.0.0/http.ErrorCode.schema.json",
+  "x-contracts-version": "1.0.0"
+}

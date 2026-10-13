@@ -1,0 +1,79 @@
+{
+  "additionalProperties": false,
+  "description": "预测目标定义（§10.1 T1/T2）：跨年、分母异常、缺目标的处理必须显式声明。",
+  "properties": {
+    "target_id": {
+      "minLength": 1,
+      "title": "Target Id",
+      "type": "string"
+    },
+    "definition_version": {
+      "minLength": 1,
+      "title": "Definition Version",
+      "type": "string"
+    },
+    "industry_id": {
+      "anyOf": [
+        {
+          "pattern": "^[A-Z][A-Z0-9._-]*$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Industry Id"
+    },
+    "horizon_months": {
+      "maximum": 6,
+      "minimum": 1,
+      "title": "Horizon Months",
+      "type": "integer"
+    },
+    "label_kind": {
+      "minLength": 1,
+      "title": "Label Kind",
+      "type": "string"
+    },
+    "formula": {
+      "minLength": 1,
+      "title": "Formula",
+      "type": "string"
+    },
+    "missing_policy": {
+      "minLength": 1,
+      "title": "Missing Policy",
+      "type": "string"
+    },
+    "baselines": {
+      "items": {
+        "minLength": 1,
+        "type": "string"
+      },
+      "minItems": 1,
+      "title": "Baselines",
+      "type": "array"
+    },
+    "description": {
+      "minLength": 1,
+      "title": "Description",
+      "type": "string"
+    }
+  },
+  "required": [
+    "target_id",
+    "definition_version",
+    "industry_id",
+    "horizon_months",
+    "label_kind",
+    "formula",
+    "missing_policy",
+    "baselines",
+    "description"
+  ],
+  "title": "TargetSpec",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://industrypulse.local/contracts/1.0.0/model.TargetSpec.schema.json",
+  "x-contracts-version": "1.0.0"
+}

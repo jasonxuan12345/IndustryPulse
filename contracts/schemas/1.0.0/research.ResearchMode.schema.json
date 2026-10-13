@@ -1,0 +1,13 @@
+{
+  "title": "ResearchMode",
+  "type": "string",
+  "enum": [
+    "strict_pit",
+    "reconstructed_pit",
+    "exploratory"
+  ],
+  "description": "历史研究模式（§6.3，枚举值冻结）。",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://industrypulse.local/contracts/1.0.0/research.ResearchMode.schema.json",
+  "x-contracts-version": "1.0.0"
+}

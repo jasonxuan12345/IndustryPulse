@@ -1,0 +1,14 @@
+{
+  "title": "ApprovalState",
+  "type": "string",
+  "enum": [
+    "draft",
+    "frozen",
+    "approved",
+    "archived"
+  ],
+  "description": "实验审批状态（§12.4 approval_state）：FROZEN 之后改动即须新建 run。",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://industrypulse.local/contracts/1.0.0/research.ApprovalState.schema.json",
+  "x-contracts-version": "1.0.0"
+}

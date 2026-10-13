@@ -1,0 +1,14 @@
+{
+  "title": "ExtractionEngine",
+  "type": "string",
+  "enum": [
+    "deterministic_html",
+    "deterministic_table",
+    "llm_assisted",
+    "manual"
+  ],
+  "description": "抽取引擎（§5.1：确定性解析优先，LLM 仅结构不规则时辅助）。",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://industrypulse.local/contracts/1.0.0/observation.ExtractionEngine.schema.json",
+  "x-contracts-version": "1.0.0"
+}

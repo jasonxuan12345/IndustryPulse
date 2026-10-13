@@ -1,0 +1,12 @@
+{
+  "title": "IndicatorLevel",
+  "type": "string",
+  "enum": [
+    "CORE",
+    "EXTENDED"
+  ],
+  "description": "",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://industrypulse.local/contracts/1.0.0/domain.IndicatorLevel.schema.json",
+  "x-contracts-version": "1.0.0"
+}

@@ -1,0 +1,14 @@
+{
+  "title": "SourceStatus",
+  "type": "string",
+  "enum": [
+    "candidate",
+    "active",
+    "degraded",
+    "retired"
+  ],
+  "description": "§4.1 核验声明：接入验收通过前一律 CANDIDATE，不得当作\"已完整获取\"。",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://industrypulse.local/contracts/1.0.0/sources.SourceStatus.schema.json",
+  "x-contracts-version": "1.0.0"
+}

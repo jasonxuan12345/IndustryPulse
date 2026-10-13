@@ -1,0 +1,44 @@
+{
+  "additionalProperties": false,
+  "description": "§14.2 第一批接口的机器可读清单（mock 端点与 OpenAPI 样例的数据源）。",
+  "properties": {
+    "method": {
+      "minLength": 1,
+      "title": "Method",
+      "type": "string"
+    },
+    "path": {
+      "minLength": 1,
+      "title": "Path",
+      "type": "string"
+    },
+    "params": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Params",
+      "type": "array"
+    },
+    "result_kind": {
+      "minLength": 1,
+      "title": "Result Kind",
+      "type": "string"
+    },
+    "owner_lane": {
+      "minLength": 1,
+      "title": "Owner Lane",
+      "type": "string"
+    }
+  },
+  "required": [
+    "method",
+    "path",
+    "result_kind",
+    "owner_lane"
+  ],
+  "title": "RouteSpec",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://industrypulse.local/contracts/1.0.0/http.RouteSpec.schema.json",
+  "x-contracts-version": "1.0.0"
+}

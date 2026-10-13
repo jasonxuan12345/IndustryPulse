@@ -1,0 +1,84 @@
+{
+  "$defs": {
+    "RelationType": {
+      "description": "产业链关系方向（§7.2 industry_relation.relation_type）。",
+      "enum": [
+        "supplies_input",
+        "demands_output",
+        "shared_driver"
+      ],
+      "title": "RelationType",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "产业链上下游关系（I-002：关系必须有来源与有效期）。",
+  "properties": {
+    "upstream_id": {
+      "pattern": "^[A-Z][A-Z0-9._-]*$",
+      "title": "Upstream Id",
+      "type": "string"
+    },
+    "downstream_id": {
+      "pattern": "^[A-Z][A-Z0-9._-]*$",
+      "title": "Downstream Id",
+      "type": "string"
+    },
+    "relation_type": {
+      "$ref": "#/$defs/RelationType"
+    },
+    "valid_from": {
+      "format": "date",
+      "title": "Valid From",
+      "type": "string"
+    },
+    "valid_to": {
+      "anyOf": [
+        {
+          "format": "date",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Valid To"
+    },
+    "weight_policy": {
+      "anyOf": [
+        {
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Weight Policy"
+    },
+    "source_ref": {
+      "minLength": 1,
+      "title": "Source Ref",
+      "type": "string"
+    },
+    "notes": {
+      "default": "",
+      "title": "Notes",
+      "type": "string"
+    }
+  },
+  "required": [
+    "upstream_id",
+    "downstream_id",
+    "relation_type",
+    "valid_from",
+    "source_ref"
+  ],
+  "title": "IndustryRelation",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://industrypulse.local/contracts/1.0.0/domain.IndustryRelation.schema.json",
+  "x-contracts-version": "1.0.0"
+}

@@ -1,0 +1,13 @@
+{
+  "title": "AvailabilityBasis",
+  "type": "string",
+  "enum": [
+    "observed_publication",
+    "assumed_policy_lag",
+    "retrieval_time"
+  ],
+  "description": "available_at 的语义依据（§6.1/§6.4）。\n\n- OBSERVED_PUBLICATION：有可核验的同期发布时点证据；\n- ASSUMED_POLICY_LAG：按发布日历保守推算（\"通常月底发布\"类）；\n- RETRIEVAL_TIME：只知本系统抓取时点——历史 as-of 查询一律不可见。",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://industrypulse.local/contracts/1.0.0/pit.AvailabilityBasis.schema.json",
+  "x-contracts-version": "1.0.0"
+}

@@ -1,0 +1,109 @@
+{
+  "$defs": {
+    "Exchange": {
+      "enum": [
+        "SSE",
+        "SZSE",
+        "CFFEX",
+        "SHFE",
+        "DCE",
+        "CZCE",
+        "GFEX",
+        "OTC"
+      ],
+      "title": "Exchange",
+      "type": "string"
+    },
+    "InstrumentType": {
+      "enum": [
+        "ETF",
+        "INDEX",
+        "FUTURE",
+        "SPOT"
+      ],
+      "title": "InstrumentType",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "金融资产主档（§7.2 asset_master / §13.1）：防未来函数的第一道闸。\n\n历史任一交易日只允许使用当时已上市且未退市的资产（PIT-008）。\n``tracking_index_id`` 仅为基准参照，INDEX 型资产不可直接交易。",
+  "properties": {
+    "asset_id": {
+      "pattern": "^[A-Z][A-Z0-9._-]*$",
+      "title": "Asset Id",
+      "type": "string"
+    },
+    "exchange": {
+      "$ref": "#/$defs/Exchange"
+    },
+    "instrument_type": {
+      "$ref": "#/$defs/InstrumentType"
+    },
+    "name_zh": {
+      "minLength": 1,
+      "title": "Name Zh",
+      "type": "string"
+    },
+    "list_at": {
+      "format": "date-time",
+      "title": "List At",
+      "type": "string"
+    },
+    "delist_at": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Delist At"
+    },
+    "fund_type": {
+      "anyOf": [
+        {
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Fund Type"
+    },
+    "tracking_index_id": {
+      "anyOf": [
+        {
+          "pattern": "^[A-Z][A-Z0-9._-]*$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Tracking Index Id"
+    },
+    "notes": {
+      "default": "",
+      "title": "Notes",
+      "type": "string"
+    }
+  },
+  "required": [
+    "asset_id",
+    "exchange",
+    "instrument_type",
+    "name_zh",
+    "list_at"
+  ],
+  "title": "AssetMaster",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://industrypulse.local/contracts/1.0.0/domain.AssetMaster.schema.json",
+  "x-contracts-version": "1.0.0"
+}

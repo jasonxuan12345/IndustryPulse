@@ -1,0 +1,25 @@
+{
+  "additionalProperties": false,
+  "description": "响应内警告（§14.1 warnings）：非致命但必须向用户披露。",
+  "properties": {
+    "code": {
+      "minLength": 1,
+      "title": "Code",
+      "type": "string"
+    },
+    "message": {
+      "minLength": 1,
+      "title": "Message",
+      "type": "string"
+    }
+  },
+  "required": [
+    "code",
+    "message"
+  ],
+  "title": "ApiWarning",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://industrypulse.local/contracts/1.0.0/http.ApiWarning.schema.json",
+  "x-contracts-version": "1.0.0"
+}

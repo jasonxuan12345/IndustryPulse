@@ -1,0 +1,88 @@
+{
+  "$defs": {
+    "IndustryStandard": {
+      "description": "行业分类标准（§7.2 industry_taxonomy.standard）。",
+      "enum": [
+        "GB/T 4754-2017",
+        "GB/T 4754-2011",
+        "CSI_INDUSTRY",
+        "PROJECT_INTERNAL"
+      ],
+      "title": "IndustryStandard",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "行业节点：identity = industry_id；names 仅是展示层，可随时改（C-005 验收）。",
+  "properties": {
+    "industry_id": {
+      "pattern": "^[A-Z][A-Z0-9._-]*$",
+      "title": "Industry Id",
+      "type": "string"
+    },
+    "standard": {
+      "$ref": "#/$defs/IndustryStandard"
+    },
+    "code": {
+      "minLength": 1,
+      "title": "Code",
+      "type": "string"
+    },
+    "names": {
+      "additionalProperties": {
+        "minLength": 1,
+        "type": "string"
+      },
+      "title": "Names",
+      "type": "object"
+    },
+    "valid_from": {
+      "format": "date",
+      "title": "Valid From",
+      "type": "string"
+    },
+    "valid_to": {
+      "anyOf": [
+        {
+          "format": "date",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Valid To"
+    },
+    "parent_id": {
+      "anyOf": [
+        {
+          "pattern": "^[A-Z][A-Z0-9._-]*$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Parent Id"
+    },
+    "notes": {
+      "default": "",
+      "title": "Notes",
+      "type": "string"
+    }
+  },
+  "required": [
+    "industry_id",
+    "standard",
+    "code",
+    "names",
+    "valid_from"
+  ],
+  "title": "IndustryNode",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://industrypulse.local/contracts/1.0.0/domain.IndustryNode.schema.json",
+  "x-contracts-version": "1.0.0"
+}

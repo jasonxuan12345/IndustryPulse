@@ -1,0 +1,122 @@
+{
+  "$defs": {
+    "EconomicDimension": {
+      "description": "六个经济维度（§8.1）：缺失维度显示 coverage，不得强行算 0 分。",
+      "enum": [
+        "demand",
+        "supply",
+        "inventory",
+        "price",
+        "profitability",
+        "liquidity"
+      ],
+      "title": "EconomicDimension",
+      "type": "string"
+    },
+    "EconomicDirection": {
+      "description": "指标经济方向（§9.2）：POSITIVE=值高对行业景气为正贡献；UNKNOWN 只展示不聚合。",
+      "enum": [
+        "positive",
+        "negative",
+        "unknown"
+      ],
+      "title": "EconomicDirection",
+      "type": "string"
+    },
+    "IndicatorLevel": {
+      "enum": [
+        "CORE",
+        "EXTENDED"
+      ],
+      "title": "IndicatorLevel",
+      "type": "string"
+    },
+    "SeriesRole": {
+      "description": "序列在行业中的角色（§7.2 industry_series_map.role）。",
+      "enum": [
+        "label",
+        "feature",
+        "context",
+        "macro_proxy"
+      ],
+      "title": "SeriesRole",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "行业指标规格：序列→维度→方向的登记（E-001 输入；§8.1 指标字典行）。",
+  "properties": {
+    "indicator_id": {
+      "minLength": 1,
+      "title": "Indicator Id",
+      "type": "string"
+    },
+    "series_ids": {
+      "items": {
+        "pattern": "^[a-z0-9][a-z0-9._-]*$",
+        "type": "string"
+      },
+      "minItems": 1,
+      "title": "Series Ids",
+      "type": "array"
+    },
+    "dimension": {
+      "$ref": "#/$defs/EconomicDimension"
+    },
+    "economic_direction": {
+      "$ref": "#/$defs/EconomicDirection"
+    },
+    "level": {
+      "$ref": "#/$defs/IndicatorLevel"
+    },
+    "industry_ids": {
+      "items": {
+        "pattern": "^[A-Z][A-Z0-9._-]*$",
+        "type": "string"
+      },
+      "minItems": 1,
+      "title": "Industry Ids",
+      "type": "array"
+    },
+    "role": {
+      "$ref": "#/$defs/SeriesRole",
+      "default": "feature"
+    },
+    "transform": {
+      "default": "none",
+      "minLength": 1,
+      "title": "Transform",
+      "type": "string"
+    },
+    "valid_from": {
+      "format": "date",
+      "title": "Valid From",
+      "type": "string"
+    },
+    "description": {
+      "minLength": 1,
+      "title": "Description",
+      "type": "string"
+    },
+    "notes": {
+      "default": "",
+      "title": "Notes",
+      "type": "string"
+    }
+  },
+  "required": [
+    "indicator_id",
+    "series_ids",
+    "dimension",
+    "economic_direction",
+    "level",
+    "industry_ids",
+    "valid_from",
+    "description"
+  ],
+  "title": "IndicatorSpec",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://industrypulse.local/contracts/1.0.0/domain.IndicatorSpec.schema.json",
+  "x-contracts-version": "1.0.0"
+}

@@ -1,0 +1,14 @@
+{
+  "title": "SourcePriority",
+  "type": "string",
+  "enum": [
+    "S0",
+    "S1",
+    "S2",
+    "S3"
+  ],
+  "description": "数据源分层（§4.1）：S0 必须首批可运行；S3 事件/付费候选不作核心硬依赖。",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://industrypulse.local/contracts/1.0.0/sources.SourcePriority.schema.json",
+  "x-contracts-version": "1.0.0"
+}

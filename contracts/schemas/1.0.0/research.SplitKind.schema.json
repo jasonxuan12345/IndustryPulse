@@ -1,0 +1,12 @@
+{
+  "title": "SplitKind",
+  "type": "string",
+  "enum": [
+    "expanding",
+    "rolling"
+  ],
+  "description": "时间折类型（§12.1：expanding 为主、fixed 60 月 rolling 做稳健性）。",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://industrypulse.local/contracts/1.0.0/research.SplitKind.schema.json",
+  "x-contracts-version": "1.0.0"
+}

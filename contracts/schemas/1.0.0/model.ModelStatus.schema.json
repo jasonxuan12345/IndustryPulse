@@ -1,0 +1,16 @@
+{
+  "title": "ModelStatus",
+  "type": "string",
+  "enum": [
+    "ok",
+    "degraded",
+    "uncalibrated",
+    "insufficient_evidence",
+    "no_predictive_edge",
+    "not_validated"
+  ],
+  "description": "模型状态（§11.6/§2.3）：degraded 必须显式展示，禁止静默冒充今日预测。",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://industrypulse.local/contracts/1.0.0/model.ModelStatus.schema.json",
+  "x-contracts-version": "1.0.0"
+}

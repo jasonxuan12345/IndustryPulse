@@ -1,0 +1,85 @@
+{
+  "description": "合成 ETF/指数资产主档（C-009）：覆盖晚上市、退市、指数代理、信号日前未上市等 PIT-008 场景。asset_id 均为合成标识。",
+  "assets": [
+    {
+      "asset_id": "ETF_SH_STEEL_A",
+      "exchange": "SSE",
+      "instrument_type": "ETF",
+      "name_zh": "（合成）钢铁ETF甲",
+      "list_at": "2018-05-10T09:30:00+08:00",
+      "delist_at": null,
+      "fund_type": "industry",
+      "tracking_index_id": "IDX_CSI_STEEL",
+      "notes": "长历史存量 ETF，早期回测可用的唯一钢铁标的"
+    },
+    {
+      "asset_id": "ETF_SZ_STEEL_B",
+      "exchange": "SZSE",
+      "instrument_type": "ETF",
+      "name_zh": "（合成）钢铁ETF乙",
+      "list_at": "2025-03-14T09:30:00+08:00",
+      "delist_at": null,
+      "fund_type": "industry",
+      "tracking_index_id": "IDX_CSI_STEEL",
+      "notes": "晚上市：2025-03-14 之前的交易日不得入池"
+    },
+    {
+      "asset_id": "ETF_SH_COAL_C",
+      "exchange": "SSE",
+      "instrument_type": "ETF",
+      "name_zh": "（合成）煤炭ETF丙",
+      "list_at": "2017-06-30T09:30:00+08:00",
+      "delist_at": "2024-06-28T15:00:00+08:00",
+      "fund_type": "industry",
+      "tracking_index_id": "IDX_CSI_COAL",
+      "notes": "已退市：退市日及其后不得入池（防幸存者偏差）"
+    },
+    {
+      "asset_id": "ETF_SH_STEEL_D",
+      "exchange": "SSE",
+      "instrument_type": "ETF",
+      "name_zh": "（合成）钢铁ETF丁",
+      "list_at": "2025-11-10T09:30:00+08:00",
+      "delist_at": null,
+      "fund_type": "industry",
+      "tracking_index_id": "IDX_CSI_STEEL",
+      "notes": "PIT-008：相对 as_of=2025-10-31 属未来上市，当日池内必须拒绝"
+    },
+    {
+      "asset_id": "IDX_CSI_300",
+      "exchange": "SSE",
+      "instrument_type": "INDEX",
+      "name_zh": "（合成）沪深300指数",
+      "list_at": "2013-01-01T00:00:00+08:00",
+      "delist_at": null,
+      "notes": "基准指数：不可直接交易，回测必须显式区分指数代理与真实 ETF（V-009）"
+    }
+  ],
+  "industry_map": [
+    {
+      "asset_id": "ETF_SH_STEEL_A",
+      "industry_id": "CN_NBS_C31",
+      "weight": 1.0,
+      "valid_from": "2018-05-10"
+    },
+    {
+      "asset_id": "ETF_SZ_STEEL_B",
+      "industry_id": "CN_NBS_C31",
+      "weight": 1.0,
+      "valid_from": "2025-03-14"
+    },
+    {
+      "asset_id": "ETF_SH_STEEL_D",
+      "industry_id": "CN_NBS_C31",
+      "weight": 1.0,
+      "valid_from": "2025-11-10"
+    },
+    {
+      "asset_id": "ETF_SH_COAL_C",
+      "industry_id": "CN_NBS_B06",
+      "weight": 1.0,
+      "valid_from": "2017-06-30",
+      "valid_to": "2024-06-28"
+    }
+  ]
+}

@@ -1,0 +1,236 @@
+{
+  "$defs": {
+    "Frequency": {
+      "description": "发布频率（§4.1 表）。EVENT 指事件文本，不构成数值序列。",
+      "enum": [
+        "D",
+        "W",
+        "10D",
+        "M",
+        "Q",
+        "EVENT",
+        "IRREGULAR"
+      ],
+      "title": "Frequency",
+      "type": "string"
+    },
+    "ReleasePolicy": {
+      "additionalProperties": false,
+      "description": "发布政策（版本化）：驱动 RECONSTRUCTED 模式的保守可用日计算（§6.4）。\n\n``release_lag_days`` 为所属期期末到通常发布日的自然日上限（应取可验证\n历史年份的 p99，不允许拍脑袋常数）；``safety_days`` 为额外安全垫。\n``release_policy_version`` 不得回写到已冻结实验（§6.4）。",
+      "properties": {
+        "policy_version": {
+          "minLength": 1,
+          "title": "Policy Version",
+          "type": "string"
+        },
+        "description": {
+          "minLength": 1,
+          "title": "Description",
+          "type": "string"
+        },
+        "timezone": {
+          "default": "Asia/Shanghai",
+          "minLength": 1,
+          "title": "Timezone",
+          "type": "string"
+        },
+        "release_lag_days": {
+          "minimum": 0,
+          "title": "Release Lag Days",
+          "type": "integer"
+        },
+        "safety_days": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Safety Days",
+          "type": "integer"
+        },
+        "intraday_time": {
+          "anyOf": [
+            {
+              "format": "time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Intraday Time"
+        }
+      },
+      "required": [
+        "policy_version",
+        "description",
+        "release_lag_days"
+      ],
+      "title": "ReleasePolicy",
+      "type": "object"
+    },
+    "RevisionBehavior": {
+      "description": "修订行为（§7.2 source/series registry 共用口径）。",
+      "enum": [
+        "first_release_final",
+        "revised_later",
+        "continuously_revised"
+      ],
+      "title": "RevisionBehavior",
+      "type": "string"
+    },
+    "TimestampPrecision": {
+      "description": "发布时点精度（§7.5）：影响 release_evidence 分级与保守滞后。",
+      "enum": [
+        "second",
+        "minute",
+        "day",
+        "month",
+        "unknown"
+      ],
+      "title": "TimestampPrecision",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "指标序列定义（§7.2 series_registry + §7.5 语义字段）。\n\n``series_id`` 是经济指标唯一身份（如 ``cn.nbs.industry_c31.profit_ytd``），\n与展示中文名无关（§7.1）。所有口径字段入库时必须齐备，禁止靠猜。",
+  "properties": {
+    "series_id": {
+      "pattern": "^[a-z0-9][a-z0-9._-]*$",
+      "title": "Series Id",
+      "type": "string"
+    },
+    "source_id": {
+      "pattern": "^[a-z0-9][a-z0-9._-]*$",
+      "title": "Source Id",
+      "type": "string"
+    },
+    "unit": {
+      "minLength": 1,
+      "title": "Unit",
+      "type": "string"
+    },
+    "unit_scale": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "string"
+        }
+      ],
+      "default": "1",
+      "title": "Unit Scale"
+    },
+    "currency": {
+      "default": "CNY",
+      "minLength": 1,
+      "title": "Currency",
+      "type": "string"
+    },
+    "frequency": {
+      "$ref": "#/$defs/Frequency"
+    },
+    "transform": {
+      "default": "none",
+      "minLength": 1,
+      "title": "Transform",
+      "type": "string"
+    },
+    "is_ytd": {
+      "default": false,
+      "title": "Is Ytd",
+      "type": "boolean"
+    },
+    "is_seasonally_adjusted": {
+      "default": false,
+      "title": "Is Seasonally Adjusted",
+      "type": "boolean"
+    },
+    "statistical_population": {
+      "anyOf": [
+        {
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Statistical Population"
+    },
+    "region": {
+      "default": "CN",
+      "minLength": 1,
+      "title": "Region",
+      "type": "string"
+    },
+    "industry_standard_version": {
+      "anyOf": [
+        {
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Industry Standard Version"
+    },
+    "revision_policy": {
+      "$ref": "#/$defs/RevisionBehavior"
+    },
+    "release_policy": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ReleasePolicy"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "timestamp_precision": {
+      "$ref": "#/$defs/TimestampPrecision"
+    },
+    "valid_from": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Valid From"
+    },
+    "description": {
+      "minLength": 1,
+      "title": "Description",
+      "type": "string"
+    },
+    "tags": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Tags",
+      "type": "array"
+    }
+  },
+  "required": [
+    "series_id",
+    "source_id",
+    "unit",
+    "frequency",
+    "revision_policy",
+    "timestamp_precision",
+    "description"
+  ],
+  "title": "SeriesSpec",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://industrypulse.local/contracts/1.0.0/sources.SeriesSpec.schema.json",
+  "x-contracts-version": "1.0.0"
+}

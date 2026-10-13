@@ -1,0 +1,14 @@
+{
+  "title": "SeriesRole",
+  "type": "string",
+  "enum": [
+    "label",
+    "feature",
+    "context",
+    "macro_proxy"
+  ],
+  "description": "序列在行业中的角色（§7.2 industry_series_map.role）。",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://industrypulse.local/contracts/1.0.0/domain.SeriesRole.schema.json",
+  "x-contracts-version": "1.0.0"
+}

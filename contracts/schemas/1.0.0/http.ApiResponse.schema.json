@@ -1,0 +1,108 @@
+{
+  "$defs": {
+    "ApiWarning": {
+      "additionalProperties": false,
+      "description": "响应内警告（§14.1 warnings）：非致命但必须向用户披露。",
+      "properties": {
+        "code": {
+          "minLength": 1,
+          "title": "Code",
+          "type": "string"
+        },
+        "message": {
+          "minLength": 1,
+          "title": "Message",
+          "type": "string"
+        }
+      },
+      "required": [
+        "code",
+        "message"
+      ],
+      "title": "ApiWarning",
+      "type": "object"
+    },
+    "DataQuality": {
+      "additionalProperties": false,
+      "description": "统一响应体的数据质量摘要（§14.1）。覆盖率为 0 不等于经济恶化。",
+      "properties": {
+        "coverage": {
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Coverage",
+          "type": "number"
+        },
+        "vintage_verified_ratio": {
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Vintage Verified Ratio",
+          "type": "number"
+        }
+      },
+      "required": [
+        "coverage",
+        "vintage_verified_ratio"
+      ],
+      "title": "DataQuality",
+      "type": "object"
+    },
+    "ResearchMode": {
+      "description": "历史研究模式（§6.3，枚举值冻结）。",
+      "enum": [
+        "strict_pit",
+        "reconstructed_pit",
+        "exploratory"
+      ],
+      "title": "ResearchMode",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "统一响应体（§14.1）：所有 GET 查询接口的公共外壳。",
+  "properties": {
+    "request_id": {
+      "minLength": 1,
+      "title": "Request Id",
+      "type": "string"
+    },
+    "as_of": {
+      "format": "date-time",
+      "title": "As Of",
+      "type": "string"
+    },
+    "research_mode": {
+      "$ref": "#/$defs/ResearchMode"
+    },
+    "snapshot_id": {
+      "minLength": 1,
+      "title": "Snapshot Id",
+      "type": "string"
+    },
+    "data_quality": {
+      "$ref": "#/$defs/DataQuality"
+    },
+    "result": {
+      "title": "Result"
+    },
+    "warnings": {
+      "items": {
+        "$ref": "#/$defs/ApiWarning"
+      },
+      "title": "Warnings",
+      "type": "array"
+    }
+  },
+  "required": [
+    "request_id",
+    "as_of",
+    "research_mode",
+    "snapshot_id",
+    "data_quality",
+    "result"
+  ],
+  "title": "ApiResponse",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://industrypulse.local/contracts/1.0.0/http.ApiResponse.schema.json",
+  "x-contracts-version": "1.0.0"
+}

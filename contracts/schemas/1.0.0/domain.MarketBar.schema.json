@@ -1,0 +1,132 @@
+{
+  "$defs": {
+    "Frequency": {
+      "description": "发布频率（§4.1 表）。EVENT 指事件文本，不构成数值序列。",
+      "enum": [
+        "D",
+        "W",
+        "10D",
+        "M",
+        "Q",
+        "EVENT",
+        "IRREGULAR"
+      ],
+      "title": "Frequency",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "市场行情bar（§7.2 market_bar）：复权方法必须显式声明。",
+  "properties": {
+    "asset_id": {
+      "pattern": "^[A-Z][A-Z0-9._-]*$",
+      "title": "Asset Id",
+      "type": "string"
+    },
+    "trade_date": {
+      "format": "date",
+      "title": "Trade Date",
+      "type": "string"
+    },
+    "open": {
+      "anyOf": [
+        {
+          "exclusiveMinimum": 0.0,
+          "type": "number"
+        },
+        {
+          "type": "string"
+        }
+      ],
+      "title": "Open"
+    },
+    "high": {
+      "anyOf": [
+        {
+          "exclusiveMinimum": 0.0,
+          "type": "number"
+        },
+        {
+          "type": "string"
+        }
+      ],
+      "title": "High"
+    },
+    "low": {
+      "anyOf": [
+        {
+          "exclusiveMinimum": 0.0,
+          "type": "number"
+        },
+        {
+          "type": "string"
+        }
+      ],
+      "title": "Low"
+    },
+    "close": {
+      "anyOf": [
+        {
+          "exclusiveMinimum": 0.0,
+          "type": "number"
+        },
+        {
+          "type": "string"
+        }
+      ],
+      "title": "Close"
+    },
+    "volume": {
+      "anyOf": [
+        {
+          "minimum": 0.0,
+          "type": "number"
+        },
+        {
+          "type": "string"
+        }
+      ],
+      "title": "Volume"
+    },
+    "amount": {
+      "anyOf": [
+        {
+          "minimum": 0.0,
+          "type": "number"
+        },
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Amount"
+    },
+    "adj_method": {
+      "default": "none",
+      "minLength": 1,
+      "title": "Adj Method",
+      "type": "string"
+    },
+    "frequency": {
+      "$ref": "#/$defs/Frequency",
+      "default": "D"
+    }
+  },
+  "required": [
+    "asset_id",
+    "trade_date",
+    "open",
+    "high",
+    "low",
+    "close",
+    "volume"
+  ],
+  "title": "MarketBar",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://industrypulse.local/contracts/1.0.0/domain.MarketBar.schema.json",
+  "x-contracts-version": "1.0.0"
+}

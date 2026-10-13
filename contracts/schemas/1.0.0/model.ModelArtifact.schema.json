@@ -1,0 +1,61 @@
+{
+  "additionalProperties": false,
+  "description": "训练产物（M-014）：确定性哈希，重复运行可复核。",
+  "properties": {
+    "model_id": {
+      "minLength": 1,
+      "title": "Model Id",
+      "type": "string"
+    },
+    "model_version": {
+      "minLength": 1,
+      "title": "Model Version",
+      "type": "string"
+    },
+    "artifact_uri": {
+      "minLength": 1,
+      "title": "Artifact Uri",
+      "type": "string"
+    },
+    "sha256": {
+      "minLength": 1,
+      "title": "Sha256",
+      "type": "string"
+    },
+    "trained_at": {
+      "format": "date-time",
+      "title": "Trained At",
+      "type": "string"
+    },
+    "feature_spec_version": {
+      "minLength": 1,
+      "title": "Feature Spec Version",
+      "type": "string"
+    },
+    "target_id": {
+      "minLength": 1,
+      "title": "Target Id",
+      "type": "string"
+    },
+    "training_rows": {
+      "minimum": 0,
+      "title": "Training Rows",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "model_id",
+    "model_version",
+    "artifact_uri",
+    "sha256",
+    "trained_at",
+    "feature_spec_version",
+    "target_id",
+    "training_rows"
+  ],
+  "title": "ModelArtifact",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://industrypulse.local/contracts/1.0.0/model.ModelArtifact.schema.json",
+  "x-contracts-version": "1.0.0"
+}

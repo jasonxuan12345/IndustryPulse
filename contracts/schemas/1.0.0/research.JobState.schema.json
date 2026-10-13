@@ -1,0 +1,16 @@
+{
+  "title": "JobState",
+  "type": "string",
+  "enum": [
+    "pending",
+    "running",
+    "succeeded",
+    "failed",
+    "skipped",
+    "retrying"
+  ],
+  "description": "任务状态（§7.2 job_run.state）。",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://industrypulse.local/contracts/1.0.0/research.JobState.schema.json",
+  "x-contracts-version": "1.0.0"
+}

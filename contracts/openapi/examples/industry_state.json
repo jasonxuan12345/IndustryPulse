@@ -1,0 +1,21 @@
+{
+  "request_id": "req-example",
+  "as_of": "2026-09-30T17:00:00+08:00",
+  "research_mode": "reconstructed_pit",
+  "snapshot_id": "sha256:example",
+  "data_quality": {
+    "coverage": 0.82,
+    "vintage_verified_ratio": 0.54
+  },
+  "result": {
+    "industry_id": "CN_NBS_C31",
+    "state": "demo",
+    "dimensions": {}
+  },
+  "warnings": [
+    {
+      "code": "PARTIAL_VINTAGE",
+      "message": "部分指标为重建版本"
+    }
+  ]
+}

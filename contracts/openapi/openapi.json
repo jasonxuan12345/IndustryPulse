@@ -1,0 +1,365 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "IndustryPulse API（G0 契约样例，非可运行服务）",
+    "version": "1.0.0",
+    "description": "由 industrypulse.contracts 导出的路由骨架与错误码清单。统一响应体外壳见 contracts/openapi/examples/industry_state.json；真实 OpenAPI 由 G1 的 FastAPI 服务自动生成并与此清单对齐。"
+  },
+  "paths": {
+    "/v1/sources": {
+      "summary": "SourceDescriptor[]",
+      "x-owner-lane": "S/D",
+      "get": {
+        "operationId": "v1_sources",
+        "parameters": [
+          {
+            "name": "priority",
+            "in": "query"
+          },
+          {
+            "name": "status",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ApiResponse 外壳，见 examples/"
+          }
+        }
+      }
+    },
+    "/v1/series/{id}/history": {
+      "summary": "ObservationFrame",
+      "x-owner-lane": "D",
+      "get": {
+        "operationId": "v1_series_id_history",
+        "parameters": [
+          {
+            "name": "as_of",
+            "in": "query"
+          },
+          {
+            "name": "mode",
+            "in": "query"
+          },
+          {
+            "name": "start",
+            "in": "query"
+          },
+          {
+            "name": "end",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ApiResponse 外壳，见 examples/"
+          }
+        }
+      }
+    },
+    "/v1/evidence/{id}": {
+      "summary": "EvidenceCandidate",
+      "x-owner-lane": "A",
+      "get": {
+        "operationId": "v1_evidence_id",
+        "parameters": [
+          {
+            "name": "evidence_id",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ApiResponse 外壳，见 examples/"
+          }
+        }
+      }
+    },
+    "/v1/research/discover": {
+      "summary": "job_id",
+      "x-owner-lane": "A",
+      "post": {
+        "operationId": "v1_research_discover",
+        "parameters": [
+          {
+            "name": "ResearchQuery",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ApiResponse 外壳，见 examples/"
+          }
+        }
+      }
+    },
+    "/v1/research/jobs/{id}": {
+      "summary": "JobStatus",
+      "x-owner-lane": "A/O",
+      "get": {
+        "operationId": "v1_research_jobs_id",
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ApiResponse 外壳，见 examples/"
+          }
+        }
+      }
+    },
+    "/v1/industries": {
+      "summary": "IndustryNode[]",
+      "x-owner-lane": "I",
+      "get": {
+        "operationId": "v1_industries",
+        "parameters": [
+          {
+            "name": "taxonomy_version",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ApiResponse 外壳，见 examples/"
+          }
+        }
+      }
+    },
+    "/v1/industries/{id}/state": {
+      "summary": "EconomyReport",
+      "x-owner-lane": "E",
+      "get": {
+        "operationId": "v1_industries_id_state",
+        "parameters": [
+          {
+            "name": "as_of",
+            "in": "query"
+          },
+          {
+            "name": "mode",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ApiResponse 外壳，见 examples/"
+          }
+        }
+      }
+    },
+    "/v1/industries/{id}/series": {
+      "summary": "IndicatorFrame",
+      "x-owner-lane": "E",
+      "get": {
+        "operationId": "v1_industries_id_series",
+        "parameters": [
+          {
+            "name": "dimension",
+            "in": "query"
+          },
+          {
+            "name": "as_of",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ApiResponse 外壳，见 examples/"
+          }
+        }
+      }
+    },
+    "/v1/industries/{id}/forecast": {
+      "summary": "ForecastResult",
+      "x-owner-lane": "M",
+      "get": {
+        "operationId": "v1_industries_id_forecast",
+        "parameters": [
+          {
+            "name": "target",
+            "in": "query"
+          },
+          {
+            "name": "horizon",
+            "in": "query"
+          },
+          {
+            "name": "as_of",
+            "in": "query"
+          },
+          {
+            "name": "mode",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ApiResponse 外壳，见 examples/"
+          }
+        }
+      }
+    },
+    "/v1/experiments": {
+      "summary": "ExperimentCard[]",
+      "x-owner-lane": "R",
+      "get": {
+        "operationId": "v1_experiments",
+        "parameters": [
+          {
+            "name": "industry",
+            "in": "query"
+          },
+          {
+            "name": "target",
+            "in": "query"
+          },
+          {
+            "name": "mode",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ApiResponse 外壳，见 examples/"
+          }
+        }
+      }
+    },
+    "/v1/experiments/{id}": {
+      "summary": "ExperimentDetail",
+      "x-owner-lane": "R",
+      "get": {
+        "operationId": "v1_experiments_id",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ApiResponse 外壳，见 examples/"
+          }
+        }
+      }
+    },
+    "/v1/investment/opportunities": {
+      "summary": "WatchList",
+      "x-owner-lane": "V",
+      "get": {
+        "operationId": "v1_investment_opportunities",
+        "parameters": [
+          {
+            "name": "as_of",
+            "in": "query"
+          },
+          {
+            "name": "mode",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ApiResponse 外壳，见 examples/"
+          }
+        }
+      }
+    },
+    "/v1/backtests/{id}": {
+      "summary": "BacktestReport",
+      "x-owner-lane": "V/R",
+      "get": {
+        "operationId": "v1_backtests_id",
+        "parameters": [
+          {
+            "name": "experiment_id",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ApiResponse 外壳，见 examples/"
+          }
+        }
+      }
+    },
+    "/v1/jobs": {
+      "summary": "JobStatus[]",
+      "x-owner-lane": "O",
+      "get": {
+        "operationId": "v1_jobs",
+        "parameters": [
+          {
+            "name": "state",
+            "in": "query"
+          },
+          {
+            "name": "period",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ApiResponse 外壳，见 examples/"
+          }
+        }
+      }
+    },
+    "/healthz": {
+      "summary": "Health",
+      "x-owner-lane": "O",
+      "get": {
+        "operationId": "healthz",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "ApiResponse 外壳，见 examples/"
+          }
+        }
+      }
+    }
+  },
+  "x-error-codes": {
+    "SOURCE_UNAVAILABLE": {
+      "http_status": 503
+    },
+    "LICENSE_NOT_GRANTED": {
+      "http_status": 451
+    },
+    "EVIDENCE_UNVERIFIED": {
+      "http_status": 422
+    },
+    "PIT_NOT_ELIGIBLE": {
+      "http_status": 422
+    },
+    "SERIES_NOT_FOUND": {
+      "http_status": 404
+    },
+    "INDUSTRY_MAPPING_MISSING": {
+      "http_status": 404
+    },
+    "INSUFFICIENT_HISTORY": {
+      "http_status": 422
+    },
+    "MODEL_NOT_VALIDATED": {
+      "http_status": 409
+    },
+    "UNSCORABLE_TARGET": {
+      "http_status": 422
+    },
+    "NO_TRADABLE_ETF": {
+      "http_status": 404
+    },
+    "CONTRACT_MISMATCH": {
+      "http_status": 500
+    },
+    "SNAPSHOT_CORRUPT": {
+      "http_status": 500
+    }
+  }
+}

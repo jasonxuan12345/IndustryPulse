@@ -1,0 +1,13 @@
+{
+  "title": "EconomicDirection",
+  "type": "string",
+  "enum": [
+    "positive",
+    "negative",
+    "unknown"
+  ],
+  "description": "指标经济方向（§9.2）：POSITIVE=值高对行业景气为正贡献；UNKNOWN 只展示不聚合。",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://industrypulse.local/contracts/1.0.0/domain.EconomicDirection.schema.json",
+  "x-contracts-version": "1.0.0"
+}

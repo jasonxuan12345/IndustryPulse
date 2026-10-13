@@ -1,0 +1,82 @@
+{
+  "description": "合成钢铁行业知识（C-009/C-005）：统计行业节点、产业链关系、指标规格。industry_id 稳定，与中文显示名解耦。",
+  "nodes": [
+    {
+      "industry_id": "CN_NBS_C31",
+      "standard": "GB/T 4754-2017",
+      "code": "31",
+      "names": {"zh": "黑色金属冶炼和压延加工业", "en": "Ferrous metal smelting and rolling"},
+      "valid_from": "2017-10-01",
+      "notes": "钢铁试点行业的实业财务口径（§1.2）"
+    },
+    {
+      "industry_id": "CN_NBS_B06",
+      "standard": "GB/T 4754-2017",
+      "code": "06",
+      "names": {"zh": "煤炭开采和洗选业", "en": "Coal mining and washing"},
+      "valid_from": "2017-10-01"
+    },
+    {
+      "industry_id": "CN_NBS_C30",
+      "standard": "GB/T 4754-2017",
+      "code": "30",
+      "names": {"zh": "非金属矿物制品业", "en": "Non-metallic mineral products"},
+      "valid_from": "2017-10-01",
+      "notes": "下游需求侧（建材）"
+    }
+  ],
+  "relations": [
+    {
+      "upstream_id": "CN_NBS_B06",
+      "downstream_id": "CN_NBS_C31",
+      "relation_type": "supplies_input",
+      "valid_from": "2017-10-01",
+      "weight_policy": "steel-input-coal-v1",
+      "source_ref": "合成 fixture：焦煤为长流程炼钢主要原料",
+      "notes": "上游原料（焦煤焦炭）"
+    },
+    {
+      "upstream_id": "CN_NBS_C31",
+      "downstream_id": "CN_NBS_C30",
+      "relation_type": "supplies_input",
+      "valid_from": "2017-10-01",
+      "source_ref": "合成 fixture：建材消耗建筑钢材",
+      "notes": "钢材下游"
+    }
+  ],
+  "indicators": [
+    {
+      "indicator_id": "steel_profit_ytd",
+      "series_ids": ["cn.nbs.industry_c31.profit_ytd"],
+      "dimension": "profitability",
+      "economic_direction": "positive",
+      "level": "CORE",
+      "industry_ids": ["CN_NBS_C31"],
+      "role": "label",
+      "valid_from": "2017-10-01",
+      "description": "行业利润 YTD（当期经济评价主标签）"
+    },
+    {
+      "indicator_id": "macro_pmi_new_orders",
+      "series_ids": ["cn.nbs.pmi.new_orders"],
+      "dimension": "demand",
+      "economic_direction": "positive",
+      "level": "CORE",
+      "industry_ids": ["CN_NBS_C31", "CN_NBS_B06"],
+      "role": "macro_proxy",
+      "valid_from": "2017-10-01",
+      "description": "制造业新订单 PMI——宏观代理，非钢铁专属（§20.2 必须标 MACRO_PROXY）"
+    },
+    {
+      "indicator_id": "steel_rb_price",
+      "series_ids": ["cn.shfe.rb.settlement"],
+      "dimension": "price",
+      "economic_direction": "positive",
+      "level": "CORE",
+      "industry_ids": ["CN_NBS_C31"],
+      "role": "feature",
+      "valid_from": "2017-10-01",
+      "description": "螺纹钢期货结算价（合约序列口径由 series 定义）"
+    }
+  ]
+}

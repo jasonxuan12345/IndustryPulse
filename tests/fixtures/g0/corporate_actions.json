@@ -1,0 +1,13 @@
+{
+  "description": "合成公司行动（C-009/INVEST-002）：分红除息日回测必须做现金/复权处理。",
+  "actions": [
+    {
+      "asset_id": "ETF_SH_STEEL_A",
+      "ex_date": "2025-06-11",
+      "action_type": "cash_dividend",
+      "distribution_per_unit": "0.015",
+      "currency": "CNY",
+      "notes": "每份现金分红 0.015 元"
+    }
+  ]
+}

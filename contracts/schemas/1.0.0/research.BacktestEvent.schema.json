@@ -1,0 +1,139 @@
+{
+  "$defs": {
+    "OrderSide": {
+      "enum": [
+        "buy",
+        "sell",
+        "hold"
+      ],
+      "title": "OrderSide",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "回测事件（§7.2 backtest_event / §13.3）：signal→order→fill 完整链路。",
+  "properties": {
+    "event_id": {
+      "minLength": 1,
+      "title": "Event Id",
+      "type": "string"
+    },
+    "experiment_id": {
+      "minLength": 1,
+      "title": "Experiment Id",
+      "type": "string"
+    },
+    "asset_id": {
+      "pattern": "^[A-Z][A-Z0-9._-]*$",
+      "title": "Asset Id",
+      "type": "string"
+    },
+    "signal_at": {
+      "format": "date-time",
+      "title": "Signal At",
+      "type": "string"
+    },
+    "order_at": {
+      "format": "date-time",
+      "title": "Order At",
+      "type": "string"
+    },
+    "fill_at": {
+      "format": "date-time",
+      "title": "Fill At",
+      "type": "string"
+    },
+    "side": {
+      "$ref": "#/$defs/OrderSide"
+    },
+    "quantity": {
+      "anyOf": [
+        {
+          "exclusiveMinimum": 0.0,
+          "type": "number"
+        },
+        {
+          "type": "string"
+        }
+      ],
+      "title": "Quantity"
+    },
+    "price": {
+      "anyOf": [
+        {
+          "exclusiveMinimum": 0.0,
+          "type": "number"
+        },
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Price"
+    },
+    "fees": {
+      "anyOf": [
+        {
+          "minimum": 0.0,
+          "type": "number"
+        },
+        {
+          "type": "string"
+        }
+      ],
+      "default": "0",
+      "title": "Fees"
+    },
+    "pnl": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Pnl"
+    },
+    "prediction_id": {
+      "anyOf": [
+        {
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Prediction Id"
+    },
+    "notes": {
+      "default": "",
+      "title": "Notes",
+      "type": "string"
+    }
+  },
+  "required": [
+    "event_id",
+    "experiment_id",
+    "asset_id",
+    "signal_at",
+    "order_at",
+    "fill_at",
+    "side",
+    "quantity",
+    "price"
+  ],
+  "title": "BacktestEvent",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://industrypulse.local/contracts/1.0.0/research.BacktestEvent.schema.json",
+  "x-contracts-version": "1.0.0"
+}

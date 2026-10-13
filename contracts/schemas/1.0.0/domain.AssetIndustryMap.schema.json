@@ -1,0 +1,51 @@
+{
+  "additionalProperties": false,
+  "description": "实业→金融标的映射（§7.2 asset_industry_map，版本化）。",
+  "properties": {
+    "asset_id": {
+      "pattern": "^[A-Z][A-Z0-9._-]*$",
+      "title": "Asset Id",
+      "type": "string"
+    },
+    "industry_id": {
+      "pattern": "^[A-Z][A-Z0-9._-]*$",
+      "title": "Industry Id",
+      "type": "string"
+    },
+    "weight": {
+      "exclusiveMinimum": 0.0,
+      "maximum": 1.0,
+      "title": "Weight",
+      "type": "number"
+    },
+    "valid_from": {
+      "format": "date",
+      "title": "Valid From",
+      "type": "string"
+    },
+    "valid_to": {
+      "anyOf": [
+        {
+          "format": "date",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Valid To"
+    }
+  },
+  "required": [
+    "asset_id",
+    "industry_id",
+    "weight",
+    "valid_from"
+  ],
+  "title": "AssetIndustryMap",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://industrypulse.local/contracts/1.0.0/domain.AssetIndustryMap.schema.json",
+  "x-contracts-version": "1.0.0"
+}

@@ -1,0 +1,53 @@
+{
+  "$defs": {
+    "SkipReason": {
+      "description": "as-of 选择中被排除的原因（覆盖报告/审计用）。",
+      "enum": [
+        "future_release",
+        "same_day_time_unknown",
+        "conservative_lag_not_elapsed",
+        "insufficient_release_evidence",
+        "insufficient_value_evidence",
+        "basis_not_allowed"
+      ],
+      "title": "SkipReason",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "被排除版本及其原因（行级可用性原因，§20.5 对照表）。",
+  "properties": {
+    "series_id": {
+      "title": "Series Id",
+      "type": "string"
+    },
+    "observation_start": {
+      "format": "date",
+      "title": "Observation Start",
+      "type": "string"
+    },
+    "vintage_id": {
+      "title": "Vintage Id",
+      "type": "integer"
+    },
+    "reason": {
+      "$ref": "#/$defs/SkipReason"
+    },
+    "detail": {
+      "default": "",
+      "title": "Detail",
+      "type": "string"
+    }
+  },
+  "required": [
+    "series_id",
+    "observation_start",
+    "vintage_id",
+    "reason"
+  ],
+  "title": "SkippedVintage",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://industrypulse.local/contracts/1.0.0/pit.SkippedVintage.schema.json",
+  "x-contracts-version": "1.0.0"
+}

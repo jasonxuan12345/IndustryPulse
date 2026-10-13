@@ -1,0 +1,14 @@
+{
+  "title": "EvidenceGrade",
+  "type": "string",
+  "enum": [
+    "A",
+    "B",
+    "C",
+    "D"
+  ],
+  "description": "证据等级（§6.2）：A/B/C/D 是证据强度，不是模型置信概率。\n\n发布证据与数值证据分别评级；STRICT 要求两者 ≥B。",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://industrypulse.local/contracts/1.0.0/pit.EvidenceGrade.schema.json",
+  "x-contracts-version": "1.0.0"
+}

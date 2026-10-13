@@ -1,0 +1,17 @@
+{
+  "title": "EvidenceClass",
+  "type": "string",
+  "enum": [
+    "official_page",
+    "official_attachment",
+    "official_mirror",
+    "official_newsletter",
+    "authorized_export",
+    "manual_upload",
+    "search_snippet"
+  ],
+  "description": "证据类别（§5.3 回退层次）：snippet 类只作线索，不作数值证据。",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://industrypulse.local/contracts/1.0.0/observation.EvidenceClass.schema.json",
+  "x-contracts-version": "1.0.0"
+}

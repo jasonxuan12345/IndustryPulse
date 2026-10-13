@@ -1,0 +1,66 @@
+{
+  "$defs": {
+    "ResearchMode": {
+      "description": "历史研究模式（§6.3，枚举值冻结）。",
+      "enum": [
+        "strict_pit",
+        "reconstructed_pit",
+        "exploratory"
+      ],
+      "title": "ResearchMode",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "分析上下文（§7.4）：一切查询/特征/预测的公共入参。\n\n``as_of`` 是模拟决策时点（§6.1 decision_as_of），必须是时区感知时间；\nUI 边界统一转换为 Asia/Shanghai。",
+  "properties": {
+    "as_of": {
+      "format": "date-time",
+      "title": "As Of",
+      "type": "string"
+    },
+    "research_mode": {
+      "$ref": "#/$defs/ResearchMode"
+    },
+    "industry_id": {
+      "pattern": "^[A-Z][A-Z0-9._-]*$",
+      "title": "Industry Id",
+      "type": "string"
+    },
+    "dataset_snapshot_id": {
+      "minLength": 1,
+      "title": "Dataset Snapshot Id",
+      "type": "string"
+    },
+    "mapping_version": {
+      "minLength": 1,
+      "title": "Mapping Version",
+      "type": "string"
+    },
+    "target_version": {
+      "anyOf": [
+        {
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Target Version"
+    }
+  },
+  "required": [
+    "as_of",
+    "research_mode",
+    "industry_id",
+    "dataset_snapshot_id",
+    "mapping_version"
+  ],
+  "title": "AnalysisContext",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://industrypulse.local/contracts/1.0.0/context.AnalysisContext.schema.json",
+  "x-contracts-version": "1.0.0"
+}

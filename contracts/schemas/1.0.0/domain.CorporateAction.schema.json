@@ -1,0 +1,55 @@
+{
+  "additionalProperties": false,
+  "description": "公司行动（§7.2 corporate_action）：分红/份额变动，回测必须处理（INVEST-002）。",
+  "properties": {
+    "asset_id": {
+      "pattern": "^[A-Z][A-Z0-9._-]*$",
+      "title": "Asset Id",
+      "type": "string"
+    },
+    "ex_date": {
+      "format": "date",
+      "title": "Ex Date",
+      "type": "string"
+    },
+    "action_type": {
+      "minLength": 1,
+      "title": "Action Type",
+      "type": "string"
+    },
+    "distribution_per_unit": {
+      "anyOf": [
+        {
+          "minimum": 0.0,
+          "type": "number"
+        },
+        {
+          "type": "string"
+        }
+      ],
+      "title": "Distribution Per Unit"
+    },
+    "currency": {
+      "default": "CNY",
+      "minLength": 1,
+      "title": "Currency",
+      "type": "string"
+    },
+    "notes": {
+      "default": "",
+      "title": "Notes",
+      "type": "string"
+    }
+  },
+  "required": [
+    "asset_id",
+    "ex_date",
+    "action_type",
+    "distribution_per_unit"
+  ],
+  "title": "CorporateAction",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://industrypulse.local/contracts/1.0.0/domain.CorporateAction.schema.json",
+  "x-contracts-version": "1.0.0"
+}

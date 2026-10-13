@@ -1,0 +1,176 @@
+{
+  "$defs": {
+    "FeatureFrame": {
+      "additionalProperties": false,
+      "description": "特征快照（§7.2 feature_snapshot / §10.3）：外存工件携带哈希与规格版本。",
+      "properties": {
+        "industry_id": {
+          "pattern": "^[A-Z][A-Z0-9._-]*$",
+          "title": "Industry Id",
+          "type": "string"
+        },
+        "snapshot_id": {
+          "minLength": 1,
+          "title": "Snapshot Id",
+          "type": "string"
+        },
+        "feature_spec_version": {
+          "minLength": 1,
+          "title": "Feature Spec Version",
+          "type": "string"
+        },
+        "schema_hash": {
+          "minLength": 1,
+          "title": "Schema Hash",
+          "type": "string"
+        },
+        "research_mode": {
+          "$ref": "#/$defs/ResearchMode"
+        },
+        "built_at": {
+          "format": "date-time",
+          "title": "Built At",
+          "type": "string"
+        },
+        "rows": {
+          "items": {
+            "$ref": "#/$defs/FeatureRow"
+          },
+          "minItems": 1,
+          "title": "Rows",
+          "type": "array"
+        }
+      },
+      "required": [
+        "industry_id",
+        "snapshot_id",
+        "feature_spec_version",
+        "schema_hash",
+        "research_mode",
+        "built_at",
+        "rows"
+      ],
+      "title": "FeatureFrame",
+      "type": "object"
+    },
+    "FeatureRow": {
+      "additionalProperties": false,
+      "description": "单期特征行：``decision_as_of`` 为模拟决策时点（月末快照，§10.2）。",
+      "properties": {
+        "decision_as_of": {
+          "format": "date-time",
+          "title": "Decision As Of",
+          "type": "string"
+        },
+        "industry_id": {
+          "pattern": "^[A-Z][A-Z0-9._-]*$",
+          "title": "Industry Id",
+          "type": "string"
+        },
+        "features": {
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "title": "Features",
+          "type": "object"
+        },
+        "missing_features": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Missing Features",
+          "type": "array"
+        },
+        "max_ancestor_available_at": {
+          "format": "date-time",
+          "title": "Max Ancestor Available At",
+          "type": "string"
+        },
+        "latest_source_release_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Latest Source Release At"
+        }
+      },
+      "required": [
+        "decision_as_of",
+        "industry_id",
+        "features",
+        "max_ancestor_available_at"
+      ],
+      "title": "FeatureRow",
+      "type": "object"
+    },
+    "ResearchMode": {
+      "description": "历史研究模式（§6.3，枚举值冻结）。",
+      "enum": [
+        "strict_pit",
+        "reconstructed_pit",
+        "exploratory"
+      ],
+      "title": "ResearchMode",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "训练帧：特征与标签逐行对齐（§11.1 规程步骤 2）。",
+  "properties": {
+    "features": {
+      "$ref": "#/$defs/FeatureFrame"
+    },
+    "labels": {
+      "items": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "title": "Labels",
+      "type": "array"
+    },
+    "label_available_at": {
+      "items": {
+        "anyOf": [
+          {
+            "format": "date-time",
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "title": "Label Available At",
+      "type": "array"
+    }
+  },
+  "required": [
+    "features",
+    "labels",
+    "label_available_at"
+  ],
+  "title": "LabeledFeatureFrame",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://industrypulse.local/contracts/1.0.0/model.LabeledFeatureFrame.schema.json",
+  "x-contracts-version": "1.0.0"
+}

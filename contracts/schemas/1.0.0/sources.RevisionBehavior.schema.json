@@ -1,0 +1,13 @@
+{
+  "title": "RevisionBehavior",
+  "type": "string",
+  "enum": [
+    "first_release_final",
+    "revised_later",
+    "continuously_revised"
+  ],
+  "description": "修订行为（§7.2 source/series registry 共用口径）。",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://industrypulse.local/contracts/1.0.0/sources.RevisionBehavior.schema.json",
+  "x-contracts-version": "1.0.0"
+}

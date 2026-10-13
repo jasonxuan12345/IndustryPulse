@@ -1,0 +1,70 @@
+{
+  "$defs": {
+    "SplitKind": {
+      "description": "时间折类型（§12.1：expanding 为主、fixed 60 月 rolling 做稳健性）。",
+      "enum": [
+        "expanding",
+        "rolling"
+      ],
+      "title": "SplitKind",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "单条时间折（§12.1/§12.2）：purge/embargo 月数显式声明。",
+  "properties": {
+    "split_id": {
+      "minLength": 1,
+      "title": "Split Id",
+      "type": "string"
+    },
+    "kind": {
+      "$ref": "#/$defs/SplitKind"
+    },
+    "train_start": {
+      "format": "date",
+      "title": "Train Start",
+      "type": "string"
+    },
+    "train_end": {
+      "format": "date",
+      "title": "Train End",
+      "type": "string"
+    },
+    "test_start": {
+      "format": "date",
+      "title": "Test Start",
+      "type": "string"
+    },
+    "test_end": {
+      "format": "date",
+      "title": "Test End",
+      "type": "string"
+    },
+    "purge_months": {
+      "minimum": 0,
+      "title": "Purge Months",
+      "type": "integer"
+    },
+    "embargo_months": {
+      "minimum": 0,
+      "title": "Embargo Months",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "split_id",
+    "kind",
+    "train_start",
+    "train_end",
+    "test_start",
+    "test_end",
+    "purge_months",
+    "embargo_months"
+  ],
+  "title": "SplitSpec",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://industrypulse.local/contracts/1.0.0/research.SplitSpec.schema.json",
+  "x-contracts-version": "1.0.0"
+}

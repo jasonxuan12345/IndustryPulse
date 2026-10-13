@@ -1,0 +1,69 @@
+{
+  "additionalProperties": false,
+  "description": "单期标签：``label_available_at`` 为 None 表示尚未可评估，禁止当训练标签。",
+  "properties": {
+    "industry_id": {
+      "pattern": "^[A-Z][A-Z0-9._-]*$",
+      "title": "Industry Id",
+      "type": "string"
+    },
+    "decision_as_of": {
+      "format": "date-time",
+      "title": "Decision As Of",
+      "type": "string"
+    },
+    "target_period": {
+      "minLength": 1,
+      "title": "Target Period",
+      "type": "string"
+    },
+    "value": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Value"
+    },
+    "label_available_at": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Label Available At"
+    },
+    "unscorable_reason": {
+      "anyOf": [
+        {
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Unscorable Reason"
+    }
+  },
+  "required": [
+    "industry_id",
+    "decision_as_of",
+    "target_period",
+    "value",
+    "label_available_at"
+  ],
+  "title": "TargetRow",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://industrypulse.local/contracts/1.0.0/model.TargetRow.schema.json",
+  "x-contracts-version": "1.0.0"
+}

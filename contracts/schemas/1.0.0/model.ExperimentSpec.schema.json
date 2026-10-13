@@ -1,0 +1,244 @@
+{
+  "$defs": {
+    "ApprovalState": {
+      "description": "实验审批状态（§12.4 approval_state）：FROZEN 之后改动即须新建 run。",
+      "enum": [
+        "draft",
+        "frozen",
+        "approved",
+        "archived"
+      ],
+      "title": "ApprovalState",
+      "type": "string"
+    },
+    "ResearchMode": {
+      "description": "历史研究模式（§6.3，枚举值冻结）。",
+      "enum": [
+        "strict_pit",
+        "reconstructed_pit",
+        "exploratory"
+      ],
+      "title": "ResearchMode",
+      "type": "string"
+    },
+    "SplitKind": {
+      "description": "时间折类型（§12.1：expanding 为主、fixed 60 月 rolling 做稳健性）。",
+      "enum": [
+        "expanding",
+        "rolling"
+      ],
+      "title": "SplitKind",
+      "type": "string"
+    },
+    "SplitSpec": {
+      "additionalProperties": false,
+      "description": "单条时间折（§12.1/§12.2）：purge/embargo 月数显式声明。",
+      "properties": {
+        "split_id": {
+          "minLength": 1,
+          "title": "Split Id",
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/SplitKind"
+        },
+        "train_start": {
+          "format": "date",
+          "title": "Train Start",
+          "type": "string"
+        },
+        "train_end": {
+          "format": "date",
+          "title": "Train End",
+          "type": "string"
+        },
+        "test_start": {
+          "format": "date",
+          "title": "Test Start",
+          "type": "string"
+        },
+        "test_end": {
+          "format": "date",
+          "title": "Test End",
+          "type": "string"
+        },
+        "purge_months": {
+          "minimum": 0,
+          "title": "Purge Months",
+          "type": "integer"
+        },
+        "embargo_months": {
+          "minimum": 0,
+          "title": "Embargo Months",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "split_id",
+        "kind",
+        "train_start",
+        "train_end",
+        "test_start",
+        "test_end",
+        "purge_months",
+        "embargo_months"
+      ],
+      "title": "SplitSpec",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "冻结实验 manifest（§12.4 全字段）：预注册，先冻结后跑数。",
+  "properties": {
+    "experiment_id": {
+      "minLength": 1,
+      "title": "Experiment Id",
+      "type": "string"
+    },
+    "code_sha": {
+      "minLength": 1,
+      "title": "Code Sha",
+      "type": "string"
+    },
+    "dependencies_hash": {
+      "minLength": 1,
+      "title": "Dependencies Hash",
+      "type": "string"
+    },
+    "dataset_manifest_hash": {
+      "minLength": 1,
+      "title": "Dataset Manifest Hash",
+      "type": "string"
+    },
+    "industry_map_version": {
+      "minLength": 1,
+      "title": "Industry Map Version",
+      "type": "string"
+    },
+    "pit_mode": {
+      "$ref": "#/$defs/ResearchMode"
+    },
+    "train_cutoff": {
+      "format": "date-time",
+      "title": "Train Cutoff",
+      "type": "string"
+    },
+    "outer_splits": {
+      "items": {
+        "$ref": "#/$defs/SplitSpec"
+      },
+      "minItems": 1,
+      "title": "Outer Splits",
+      "type": "array"
+    },
+    "inner_splits": {
+      "items": {
+        "$ref": "#/$defs/SplitSpec"
+      },
+      "title": "Inner Splits",
+      "type": "array"
+    },
+    "feature_list": {
+      "items": {
+        "minLength": 1,
+        "type": "string"
+      },
+      "minItems": 1,
+      "title": "Feature List",
+      "type": "array"
+    },
+    "model_grid": {
+      "additionalProperties": {
+        "additionalProperties": {
+          "items": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "boolean"
+              }
+            ]
+          },
+          "type": "array"
+        },
+        "type": "object"
+      },
+      "title": "Model Grid",
+      "type": "object"
+    },
+    "random_seed": {
+      "title": "Random Seed",
+      "type": "integer"
+    },
+    "target_definition": {
+      "minLength": 1,
+      "title": "Target Definition",
+      "type": "string"
+    },
+    "baselines": {
+      "items": {
+        "minLength": 1,
+        "type": "string"
+      },
+      "minItems": 1,
+      "title": "Baselines",
+      "type": "array"
+    },
+    "primary_metric": {
+      "minLength": 1,
+      "title": "Primary Metric",
+      "type": "string"
+    },
+    "secondary_metrics": {
+      "items": {
+        "minLength": 1,
+        "type": "string"
+      },
+      "title": "Secondary Metrics",
+      "type": "array"
+    },
+    "approval_state": {
+      "$ref": "#/$defs/ApprovalState",
+      "default": "draft"
+    },
+    "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+    },
+    "notes": {
+      "default": "",
+      "title": "Notes",
+      "type": "string"
+    }
+  },
+  "required": [
+    "experiment_id",
+    "code_sha",
+    "dependencies_hash",
+    "dataset_manifest_hash",
+    "industry_map_version",
+    "pit_mode",
+    "train_cutoff",
+    "outer_splits",
+    "feature_list",
+    "model_grid",
+    "random_seed",
+    "target_definition",
+    "baselines",
+    "primary_metric",
+    "created_at"
+  ],
+  "title": "ExperimentSpec",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://industrypulse.local/contracts/1.0.0/model.ExperimentSpec.schema.json",
+  "x-contracts-version": "1.0.0"
+}

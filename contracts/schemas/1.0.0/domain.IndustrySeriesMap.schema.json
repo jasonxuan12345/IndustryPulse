@@ -1,0 +1,74 @@
+{
+  "$defs": {
+    "SeriesRole": {
+      "description": "序列在行业中的角色（§7.2 industry_series_map.role）。",
+      "enum": [
+        "label",
+        "feature",
+        "context",
+        "macro_proxy"
+      ],
+      "title": "SeriesRole",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "序列→行业映射（§7.2 industry_series_map）。",
+  "properties": {
+    "industry_id": {
+      "pattern": "^[A-Z][A-Z0-9._-]*$",
+      "title": "Industry Id",
+      "type": "string"
+    },
+    "series_id": {
+      "pattern": "^[a-z0-9][a-z0-9._-]*$",
+      "title": "Series Id",
+      "type": "string"
+    },
+    "role": {
+      "$ref": "#/$defs/SeriesRole"
+    },
+    "weight_policy": {
+      "anyOf": [
+        {
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Weight Policy"
+    },
+    "valid_from": {
+      "format": "date",
+      "title": "Valid From",
+      "type": "string"
+    },
+    "valid_to": {
+      "anyOf": [
+        {
+          "format": "date",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Valid To"
+    }
+  },
+  "required": [
+    "industry_id",
+    "series_id",
+    "role",
+    "valid_from"
+  ],
+  "title": "IndustrySeriesMap",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://industrypulse.local/contracts/1.0.0/domain.IndustrySeriesMap.schema.json",
+  "x-contracts-version": "1.0.0"
+}

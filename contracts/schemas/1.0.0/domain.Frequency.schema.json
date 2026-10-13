@@ -1,0 +1,17 @@
+{
+  "title": "Frequency",
+  "type": "string",
+  "enum": [
+    "D",
+    "W",
+    "10D",
+    "M",
+    "Q",
+    "EVENT",
+    "IRREGULAR"
+  ],
+  "description": "发布频率（§4.1 表）。EVENT 指事件文本，不构成数值序列。",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://industrypulse.local/contracts/1.0.0/domain.Frequency.schema.json",
+  "x-contracts-version": "1.0.0"
+}

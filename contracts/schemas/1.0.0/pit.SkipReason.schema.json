@@ -1,0 +1,16 @@
+{
+  "title": "SkipReason",
+  "type": "string",
+  "enum": [
+    "future_release",
+    "same_day_time_unknown",
+    "conservative_lag_not_elapsed",
+    "insufficient_release_evidence",
+    "insufficient_value_evidence",
+    "basis_not_allowed"
+  ],
+  "description": "as-of 选择中被排除的原因（覆盖报告/审计用）。",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://industrypulse.local/contracts/1.0.0/pit.SkipReason.schema.json",
+  "x-contracts-version": "1.0.0"
+}

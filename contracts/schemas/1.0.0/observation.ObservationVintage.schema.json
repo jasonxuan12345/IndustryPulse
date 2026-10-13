@@ -1,0 +1,237 @@
+{
+  "$defs": {
+    "AvailabilityBasis": {
+      "description": "available_at 的语义依据（§6.1/§6.4）。\n\n- OBSERVED_PUBLICATION：有可核验的同期发布时点证据；\n- ASSUMED_POLICY_LAG：按发布日历保守推算（\"通常月底发布\"类）；\n- RETRIEVAL_TIME：只知本系统抓取时点——历史 as-of 查询一律不可见。",
+      "enum": [
+        "observed_publication",
+        "assumed_policy_lag",
+        "retrieval_time"
+      ],
+      "title": "AvailabilityBasis",
+      "type": "string"
+    },
+    "EvidenceGrade": {
+      "description": "证据等级（§6.2）：A/B/C/D 是证据强度，不是模型置信概率。\n\n发布证据与数值证据分别评级；STRICT 要求两者 ≥B。",
+      "enum": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "title": "EvidenceGrade",
+      "type": "string"
+    },
+    "MissingReason": {
+      "description": "缺失原因（§7.5）：禁止把 0 当缺失，缺失必须携带原因。",
+      "enum": [
+        "not_yet_published",
+        "not_collected",
+        "withdrawn_by_publisher",
+        "license_not_granted",
+        "fetch_failed",
+        "parse_failed",
+        "unknown"
+      ],
+      "title": "MissingReason",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "单个序列-所属期的一条数值版本（§7.2 observation_vintage）。\n\n六时间属性（§6.1）落位：``observation_start/end``（经济所属期）、\n``publication_at``（官方公开时点）、``source_known_at``（公众可知时点）、\n``retrieved_at``（本系统抓取时点——回填晚于发布是正常的）、\n``vintage_valid_from/to``（本版本有效区间）；\n``decision_as_of`` 属于 AnalysisContext，不在行上。\n\n修订不改旧行：任何修订新增一行、``vintage_id`` 递增（§5.5）。\n同一 (series_id, observation_start) 的多版本共存是本合同的核心不变式。",
+  "properties": {
+    "vintage_id": {
+      "minimum": 1,
+      "title": "Vintage Id",
+      "type": "integer"
+    },
+    "series_id": {
+      "pattern": "^[a-z0-9][a-z0-9._-]*$",
+      "title": "Series Id",
+      "type": "string"
+    },
+    "observation_start": {
+      "format": "date",
+      "title": "Observation Start",
+      "type": "string"
+    },
+    "observation_end": {
+      "format": "date",
+      "title": "Observation End",
+      "type": "string"
+    },
+    "value": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Value"
+    },
+    "missing_reason": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/MissingReason"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "unit": {
+      "minLength": 1,
+      "title": "Unit",
+      "type": "string"
+    },
+    "unit_scale": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "string"
+        }
+      ],
+      "default": "1",
+      "title": "Unit Scale"
+    },
+    "currency": {
+      "default": "CNY",
+      "minLength": 1,
+      "title": "Currency",
+      "type": "string"
+    },
+    "publication_at": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Publication At"
+    },
+    "source_known_at": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Source Known At"
+    },
+    "retrieved_at": {
+      "format": "date-time",
+      "title": "Retrieved At",
+      "type": "string"
+    },
+    "available_at": {
+      "format": "date-time",
+      "title": "Available At",
+      "type": "string"
+    },
+    "availability_basis": {
+      "$ref": "#/$defs/AvailabilityBasis"
+    },
+    "vintage_valid_from": {
+      "format": "date-time",
+      "title": "Vintage Valid From",
+      "type": "string"
+    },
+    "vintage_valid_to": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Vintage Valid To"
+    },
+    "release_evidence": {
+      "$ref": "#/$defs/EvidenceGrade"
+    },
+    "value_evidence": {
+      "$ref": "#/$defs/EvidenceGrade"
+    },
+    "artifact_id": {
+      "anyOf": [
+        {
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Artifact Id"
+    },
+    "evidence_candidate_id": {
+      "anyOf": [
+        {
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Evidence Candidate Id"
+    },
+    "source_url": {
+      "anyOf": [
+        {
+          "pattern": "^https?://[^\\s]+$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Source Url"
+    },
+    "notes": {
+      "default": "",
+      "title": "Notes",
+      "type": "string"
+    }
+  },
+  "required": [
+    "vintage_id",
+    "series_id",
+    "observation_start",
+    "observation_end",
+    "value",
+    "unit",
+    "retrieved_at",
+    "available_at",
+    "availability_basis",
+    "vintage_valid_from",
+    "release_evidence",
+    "value_evidence"
+  ],
+  "title": "ObservationVintage",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://industrypulse.local/contracts/1.0.0/observation.ObservationVintage.schema.json",
+  "x-contracts-version": "1.0.0"
+}

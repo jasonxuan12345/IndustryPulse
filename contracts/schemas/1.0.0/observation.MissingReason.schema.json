@@ -1,0 +1,17 @@
+{
+  "title": "MissingReason",
+  "type": "string",
+  "enum": [
+    "not_yet_published",
+    "not_collected",
+    "withdrawn_by_publisher",
+    "license_not_granted",
+    "fetch_failed",
+    "parse_failed",
+    "unknown"
+  ],
+  "description": "缺失原因（§7.5）：禁止把 0 当缺失，缺失必须携带原因。",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://industrypulse.local/contracts/1.0.0/observation.MissingReason.schema.json",
+  "x-contracts-version": "1.0.0"
+}

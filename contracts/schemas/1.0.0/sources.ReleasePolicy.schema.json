@@ -1,0 +1,56 @@
+{
+  "additionalProperties": false,
+  "description": "发布政策（版本化）：驱动 RECONSTRUCTED 模式的保守可用日计算（§6.4）。\n\n``release_lag_days`` 为所属期期末到通常发布日的自然日上限（应取可验证\n历史年份的 p99，不允许拍脑袋常数）；``safety_days`` 为额外安全垫。\n``release_policy_version`` 不得回写到已冻结实验（§6.4）。",
+  "properties": {
+    "policy_version": {
+      "minLength": 1,
+      "title": "Policy Version",
+      "type": "string"
+    },
+    "description": {
+      "minLength": 1,
+      "title": "Description",
+      "type": "string"
+    },
+    "timezone": {
+      "default": "Asia/Shanghai",
+      "minLength": 1,
+      "title": "Timezone",
+      "type": "string"
+    },
+    "release_lag_days": {
+      "minimum": 0,
+      "title": "Release Lag Days",
+      "type": "integer"
+    },
+    "safety_days": {
+      "default": 0,
+      "minimum": 0,
+      "title": "Safety Days",
+      "type": "integer"
+    },
+    "intraday_time": {
+      "anyOf": [
+        {
+          "format": "time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Intraday Time"
+    }
+  },
+  "required": [
+    "policy_version",
+    "description",
+    "release_lag_days"
+  ],
+  "title": "ReleasePolicy",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://industrypulse.local/contracts/1.0.0/sources.ReleasePolicy.schema.json",
+  "x-contracts-version": "1.0.0"
+}

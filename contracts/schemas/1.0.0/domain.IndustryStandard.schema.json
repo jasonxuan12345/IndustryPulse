@@ -1,0 +1,14 @@
+{
+  "title": "IndustryStandard",
+  "type": "string",
+  "enum": [
+    "GB/T 4754-2017",
+    "GB/T 4754-2011",
+    "CSI_INDUSTRY",
+    "PROJECT_INTERNAL"
+  ],
+  "description": "行业分类标准（§7.2 industry_taxonomy.standard）。",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://industrypulse.local/contracts/1.0.0/domain.IndustryStandard.schema.json",
+  "x-contracts-version": "1.0.0"
+}

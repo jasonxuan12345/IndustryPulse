@@ -1,0 +1,7 @@
+{
+  "request_id": "req-example-err",
+  "code": "PIT_NOT_ELIGIBLE",
+  "message": "as_of=2025-08-31 下 STRICT_PIT 模式要求发布/数值证据 ≥B",
+  "remediation": "当前研究模式下证据等级不足；切换模式或补充首发证据。",
+  "http_status": 422
+}

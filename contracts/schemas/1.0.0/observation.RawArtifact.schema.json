@@ -1,0 +1,88 @@
+{
+  "additionalProperties": false,
+  "description": "原始工件归档（§7.2 raw_artifact）：原件字节不覆写，只增不改。",
+  "properties": {
+    "artifact_id": {
+      "minLength": 1,
+      "title": "Artifact Id",
+      "type": "string"
+    },
+    "source_id": {
+      "pattern": "^[a-z0-9][a-z0-9._-]*$",
+      "title": "Source Id",
+      "type": "string"
+    },
+    "uri": {
+      "minLength": 1,
+      "title": "Uri",
+      "type": "string"
+    },
+    "sha256": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Sha256",
+      "type": "string"
+    },
+    "mime": {
+      "minLength": 1,
+      "title": "Mime",
+      "type": "string"
+    },
+    "byte_size": {
+      "minimum": 0,
+      "title": "Byte Size",
+      "type": "integer"
+    },
+    "retrieved_at": {
+      "format": "date-time",
+      "title": "Retrieved At",
+      "type": "string"
+    },
+    "source_url": {
+      "anyOf": [
+        {
+          "pattern": "^https?://[^\\s]+$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Source Url"
+    },
+    "discovery_url": {
+      "anyOf": [
+        {
+          "pattern": "^https?://[^\\s]+$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Discovery Url"
+    },
+    "http_headers": {
+      "additionalProperties": {
+        "type": "string"
+      },
+      "title": "Http Headers",
+      "type": "object"
+    }
+  },
+  "required": [
+    "artifact_id",
+    "source_id",
+    "uri",
+    "sha256",
+    "mime",
+    "byte_size",
+    "retrieved_at"
+  ],
+  "title": "RawArtifact",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://industrypulse.local/contracts/1.0.0/observation.RawArtifact.schema.json",
+  "x-contracts-version": "1.0.0"
+}

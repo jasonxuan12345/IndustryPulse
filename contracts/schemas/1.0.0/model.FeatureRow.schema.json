@@ -1,0 +1,66 @@
+{
+  "additionalProperties": false,
+  "description": "单期特征行：``decision_as_of`` 为模拟决策时点（月末快照，§10.2）。",
+  "properties": {
+    "decision_as_of": {
+      "format": "date-time",
+      "title": "Decision As Of",
+      "type": "string"
+    },
+    "industry_id": {
+      "pattern": "^[A-Z][A-Z0-9._-]*$",
+      "title": "Industry Id",
+      "type": "string"
+    },
+    "features": {
+      "additionalProperties": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "title": "Features",
+      "type": "object"
+    },
+    "missing_features": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Missing Features",
+      "type": "array"
+    },
+    "max_ancestor_available_at": {
+      "format": "date-time",
+      "title": "Max Ancestor Available At",
+      "type": "string"
+    },
+    "latest_source_release_at": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Latest Source Release At"
+    }
+  },
+  "required": [
+    "decision_as_of",
+    "industry_id",
+    "features",
+    "max_ancestor_available_at"
+  ],
+  "title": "FeatureRow",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://industrypulse.local/contracts/1.0.0/model.FeatureRow.schema.json",
+  "x-contracts-version": "1.0.0"
+}

@@ -1,0 +1,239 @@
+{
+  "$defs": {
+    "CalibrationStatus": {
+      "enum": [
+        "calibrated",
+        "uncalibrated",
+        "not_applicable"
+      ],
+      "title": "CalibrationStatus",
+      "type": "string"
+    },
+    "ModelStatus": {
+      "description": "模型状态（§11.6/§2.3）：degraded 必须显式展示，禁止静默冒充今日预测。",
+      "enum": [
+        "ok",
+        "degraded",
+        "uncalibrated",
+        "insufficient_evidence",
+        "no_predictive_edge",
+        "not_validated"
+      ],
+      "title": "ModelStatus",
+      "type": "string"
+    },
+    "Prediction": {
+      "additionalProperties": false,
+      "description": "冻结预测（§11.6 ForecastResult 全字段）。预测存档不可回改。",
+      "properties": {
+        "prediction_id": {
+          "minLength": 1,
+          "title": "Prediction Id",
+          "type": "string"
+        },
+        "model_id": {
+          "minLength": 1,
+          "title": "Model Id",
+          "type": "string"
+        },
+        "model_version": {
+          "minLength": 1,
+          "title": "Model Version",
+          "type": "string"
+        },
+        "industry_id": {
+          "pattern": "^[A-Z][A-Z0-9._-]*$",
+          "title": "Industry Id",
+          "type": "string"
+        },
+        "target_id": {
+          "minLength": 1,
+          "title": "Target Id",
+          "type": "string"
+        },
+        "as_of": {
+          "format": "date-time",
+          "title": "As Of",
+          "type": "string"
+        },
+        "horizon_months": {
+          "maximum": 6,
+          "minimum": 1,
+          "title": "Horizon Months",
+          "type": "integer"
+        },
+        "research_mode": {
+          "$ref": "#/$defs/ResearchMode"
+        },
+        "predicted_probability": {
+          "anyOf": [
+            {
+              "maximum": 1.0,
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Predicted Probability"
+        },
+        "point_estimate": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Point Estimate"
+        },
+        "prediction_interval": {
+          "anyOf": [
+            {
+              "maxItems": 2,
+              "minItems": 2,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Prediction Interval"
+        },
+        "baseline_probability": {
+          "anyOf": [
+            {
+              "maximum": 1.0,
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Baseline Probability"
+        },
+        "calibration_status": {
+          "$ref": "#/$defs/CalibrationStatus"
+        },
+        "top_features": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Top Features",
+          "type": "array"
+        },
+        "driver_evidence_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Driver Evidence Ids",
+          "type": "array"
+        },
+        "missing_features": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Missing Features",
+          "type": "array"
+        },
+        "model_status": {
+          "$ref": "#/$defs/ModelStatus"
+        },
+        "oos_metrics_by_year": {
+          "additionalProperties": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "type": "object"
+          },
+          "title": "Oos Metrics By Year",
+          "type": "object"
+        },
+        "expiry_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Expiry At"
+        },
+        "run_id": {
+          "minLength": 1,
+          "title": "Run Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "prediction_id",
+        "model_id",
+        "model_version",
+        "industry_id",
+        "target_id",
+        "as_of",
+        "horizon_months",
+        "research_mode",
+        "predicted_probability",
+        "point_estimate",
+        "prediction_interval",
+        "baseline_probability",
+        "calibration_status",
+        "model_status",
+        "run_id"
+      ],
+      "title": "Prediction",
+      "type": "object"
+    },
+    "ResearchMode": {
+      "description": "历史研究模式（§6.3，枚举值冻结）。",
+      "enum": [
+        "strict_pit",
+        "reconstructed_pit",
+        "exploratory"
+      ],
+      "title": "ResearchMode",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "一次 run 的预测集合。",
+  "properties": {
+    "run_id": {
+      "minLength": 1,
+      "title": "Run Id",
+      "type": "string"
+    },
+    "predictions": {
+      "items": {
+        "$ref": "#/$defs/Prediction"
+      },
+      "minItems": 1,
+      "title": "Predictions",
+      "type": "array"
+    }
+  },
+  "required": [
+    "run_id",
+    "predictions"
+  ],
+  "title": "PredictionFrame",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://industrypulse.local/contracts/1.0.0/model.PredictionFrame.schema.json",
+  "x-contracts-version": "1.0.0"
+}

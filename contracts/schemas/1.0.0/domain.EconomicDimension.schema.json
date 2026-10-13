@@ -1,0 +1,16 @@
+{
+  "title": "EconomicDimension",
+  "type": "string",
+  "enum": [
+    "demand",
+    "supply",
+    "inventory",
+    "price",
+    "profitability",
+    "liquidity"
+  ],
+  "description": "六个经济维度（§8.1）：缺失维度显示 coverage，不得强行算 0 分。",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://industrypulse.local/contracts/1.0.0/domain.EconomicDimension.schema.json",
+  "x-contracts-version": "1.0.0"
+}

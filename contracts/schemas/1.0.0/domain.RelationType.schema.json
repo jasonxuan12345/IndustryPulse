@@ -1,0 +1,13 @@
+{
+  "title": "RelationType",
+  "type": "string",
+  "enum": [
+    "supplies_input",
+    "demands_output",
+    "shared_driver"
+  ],
+  "description": "产业链关系方向（§7.2 industry_relation.relation_type）。",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://industrypulse.local/contracts/1.0.0/domain.RelationType.schema.json",
+  "x-contracts-version": "1.0.0"
+}

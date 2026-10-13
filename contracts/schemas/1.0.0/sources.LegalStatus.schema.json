@@ -1,0 +1,15 @@
+{
+  "title": "LegalStatus",
+  "type": "string",
+  "enum": [
+    "public_official",
+    "manual_export_allowed",
+    "pending_review",
+    "license_required",
+    "denied"
+  ],
+  "description": "许可状态机（S-001 验收：license denied 必须阻断采集）。",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://industrypulse.local/contracts/1.0.0/sources.LegalStatus.schema.json",
+  "x-contracts-version": "1.0.0"
+}

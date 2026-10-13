@@ -1,0 +1,276 @@
+{
+  "$defs": {
+    "EvidenceClass": {
+      "description": "证据类别（§5.3 回退层次）：snippet 类只作线索，不作数值证据。",
+      "enum": [
+        "official_page",
+        "official_attachment",
+        "official_mirror",
+        "official_newsletter",
+        "authorized_export",
+        "manual_upload",
+        "search_snippet"
+      ],
+      "title": "EvidenceClass",
+      "type": "string"
+    },
+    "ExtractionEngine": {
+      "description": "抽取引擎（§5.1：确定性解析优先，LLM 仅结构不规则时辅助）。",
+      "enum": [
+        "deterministic_html",
+        "deterministic_table",
+        "llm_assisted",
+        "manual"
+      ],
+      "title": "ExtractionEngine",
+      "type": "string"
+    },
+    "MissingReason": {
+      "description": "缺失原因（§7.5）：禁止把 0 当缺失，缺失必须携带原因。",
+      "enum": [
+        "not_yet_published",
+        "not_collected",
+        "withdrawn_by_publisher",
+        "license_not_granted",
+        "fetch_failed",
+        "parse_failed",
+        "unknown"
+      ],
+      "title": "MissingReason",
+      "type": "string"
+    },
+    "VerificationStatus": {
+      "description": "AI/规则候选的核验状态（§5.2/§5.6 提示词合同）。",
+      "enum": [
+        "verified",
+        "needs_review",
+        "fetch_failed",
+        "release_unverified",
+        "value_vintage_unverified",
+        "rejected"
+      ],
+      "title": "VerificationStatus",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "证据候选（§5.4 全字段清单）：AI/规则抽取的输出，未审核不得进 Silver（A-012）。\n\n找不到的字段输出 null + missing_reason；严禁输出看似合理的数字。",
+  "properties": {
+    "candidate_id": {
+      "minLength": 1,
+      "title": "Candidate Id",
+      "type": "string"
+    },
+    "query_id": {
+      "minLength": 1,
+      "title": "Query Id",
+      "type": "string"
+    },
+    "source_url": {
+      "pattern": "^https?://[^\\s]+$",
+      "title": "Source Url",
+      "type": "string"
+    },
+    "discovery_url": {
+      "anyOf": [
+        {
+          "pattern": "^https?://[^\\s]+$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Discovery Url"
+    },
+    "publisher": {
+      "minLength": 1,
+      "title": "Publisher",
+      "type": "string"
+    },
+    "document_title": {
+      "minLength": 1,
+      "title": "Document Title",
+      "type": "string"
+    },
+    "publication_at": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Publication At"
+    },
+    "retrieved_at": {
+      "format": "date-time",
+      "title": "Retrieved At",
+      "type": "string"
+    },
+    "raw_sha256": {
+      "anyOf": [
+        {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Raw Sha256"
+    },
+    "table_locator": {
+      "anyOf": [
+        {
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Table Locator"
+    },
+    "row_label": {
+      "anyOf": [
+        {
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Row Label"
+    },
+    "column_label": {
+      "anyOf": [
+        {
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Column Label"
+    },
+    "observed_period": {
+      "anyOf": [
+        {
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Observed Period"
+    },
+    "raw_text": {
+      "anyOf": [
+        {
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Raw Text"
+    },
+    "parsed_value": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Parsed Value"
+    },
+    "unit": {
+      "anyOf": [
+        {
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Unit"
+    },
+    "missing_reason": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/MissingReason"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "extraction_engine": {
+      "$ref": "#/$defs/ExtractionEngine"
+    },
+    "evidence_class": {
+      "$ref": "#/$defs/EvidenceClass"
+    },
+    "verification_status": {
+      "$ref": "#/$defs/VerificationStatus"
+    },
+    "reviewer": {
+      "anyOf": [
+        {
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Reviewer"
+    },
+    "notes": {
+      "default": "",
+      "title": "Notes",
+      "type": "string"
+    }
+  },
+  "required": [
+    "candidate_id",
+    "query_id",
+    "source_url",
+    "publisher",
+    "document_title",
+    "publication_at",
+    "retrieved_at",
+    "extraction_engine",
+    "evidence_class",
+    "verification_status"
+  ],
+  "title": "EvidenceCandidate",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://industrypulse.local/contracts/1.0.0/observation.EvidenceCandidate.schema.json",
+  "x-contracts-version": "1.0.0"
+}

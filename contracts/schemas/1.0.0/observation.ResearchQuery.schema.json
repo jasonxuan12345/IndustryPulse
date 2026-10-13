@@ -1,0 +1,65 @@
+{
+  "additionalProperties": false,
+  "description": "AI 检索任务（§5.2 步骤 1）：可复现的最小检索单元。",
+  "properties": {
+    "query_id": {
+      "minLength": 1,
+      "title": "Query Id",
+      "type": "string"
+    },
+    "series_id": {
+      "pattern": "^[a-z0-9][a-z0-9._-]*$",
+      "title": "Series Id",
+      "type": "string"
+    },
+    "observation_period": {
+      "minLength": 1,
+      "title": "Observation Period",
+      "type": "string"
+    },
+    "target_source_host": {
+      "minLength": 1,
+      "title": "Target Source Host",
+      "type": "string"
+    },
+    "template_version": {
+      "minLength": 1,
+      "title": "Template Version",
+      "type": "string"
+    },
+    "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+    },
+    "max_results": {
+      "default": 20,
+      "exclusiveMinimum": 0,
+      "title": "Max Results",
+      "type": "integer"
+    },
+    "allowed_domains": {
+      "items": {
+        "minLength": 1,
+        "type": "string"
+      },
+      "minItems": 1,
+      "title": "Allowed Domains",
+      "type": "array"
+    }
+  },
+  "required": [
+    "query_id",
+    "series_id",
+    "observation_period",
+    "target_source_host",
+    "template_version",
+    "created_at",
+    "allowed_domains"
+  ],
+  "title": "ResearchQuery",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://industrypulse.local/contracts/1.0.0/observation.ResearchQuery.schema.json",
+  "x-contracts-version": "1.0.0"
+}

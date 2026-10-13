@@ -1,0 +1,27 @@
+{
+  "additionalProperties": false,
+  "description": "统一响应体的数据质量摘要（§14.1）。覆盖率为 0 不等于经济恶化。",
+  "properties": {
+    "coverage": {
+      "maximum": 1.0,
+      "minimum": 0.0,
+      "title": "Coverage",
+      "type": "number"
+    },
+    "vintage_verified_ratio": {
+      "maximum": 1.0,
+      "minimum": 0.0,
+      "title": "Vintage Verified Ratio",
+      "type": "number"
+    }
+  },
+  "required": [
+    "coverage",
+    "vintage_verified_ratio"
+  ],
+  "title": "DataQuality",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://industrypulse.local/contracts/1.0.0/http.DataQuality.schema.json",
+  "x-contracts-version": "1.0.0"
+}

@@ -1,0 +1,215 @@
+{
+  "$defs": {
+    "Frequency": {
+      "description": "发布频率（§4.1 表）。EVENT 指事件文本，不构成数值序列。",
+      "enum": [
+        "D",
+        "W",
+        "10D",
+        "M",
+        "Q",
+        "EVENT",
+        "IRREGULAR"
+      ],
+      "title": "Frequency",
+      "type": "string"
+    },
+    "LegalStatus": {
+      "description": "许可状态机（S-001 验收：license denied 必须阻断采集）。",
+      "enum": [
+        "public_official",
+        "manual_export_allowed",
+        "pending_review",
+        "license_required",
+        "denied"
+      ],
+      "title": "LegalStatus",
+      "type": "string"
+    },
+    "ReleasePolicy": {
+      "additionalProperties": false,
+      "description": "发布政策（版本化）：驱动 RECONSTRUCTED 模式的保守可用日计算（§6.4）。\n\n``release_lag_days`` 为所属期期末到通常发布日的自然日上限（应取可验证\n历史年份的 p99，不允许拍脑袋常数）；``safety_days`` 为额外安全垫。\n``release_policy_version`` 不得回写到已冻结实验（§6.4）。",
+      "properties": {
+        "policy_version": {
+          "minLength": 1,
+          "title": "Policy Version",
+          "type": "string"
+        },
+        "description": {
+          "minLength": 1,
+          "title": "Description",
+          "type": "string"
+        },
+        "timezone": {
+          "default": "Asia/Shanghai",
+          "minLength": 1,
+          "title": "Timezone",
+          "type": "string"
+        },
+        "release_lag_days": {
+          "minimum": 0,
+          "title": "Release Lag Days",
+          "type": "integer"
+        },
+        "safety_days": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Safety Days",
+          "type": "integer"
+        },
+        "intraday_time": {
+          "anyOf": [
+            {
+              "format": "time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Intraday Time"
+        }
+      },
+      "required": [
+        "policy_version",
+        "description",
+        "release_lag_days"
+      ],
+      "title": "ReleasePolicy",
+      "type": "object"
+    },
+    "RevisionBehavior": {
+      "description": "修订行为（§7.2 source/series registry 共用口径）。",
+      "enum": [
+        "first_release_final",
+        "revised_later",
+        "continuously_revised"
+      ],
+      "title": "RevisionBehavior",
+      "type": "string"
+    },
+    "SourcePriority": {
+      "description": "数据源分层（§4.1）：S0 必须首批可运行；S3 事件/付费候选不作核心硬依赖。",
+      "enum": [
+        "S0",
+        "S1",
+        "S2",
+        "S3"
+      ],
+      "title": "SourcePriority",
+      "type": "string"
+    },
+    "SourceStatus": {
+      "description": "§4.1 核验声明：接入验收通过前一律 CANDIDATE，不得当作\"已完整获取\"。",
+      "enum": [
+        "candidate",
+        "active",
+        "degraded",
+        "retired"
+      ],
+      "title": "SourceStatus",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "数据源描述符（§4.3 逐源验收规范要求的全部字段）。\n\n每个源接入验收前必须填写本合同并登记于 source_registry；\n``last_smoke_test`` 为最近一次连通性验证时间（离线 parser 不受其约束）。",
+  "properties": {
+    "source_id": {
+      "pattern": "^[a-z0-9][a-z0-9._-]*$",
+      "title": "Source Id",
+      "type": "string"
+    },
+    "owner": {
+      "minLength": 1,
+      "title": "Owner",
+      "type": "string"
+    },
+    "url": {
+      "pattern": "^https?://[^\\s]+$",
+      "title": "Url",
+      "type": "string"
+    },
+    "data_fields": {
+      "items": {
+        "minLength": 1,
+        "type": "string"
+      },
+      "minItems": 1,
+      "title": "Data Fields",
+      "type": "array"
+    },
+    "frequency": {
+      "$ref": "#/$defs/Frequency"
+    },
+    "timezone": {
+      "default": "Asia/Shanghai",
+      "minLength": 1,
+      "title": "Timezone",
+      "type": "string"
+    },
+    "legal_status": {
+      "$ref": "#/$defs/LegalStatus",
+      "default": "pending_review"
+    },
+    "revision_behavior": {
+      "$ref": "#/$defs/RevisionBehavior"
+    },
+    "release_policy": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ReleasePolicy"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "last_smoke_test": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Last Smoke Test"
+    },
+    "priority": {
+      "$ref": "#/$defs/SourcePriority"
+    },
+    "status": {
+      "$ref": "#/$defs/SourceStatus",
+      "default": "candidate"
+    },
+    "source_version": {
+      "default": "1",
+      "minLength": 1,
+      "title": "Source Version",
+      "type": "string"
+    },
+    "notes": {
+      "default": "",
+      "title": "Notes",
+      "type": "string"
+    }
+  },
+  "required": [
+    "source_id",
+    "owner",
+    "url",
+    "data_fields",
+    "frequency",
+    "revision_behavior",
+    "priority"
+  ],
+  "title": "SourceDescriptor",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://industrypulse.local/contracts/1.0.0/sources.SourceDescriptor.schema.json",
+  "x-contracts-version": "1.0.0"
+}

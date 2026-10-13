@@ -1,0 +1,16 @@
+{
+  "title": "VerificationStatus",
+  "type": "string",
+  "enum": [
+    "verified",
+    "needs_review",
+    "fetch_failed",
+    "release_unverified",
+    "value_vintage_unverified",
+    "rejected"
+  ],
+  "description": "AI/规则候选的核验状态（§5.2/§5.6 提示词合同）。",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://industrypulse.local/contracts/1.0.0/observation.VerificationStatus.schema.json",
+  "x-contracts-version": "1.0.0"
+}
