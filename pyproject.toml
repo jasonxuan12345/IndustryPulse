@@ -7,7 +7,8 @@ name = "industrypulse"
 version = "0.1.0"
 description = "IndustryPulse：行业经济监测、预测与投资研究系统（本地优先、模块化单体）"
 readme = "README.md"
-requires-python = ">=3.12,<3.13"
+# 任务书原文锁定 3.12；经项目所有者确认改用 3.13（本机实际环境），保留 3.12 兼容区间
+requires-python = ">=3.12,<3.14"
 authors = [{ name = "Jackson" }]
 # 版本下限为初版占位，生成 uv.lock / 锁定文件时统一收敛
 dependencies = [
@@ -26,11 +27,13 @@ dependencies = [
     "streamlit>=1.36,<2",
     "structlog>=24.2,<25",
     "typer>=0.12,<1",
+    "tzdata>=2024.1",   # Windows 无系统 tz 数据库，ZoneInfo("Asia/Shanghai") 依赖此包
     "uvicorn[standard]>=0.30,<1",
 ]
 
 [project.optional-dependencies]
 dev = [
+    "hypothesis>=6.100,<7",   # 任务书 §2.1 质量栈；PIT/vintage 属性测试使用
     "mypy>=1.11,<2",
     "pytest>=8.2,<9",
     "pytest-cov>=5,<6",
@@ -53,8 +56,17 @@ select = ["E", "F", "I", "UP", "B"]
 python_version = "3.12"
 strict = true
 mypy_path = "src"
+plugins = ["pydantic.mypy"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src"]
 addopts = "-q"
+
+[tool.coverage.run]
+source = ["industrypulse"]
+omit = ["*/__init__.py"]
+
+[tool.coverage.report]
+# T-001：G0 仅对 contracts 设阈值；后续按风险分层收紧
+exclude_also = ["if TYPE_CHECKING:", "@overload"]
