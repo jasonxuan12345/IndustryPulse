@@ -1,0 +1,13 @@
+industry_id: CN_NBS_C31
+label: 黑色金属冶炼和压延加工业
+standard: GB_T_4754_2017
+version: 1
+observation_dimensions: [demand, supply, inventory, price, profitability, liquidity]
+core_series:
+  - cn.nbs.industry_C31.profit_ytd
+  - cn.nbs.industry_C31.revenue_ytd
+  - cn.nbs.industry_C31.iva_yoy
+  - cn.nbs.product.steel_output
+  - cn.nbs.pmi.new_orders
+  - cn.shfe.rb.settlement
+note: "期货品种、产品产量与行业企业口径存在差异，需分别映射。"

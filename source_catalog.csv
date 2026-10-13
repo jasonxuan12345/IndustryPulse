@@ -1,0 +1,19 @@
+﻿source_id,name,url,series_fields,frequency,verification,priority,acquisition,pit_risks
+SRC-NBS-PROFIT,国家统计局工业企业利润新闻公告（表3）,https://www.stats.gov.cn/sj/zxfb/,官方历史公告HTML/附件；按行业营收、成本、利润累计值/同比,M,官方官网已验证有分行业表,S0,按公告原文抓取/AI找链接+离线结构提取,原始HTML+表格+精确发布日期；不可跨年机械累减
+SRC-NBS-OUTPUT,国家统计局工业增加值及分产品产量公告,https://www.stats.gov.cn/sj/zxfb/,分行业增加值同比/钢材粗钢等产品产量与同比,M,官方公告已验证,S0,公告HTML表格；产品口径映射,行业和产品不可直接同义；日历及修订
+SRC-NBS-PMI,国家统计局PMI运行公告,https://www.stats.gov.cn/sj/zxfb/,制造业PMI、生产、新订单、购进价、出厂价、库存,M,官方公告已验证,S0,表1表2定向HTML采集,制造业总PMI不是钢铁专属PMI
+SRC-NBS-DATA,国家数据查询平台,https://data.stats.gov.cn/dg/website/page.html,历史月度指标、行业等,M,入口已验证；机器访问策略待评估,S1,手工合法导出优先，禁止猜私有接口,当前修订值常不能替代首发版本
+SRC-PBC-SF,央行社会融资规模增量/存量公告,https://www.pbc.gov.cn/diaochatongjisi/,新增社融、人民币贷款、社融存量结构,M,历史公告样例已验证,S0,央行公告HTML、发布日期,累计/单月变化要注意统计口径变化
+SRC-SHFE-RB,上海期货交易所日周数据,https://www.shfe.cn/reports/tradedata/dailyandweeklydata/,螺纹钢RB/热卷HC成交、结算、持仓、库存周报,D/W,官网日周数据已验证,S0,合规下载或页面导出；记录交易日期,连续合约换月规则需自行明确定义
+SRC-SHFE-WR,上期所仓单日报和库存周报,https://www.shfe.cn/reports/tradedata/dailyandweeklydata/,钢材相关仓单及仓库库存,D/W,菜单/报表已验证；逐期产品覆盖待验证,S1,品种代码过滤，导出与校验,仓单≠全社会库存
+SRC-MOFCOM-TRADE,商务部数据中心进出口月度统计,https://data.mofcom.gov.cn/hwmy/imexmonth.shtml,货物贸易进出口总量月度,M,页面含海关总署来源的表格,S1,合法表格读取/导出,总贸易并非钢铁行业专属
+SRC-CUSTOMS-HS,海关统计数据在线查询平台,https://stats.customs.gov.cn/,铁矿石、钢材等HS商品月度数量金额,M,平台入口待接入时验证,S1,手工导出/授权接口；版本化HS编码,HS调整、重量单位、口岸口径、许可
+SRC-EXCHANGE-ETF,沪深交易所基金与ETF公告/行情,https://www.sse.com.cn/,上市ETF名单、挂牌日、公告与交易日行情,D,官方网站入口可用；接口待适配,S1,交易所合法导出与上市信息复核,退市/停牌/分红/复权/历史存在性
+SRC-SZSE-ETF,深圳证券交易所基金行情及公告,https://www.szse.cn/,ETF上市、停复牌、历史行情,D,入口待接口评估,S1,官方下载或授权行情供方,与上交所字段对齐
+SRC-CSI-INDEX,中证指数公司指数公告,https://www.csindex.com.cn/,指数代码、规则、样本及历史调整,Q/事件,官网入口待下载许可审核,S2,公开下载与授权复核,历史权重可用性不足时只做不依赖成分的ETF回测
+SRC-AKSHARE,AKShare 非官方开放源适配器,https://akshare.akfamily.xyz/,行情与部分统计的数据聚合,D/M,项目存在；逐接口功能需烟测,S2,仅备用，记录底层网站及版本,接口漂移、版权/限流；不可视为原始官方来源
+SRC-FRED,FRED/ALFRED 官方API,https://fred.stlouisfed.org/docs/api/fred/,美元指数关联、海外利率与宏观指标/历史vintage,D/M,API实时版本文档已验证,S1,API key、vintage_dates、realtime_start/end,海外宏观不等于中国行业直接因子
+SRC-WORLDSTEEL,世界钢铁协会行业统计,https://worldsteel.org/,全球粗钢产量与国际景气背景,M,官网入口；历史公开范围待核实,S2,公开报告与CSV如可用则采集,全球和中国分项口径需核实
+SRC-CISA,中国钢铁工业协会,https://www.chinaisa.org.cn/,会员企业旬度产量、库存等,10D/M,候选源；批量获取与许可待评估,S2,AI检索公告/报告，合法授权或人工导入,样本企业与全国总体不是同一口径
+SRC-NBS-PPI,国家统计局工业生产者价格公告,https://www.stats.gov.cn/sj/zxfb/,PPI、购进价格及部分行业出厂价格,M,历史公告路径可用；细行业字段需核实,S1,HTML/PDF公告合法获取,不能把总PPI作为细行业实际成交价格
+SRC-NEWS-EVENT,政策公开公告与事件证据,https://www.gov.cn/,供给侧调整、环保、出口限制等事件,EVENT,只作为事件层候选,S3,AI检索/人工审核；事件不自带数值因子,避免生成未来才可知的事件标签

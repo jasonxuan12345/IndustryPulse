@@ -1,0 +1,22 @@
+target_id: steel_ytd_profit_margin_delta_3r
+version: 1
+industry_id: CN_NBS_C31
+research_mode: reconstructed_pit
+prediction_calendar:
+  anchor: last_cn_exchange_day_of_month
+  hour: '17:00'
+  timezone: Asia/Shanghai
+horizon:
+  unit: valid_monthly_releases
+  value: 3
+label:
+  formula: 'profit_ytd/revenue_ytd@future_release - profit_ytd/revenue_ytd@latest_known_release'
+  cross_year_policy: exclude_or_separate_target
+  negative_revenue_policy: invalid
+  denominator_zero_policy: invalid
+  label_available_at: later_released_input
+validation:
+  baseline: last_known_state
+  primary_metric: brier
+  candidate_improvement_threshold: 0.03
+  holdout_policy: freeze_after_inventory

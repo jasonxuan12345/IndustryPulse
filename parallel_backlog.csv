@@ -1,0 +1,137 @@
+﻿task_id,lane,phase,title,depends_on,deliverable,acceptance
+C-001,C,G0,初始化仓库/uv/CI/ruff/mypy/pytest,-,pyproject+lock+ci,clean install和测试命令Windows/Linux通过
+C-002,C,G0,定义SourceDescriptor/SeriesSpec和版本化JSON schema,C-001,contracts/sources,未知字段拒收、schema roundtrip通过
+C-003,C,G0,定义Observation/Vintage/Evidence数据合同,C-002,contracts/observation,支持两个时间证据评级、数值修订共存
+C-004,C,G0,定义AnalysisContext/ResearchMode三个枚举,C-003,contracts/context,STRICT/RECONSTRUCTED/EXPLORATORY行为fixture一致
+C-005,C,G0,定义IndustryNode/IndicatorSpec/AssetMaster合同,C-002,contracts/domain,ID不随中文显示名改变
+C-006,C,G0,定义FeatureFrame/TargetFrame/Prediction合同,"C-004,C-005",contracts/model,含max_ancestor_time与label_available_at
+C-007,C,G0,定义ExperimentSpec/BacktestEvent/JobStatus合同,C-006,contracts/research,实验可复现字段完整
+C-008,C,G0,冻结错误码/统一API响应/OpenAPI样例,"C-003,C-006",contracts/http,API mock响应由schema生成
+C-009,C,G0,建立合成三版本经济数据/ETF跨上市日期fixture,C-007,tests/fixtures,覆盖未来发布、修订、假日、跨年、退市
+C-010,C,G0,契约版本发布v1+并行模块路径所有权表,"C-001,C-008,C-009",docs/contracts-v1,所有团队有锁定commit和mock端点
+S-001,S,G1,来源目录CSV导入及许可状态机,C-002,datahub/source_registry,S0-S3可过滤、license denied阻断
+S-002,S,G1,原件下载器httpx+断点重试与速率限制,"C-002,S-001",datahub/fetcher,成功/404/429/超时离线测试
+S-003,S,G1,NBS工业利润历史公告适配器,"S-002,C-003",datahub/nbs_profit,3月异型表+行列定位通过
+S-004,S,G1,NBS工业增加值/产品产量公告解析,S-002,datahub/nbs_iva,行业列与产品列未被误映射
+S-005,S,G1,NBS PMI两类表采集,S-002,datahub/nbs_pmi,PMI与分项分类可重现
+S-006,S,G1,PBC社融公告适配器,S-002,datahub/pbc_tsf,累计/单月/统计口径元数据齐备
+S-007,S,G1,SHFE RB/HC日交易行情适配器,S-002,datahub/shfe,按具体交易日合约分明、无未来换月
+S-008,S,G1,SHFE库存周报候选源验证与接入,S-007,datahub/shfe_inventory,日期/商品/单位核对并报告覆盖率
+S-009,S,G1,NBS官方历史数据手工导入工具,S-001,datahub/manual_import,批量CSV/XLSX能附原出处和时间
+S-010,S,G2,海关HS商品目录和授权导入,"S-001,C-005",datahub/customs,HS版本/吨单位/年份映射通过
+S-011,S,G2,沪深ETF证券主表与K线适配器,"S-001,C-005",datahub/market,上市日与成交日独立存在
+S-012,S,G2,FRED/ALFRED vintages受控API适配器,S-002,datahub/fred,realtime query及重修订fixture通过
+S-013,S,G2,AKShare备用适配器/版本烟测,S-001,datahub/akshare,schema drift只告警不污染
+S-014,S,G2,所有源完整覆盖率、更新延迟与许可报告,"S-003,S-004,S-005,S-006,S-007",reports/source_inventory,每个核心字段真实可得年份和未知情况
+A-001,A,G1,AiResearchProvider可替换接口及离线mock,C-003,ai_research/provider,缺API Key转人工文件模式
+A-002,A,G1,检索模板库+域名白名单,A-001,ai_research/planner,query包含series/period/publisher
+A-003,A,G1,搜索结果归档并去重,A-002,ai_research/searchlog,搜词、结果URL、时间戳可重放
+A-004,A,G1,官方网页抓取与原件哈希,"A-003,S-002",ai_research/collector,只凭搜索摘要不能写事实表
+A-005,A,G1,HTML确定性表格行列提取器,A-004,ai_research/html_extractor,保留table/row/col定位
+A-006,A,G1,LLM非结构化候选提取JSON schema,"A-001,A-004",ai_research/llm_extract,JSON非法/无证据必须拒绝
+A-007,A,G1,发布日期/数值双证据分级器,"A-005,C-003",ai_research/classifier,A/B/C/D必须与fixture一致
+A-008,A,G1,矛盾源冲突检测与人工审查队列,"A-005,A-007",ai_research/review_queue,冲突不自动覆盖官方首发
+A-009,A,G2,工业利润跨年度公告批量发现任务,"A-002,A-008",jobs/historical_profit,输入年份列表输出证据命中清单
+A-010,A,G2,30文档金样本/AI抽取准确性审计,"A-006,A-008",tests/ai_gold,无根据生成数值0例
+A-011,A,G2,Agent提示注入/恶意HTML防护,"A-004,A-006",tests/ai_security,原网页指令不能改变系统目标
+A-012,A,G2,证据审查后发布Silver适配器,"A-008,D-005",ai_research/publisher,未审核记录不得进入生产表
+D-001,D,G1,DuckDB单写入事务仓储与迁移器,"C-003,C-009",repositories/database,可重复迁移、并发写入受控
+D-002,D,G1,Bronze manifest与sha256去重,D-001,repositories/bronze,原件不覆写、重复导入等价
+D-003,D,G1,Silver observation_vintage表与唯一键,"D-001,C-003",repositories/silver,两版同周期保留且可查
+D-004,D,G1,Source Registry与原件链路外键校验,"D-002,D-003",repositories/lineage,失链记录发布被拒绝
+D-005,D,G1,STRICT PIT筛选函数,"D-003,C-004",repositories/pit_strict,future release fixture不可见
+D-006,D,G1,RECONSTRUCTED可用日计算与假设版本,D-005,repositories/pit_rebuild,+5/+15日情景可重放
+D-007,D,G1,EXPLORATORY模式与显式水印元数据,D-003,repositories/pit_explore,查询结果带非PIT提示
+D-008,D,G1,PIT Feature祖先最大可用日查询,"D-005,D-006",repositories/ancestry,衍生特征追溯每个输入
+D-009,D,G1,指标单位/维度/行业强校验,"D-003,C-005",repositories/dq,单位冲突和缺项阻断事务
+D-010,D,G1,Staging->publish原子事务与幂等,"D-002,D-009",repositories/publisher,部分失败旧快照保持不变
+D-011,D,G2,统一查询SDK/批量Parquet读写,"D-005,D-010",repositories/sdk,同条件查询结果稳定并有hash
+D-012,D,G2,历史修订变化报告与审计脚本,"D-003,D-008",reports/vintage_diff,同周期多版差异可导出
+D-013,D,G2,数据快照导出导入与备份恢复,"D-010,D-011",scripts/db_backup,恢复后hash/row-count一致
+I-001,I,G1,统计行业字典与ID稳定规范,C-005,taxonomy/industry,钢铁C31可稳定查
+I-002,I,G1,钢铁产业链上游/下游关系yaml,I-001,config/industries/steel,关系有来源、有效期
+I-003,I,G1,指标series->industry映射与方向,I-001,taxonomy/series_map,制造业PMI明确标宏观代理
+I-004,I,G1,统计行业/证券行业/ETF三方映射,"I-001,C-005",taxonomy/asset_map,不同分类标准显式区别
+I-005,I,G1,指标字典验证schema+经济维度校验,I-003,config/series,重复ID/单位失配拒收
+I-006,I,G2,钢铁CORE指标源覆盖率审计,"I-003,S-014",reports/steel_coverage,缺失源和可用年份完整显示
+I-007,I,G2,有色矿采选vs冶炼行业模板,"I-001,I-005",config/industries/nonferrous,不同盈利机制独立配置
+I-008,I,G2,化工核心产品驱动拆分模板,"I-001,I-005",config/industries/chemical,行业内部异质性警告
+I-009,I,G2,煤炭动力煤/焦煤口径拆分,"I-001,I-005",config/industries/coal,不合并冲突价格口径
+I-010,I,G3,半导体数据可得性而非硬凑覆盖,"I-001,S-014",reports/semiconductor_feasibility,可用性不足可声明不建模
+E-001,E,G1,六维IndicatorFrame标准计算,"C-006,D-005,I-003",economy/indicators,每值有方向和ancestor_id
+E-002,E,G1,百分比/同比/百分点变换引擎,E-001,economy/transforms,跨年利润累计值不机械同比差
+E-003,E,G1,训练期内稳健标准化器,E-002,economy/scalers,未来极值不会影响过去分数
+E-004,E,G1,行业六维景气聚合与覆盖率,E-003,economy/aggregator,缺失不默默赋零
+E-005,E,G1,景气水平/动量/广度三种输出,E-004,economy/state,合成数据方向与解释一致
+E-006,E,G1,证据驱动解释卡和来源下钻,E-005,economy/explain,驱动项有source/observation refs
+E-007,E,G2,钢价-原料价差代理与无效条件,"E-002,I-002",economy/steel_margin,缺钢厂成本参数不显示绝对毛利
+E-008,E,G2,状态转折规则与历史事件表,E-005,economy/turning_points,因果过滤器无全历史回看
+E-009,E,G2,在线CUSUM告警研究实现,"E-005,R-004",economy/change_detection,只使用过去样本标记转折
+E-010,E,G2,行业观测结果快照与对照报告,"E-005,D-011",reports/economy,不同mode结果单列
+M-001,M,G1,TargetSpec T1生产景气/T2利润率定义,"C-006,I-003",config/targets,跨年、分母异常与缺目标明确
+M-002,M,G1,FeatureSpec 25候选与闭包祖先跟踪,"M-001,D-008",features/specs,未来可用数值不得进X
+M-003,M,G1,月度decision calendar与label时钟,M-001,features/calendar,月末17:00/交易日/节日正确
+M-004,M,G1,特征构建fit/transform分离与缓存,"M-002,M-003",features/builder,每fold仅训练期fit
+M-005,M,G1,M00延续/基础率必备基线,"M-001,M-004",forecast/m00,每折均可输出基线
+M-006,M,G1,M01季节性基线与窗口对照,M-004,forecast/m01,季节因素仅使用训练历史
+M-007,M,G1,M02 AR(1/2/3/6) 基线,M-004,forecast/m02,lag只能内层选
+M-008,M,G1,M03逻辑回归概率分类器,M-004,forecast/m03,两类样本不足时拒绝拟合
+M-009,M,G1,M04 ElasticNet选择与参数搜索,M-004,forecast/m04,不通过全样本预筛选
+M-010,M,G2,M05 DynamicFactorMQ混频nowcast,M-004,forecast/m05,不能把全样本平滑因子用于OOS
+M-011,M,G2,M06 LightGBM嵌套walk-forward,M-004,forecast/m06,测试期不参与early stopping
+M-012,M,G2,M07 HMM/Markov状态排序与一致性,"E-005,M-004",forecast/m07,重新训练状态编号一致解释
+M-013,M,G2,预测概率独立时间窗校准,"M-008,R-005",forecast/calibration,未校准必须标示
+M-014,M,G2,模型注册器和确定性工件hash,"M-005,C-007",forecast/registry,版本冻结/重复运行可复核
+M-015,M,G2,失效回退与模型卡输出,M-014,forecast/fallback,复杂模型失效时展示baseline
+R-001,R,G1,ExperimentSpec manifest冻结与版本校验,C-007,research/manifest,参数被修改必须新建run
+R-002,R,G1,时间折迭代器+标签公布时点过滤,"R-001,M-003",research/splits,未知标签不得进入训练
+R-003,R,G1,Purge/embargo重叠目标检测,R-002,research/purge,h=3相邻折不能跨窗泄漏
+R-004,R,G1,分类/回归全指标计算器,R-001,research/metrics,单类AUC返回NA而不是报错
+R-005,R,G1,滚动训练通用Runner与工件日志,"R-002,R-004",research/runner,每折模型/预处理重新fit
+R-006,R,G1,多模型统一样本对照表,R-005,research/comparison,各模型用共同OOS时点比较
+R-007,R,G1,基准比较和Brier改进规则,R-006,research/gates,不达标输出NO_EDGE
+R-008,R,G1,按年份和行业误差分解,"R-004,R-005",research/reporting,不能只展示整体冠军
+R-009,R,G2,STRICT vs RECONSTRUCTED敏感性对照,"R-005,D-006",research/vintage_sensitivity,覆盖期不同明确展示
+R-010,R,G2,滚动领先滞后特征审计,"R-005,E-005",research/leadlag,仅训练窗搜索并多重检验提示
+R-011,R,G2,区块bootstrap不确定性工具,R-004,research/uncertainty,样本重叠不能假定独立
+R-012,R,G2,冻结最终holdout并封存指标,R-005,research/holdout,holdout不得用于超参选择
+R-013,R,G3,经济预测模型卡与“不通过”报告,"R-007,R-009,R-012",reports/model_card,包含最终OOS分年和失败案例
+V-001,V,G1,ETF AssetMaster历史上市/退市表,"C-005,S-011",investment/universe,未上市交易日不可入池
+V-002,V,G1,ETF行情/分红/停牌可交易日schema,V-001,investment/market,除权分红处理明确
+V-003,V,G1,经济信号与市场价格严格隔离,"C-006,V-002",investment/signals,未来经济label不可用于当日信号
+V-004,V,G2,行业研究卡:预期/定价/风险分层,"V-003,E-005",investment/cards,仅输出观察优先级
+V-005,V,G2,固定月末调仓/下一交易日成交引擎,"V-002,V-003",investment/execution,公告后可成交时点才下单
+V-006,V,G2,交易费用/滑点/现金利息模型,V-005,investment/costs,有明确费用版本与敏感性
+V-007,V,G2,行业最大权重/换手/流动性约束,V-005,investment/risk,组合始终遵守冻结约束
+V-008,V,G2,买入持有沪深300/等权行业基准,"V-001,V-006",investment/benchmarks,同交易日/费用/历史ETF宇宙
+V-009,V,G2,真实ETF vs 指数代理回测显式分离,V-005,investment/proxy,报告不能把指数当可交易
+V-010,V,G2,策略事件日志/每笔收益归因,"V-005,V-007",investment/trades,signal->order->fill完整链路
+V-011,V,G3,冻结策略完整OOS及风险报告,"V-008,V-010,R-013",reports/strategy,扣费后、分年、最大回撤完整
+U-001,U,G1,Streamlit组件库/统一模式标记,C-008,apps/dashboard/components,三研究模式显著展示
+U-002,U,G1,基于OpenAPI mock的前端SDK,U-001,apps/dashboard/client,无真实后端可跑UI
+U-003,U,G1,宏观总览页及可用时间提示,U-002,apps/dashboard/pages/macro,来源/时间可点击
+U-004,U,G1,行业雷达页状态维度和覆盖率,U-002,apps/dashboard/pages/radar,缺失指标单独显示
+U-005,U,G1,钢铁详情产业链与状态解释,"U-002,I-002",apps/dashboard/pages/industry,原始证据可下钻
+U-006,U,G1,模型比较页Brier/OOS/校准,U-002,apps/dashboard/pages/models,不合格模型不显示推荐
+U-007,U,G2,投资页面ETF回测事件和警告,U-002,apps/dashboard/pages/investment,DEMO/PROXY醒目标注
+U-008,U,G2,AI候选审查队列界面,U-002,apps/dashboard/pages/evidence,批准/拒绝留审核日志
+U-009,U,G2,综合API集成与错误状态回归,"U-003,U-004,U-005,U-006",tests/ui_e2e,无数据/报错界面可用
+O-001,O,G1,统一配置/密钥管理/环境检测,C-001,core/settings,密钥不出日志/仓库
+O-002,O,G1,批处理JobRunner与幂等调度,C-007,jobs/runner,重复执行不重复发布
+O-003,O,G1,日志追踪ID与任务重试退避,O-002,jobs/logging,失败保留上次成功快照
+O-004,O,G1,来源健康、失效、更新延迟监控,"O-002,S-001",jobs/source_health,超出更新窗口告警
+O-005,O,G1,月末统一预测批任务,"O-002,C-006",jobs/forecast_monthly,数据未发布则保留旧指标并标年龄
+O-006,O,G2,离线批量历史公告回填模式,"O-002,A-009",jobs/archive_backfill,可暂停续跑、不污染已审核
+O-007,O,G2,数据备份及工件恢复审计,"O-002,D-013",jobs/backup,故障后结果hash一致
+O-008,O,G2,性能基准与内存剖析,"O-003,D-011",tests/performance,固定数据规模可复验
+O-009,O,G3,版本发布手册/故障处置Runbook,"O-004,O-007",docs/operations,数据延迟/模型失败均有处置步骤
+T-001,T,G0,测试框架、覆盖率和金样本规范,C-001,tests/conftest,pytest/coverage CI可运行
+T-002,T,G0,强制PIT发布日期/数值版本泄漏测试,"C-003,C-009",tests/pit/release,反向插未来公告必然失败
+T-003,T,G0,数据修订与同日不同版本竞态测试,C-003,tests/pit/vintage,版本选择有确定tie-break
+T-004,T,G1,训练期预处理/标签公布时点泄漏测试,C-006,tests/research/leak,scaler/selector不偷看未来
+T-005,T,G1,HTML格式变化/恶意prompt注入测试,"A-005,A-006",tests/ai/adversarial,网页指令不能影响提取规则
+T-006,T,G1,源异构质量、计量单位属性测试,D-009,tests/data/quality,正负值/亿与万单位正确
+T-007,T,G2,模型递归训练/参数冻结确定性测试,"M-014,R-005",tests/model/replay,同数据同随机种子指标一致
+T-008,T,G2,ETF未来上市、信号前成交负例,V-005,tests/investment/leak,错误交易必须被拒绝
+T-009,T,G2,mock全链路快照到UI冒烟测试,"U-009,O-003",tests/e2e/mock,断网状态仍能演示历史快照
+T-010,T,G3,最终验收报告/残余风险清单,"R-013,V-011,O-009",reports/acceptance,工程/预测/投资分别签署状态

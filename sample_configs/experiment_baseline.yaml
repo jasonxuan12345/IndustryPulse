@@ -1,0 +1,13 @@
+experiment_id: steel_profit_baselines_v1
+mode: reconstructed_pit
+industry_id: CN_NBS_C31
+target_id: steel_ytd_profit_margin_delta_3r
+models: [M00_LAST, M01_SEASONAL, M02_AR, M03_LOGIT, M04_ELASTIC]
+feature_budget: 25
+random_seed: 20261013
+outer_validation: expanding_walk_forward
+inner_validation: chronological
+purge: based_on_target_horizon_and_label_release
+primary_metric: brier
+report_modes_separately: true
+note: 'Not a verified model result: sample config; freeze exact train/test dates only after data availability inventory.'

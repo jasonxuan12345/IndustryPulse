@@ -1,0 +1,49 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+
+# 虚拟环境
+.venv/
+venv/
+
+# 测试 / 静态检查缓存
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# 密钥与环境（仅 .env.example 可入 Git）
+.env
+.env.*
+!.env.example
+
+# 数据与工件：授权数据禁入 Git；artifacts 本地生成
+/data/*
+!/data/.gitkeep
+/artifacts/*
+!/artifacts/.gitkeep
+*.duckdb
+*.duckdb.wal
+*.sqlite
+*.sqlite3
+
+# 日志
+*.log
+
+# 操作系统
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Agent 本地记忆（不入仓库）
+.workbuddy/
+
+# IDE
+.idea/
+.vscode/
