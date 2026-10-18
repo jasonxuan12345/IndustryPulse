@@ -1,0 +1,288 @@
+{
+  "nodes": [
+    {
+      "industry_id": "CN_NBS_C31",
+      "standard": "GB/T 4754-2017",
+      "code": "31",
+      "names": {
+        "zh": "黑色金属冶炼和压延加工业",
+        "en": "Ferrous metal smelting and rolling"
+      },
+      "valid_from": "2017-10-01",
+      "notes": "钢铁试点行业的实业财务口径（§1.2）"
+    },
+    {
+      "industry_id": "CN_NBS_B06",
+      "standard": "GB/T 4754-2017",
+      "code": "06",
+      "names": {
+        "zh": "煤炭开采和洗选业",
+        "en": "Coal mining and washing"
+      },
+      "valid_from": "2017-10-01"
+    },
+    {
+      "industry_id": "CN_NBS_C30",
+      "standard": "GB/T 4754-2017",
+      "code": "30",
+      "names": {
+        "zh": "非金属矿物制品业",
+        "en": "Non-metallic mineral products"
+      },
+      "valid_from": "2017-10-01",
+      "notes": "下游需求侧（建材）"
+    },
+    {
+      "industry_id": "SYNTH_CSI_STEEL",
+      "standard": "CSI_INDUSTRY",
+      "code": "SYNTH_STEEL",
+      "names": {
+        "zh": "合成证券钢铁行业"
+      },
+      "valid_from": "2017-10-01",
+      "notes": "合成映射，非已核验中证行业代码"
+    }
+  ],
+  "relations": [
+    {
+      "upstream_id": "CN_NBS_B06",
+      "downstream_id": "CN_NBS_C31",
+      "relation_type": "supplies_input",
+      "valid_from": "2017-10-01",
+      "weight_policy": "steel-input-coal-v1",
+      "source_ref": "合成 fixture：焦煤为长流程炼钢主要原料",
+      "notes": "上游原料（焦煤焦炭）"
+    },
+    {
+      "upstream_id": "CN_NBS_C31",
+      "downstream_id": "CN_NBS_C30",
+      "relation_type": "supplies_input",
+      "valid_from": "2017-10-01",
+      "source_ref": "合成 fixture：建材消耗建筑钢材",
+      "notes": "钢材下游"
+    }
+  ],
+  "indicators": [
+    {
+      "indicator_id": "steel_profit_ytd",
+      "series_ids": [
+        "cn.nbs.industry_c31.profit_ytd"
+      ],
+      "dimension": "profitability",
+      "economic_direction": "positive",
+      "level": "CORE",
+      "industry_ids": [
+        "CN_NBS_C31"
+      ],
+      "role": "label",
+      "valid_from": "2017-10-01",
+      "description": "行业利润 YTD（当期经济评价主标签）"
+    },
+    {
+      "indicator_id": "macro_pmi_new_orders",
+      "series_ids": [
+        "cn.nbs.pmi.new_orders"
+      ],
+      "dimension": "demand",
+      "economic_direction": "positive",
+      "level": "CORE",
+      "industry_ids": [
+        "CN_NBS_C31",
+        "CN_NBS_B06"
+      ],
+      "role": "macro_proxy",
+      "valid_from": "2017-10-01",
+      "description": "制造业新订单 PMI——宏观代理，非钢铁专属（§20.2 必须标 MACRO_PROXY）"
+    },
+    {
+      "indicator_id": "steel_rb_price",
+      "series_ids": [
+        "cn.shfe.rb.settlement"
+      ],
+      "dimension": "price",
+      "economic_direction": "positive",
+      "level": "CORE",
+      "industry_ids": [
+        "CN_NBS_C31"
+      ],
+      "role": "feature",
+      "valid_from": "2017-10-01",
+      "description": "螺纹钢期货结算价（合约序列口径由 series 定义）"
+    }
+  ],
+  "version": "steel-g1-synthetic-v1",
+  "synthetic": true,
+  "series": [
+    {
+      "series_id": "cn.nbs.industry_c31.profit_ytd",
+      "source_id": "cn.nbs",
+      "unit": "亿元",
+      "frequency": "M",
+      "revision_policy": "revised_later",
+      "timestamp_precision": "minute",
+      "description": "行业利润 YTD（当期经济评价主标签）",
+      "is_ytd": true,
+      "tags": [
+        "synthetic"
+      ]
+    },
+    {
+      "series_id": "cn.nbs.pmi.new_orders",
+      "source_id": "cn.nbs",
+      "unit": "点",
+      "frequency": "M",
+      "revision_policy": "revised_later",
+      "timestamp_precision": "minute",
+      "description": "制造业新订单 PMI——宏观代理，非钢铁专属（§20.2 必须标 MACRO_PROXY）",
+      "is_ytd": false,
+      "tags": [
+        "synthetic",
+        "macro_proxy"
+      ]
+    },
+    {
+      "series_id": "cn.shfe.rb.settlement",
+      "source_id": "cn.shfe",
+      "unit": "元/吨",
+      "frequency": "D",
+      "revision_policy": "revised_later",
+      "timestamp_precision": "minute",
+      "description": "螺纹钢期货结算价（合约序列口径由 series 定义）",
+      "is_ytd": false,
+      "tags": [
+        "synthetic"
+      ]
+    }
+  ],
+  "series_maps": [
+    {
+      "industry_id": "CN_NBS_C31",
+      "series_id": "cn.nbs.industry_c31.profit_ytd",
+      "role": "label",
+      "valid_from": "2017-10-01"
+    },
+    {
+      "industry_id": "CN_NBS_C31",
+      "series_id": "cn.nbs.pmi.new_orders",
+      "role": "macro_proxy",
+      "valid_from": "2017-10-01"
+    },
+    {
+      "industry_id": "CN_NBS_B06",
+      "series_id": "cn.nbs.pmi.new_orders",
+      "role": "macro_proxy",
+      "valid_from": "2017-10-01"
+    },
+    {
+      "industry_id": "CN_NBS_C31",
+      "series_id": "cn.shfe.rb.settlement",
+      "role": "feature",
+      "valid_from": "2017-10-01"
+    }
+  ],
+  "assets": [
+    {
+      "asset_id": "ETF_SH_STEEL_A",
+      "exchange": "SSE",
+      "instrument_type": "ETF",
+      "name_zh": "（合成）钢铁ETF甲",
+      "list_at": "2018-05-10T09:30:00+08:00",
+      "delist_at": null,
+      "fund_type": "industry",
+      "tracking_index_id": "IDX_CSI_STEEL",
+      "notes": "长历史存量 ETF，早期回测可用的唯一钢铁标的"
+    },
+    {
+      "asset_id": "ETF_SZ_STEEL_B",
+      "exchange": "SZSE",
+      "instrument_type": "ETF",
+      "name_zh": "（合成）钢铁ETF乙",
+      "list_at": "2025-03-14T09:30:00+08:00",
+      "delist_at": null,
+      "fund_type": "industry",
+      "tracking_index_id": "IDX_CSI_STEEL",
+      "notes": "晚上市：2025-03-14 之前的交易日不得入池"
+    },
+    {
+      "asset_id": "ETF_SH_COAL_C",
+      "exchange": "SSE",
+      "instrument_type": "ETF",
+      "name_zh": "（合成）煤炭ETF丙",
+      "list_at": "2017-06-30T09:30:00+08:00",
+      "delist_at": "2024-06-28T15:00:00+08:00",
+      "fund_type": "industry",
+      "tracking_index_id": "IDX_CSI_COAL",
+      "notes": "已退市：退市日及其后不得入池（防幸存者偏差）"
+    },
+    {
+      "asset_id": "ETF_SH_STEEL_D",
+      "exchange": "SSE",
+      "instrument_type": "ETF",
+      "name_zh": "（合成）钢铁ETF丁",
+      "list_at": "2025-11-10T09:30:00+08:00",
+      "delist_at": null,
+      "fund_type": "industry",
+      "tracking_index_id": "IDX_CSI_STEEL",
+      "notes": "PIT-008：相对 as_of=2025-10-31 属未来上市，当日池内必须拒绝"
+    },
+    {
+      "asset_id": "IDX_CSI_300",
+      "exchange": "SSE",
+      "instrument_type": "INDEX",
+      "name_zh": "（合成）沪深300指数",
+      "list_at": "2013-01-01T00:00:00+08:00",
+      "delist_at": null,
+      "notes": "基准指数：不可直接交易，回测必须显式区分指数代理与真实 ETF（V-009）"
+    },
+    {
+      "asset_id": "IDX_CSI_STEEL",
+      "exchange": "SSE",
+      "instrument_type": "INDEX",
+      "name_zh": "（合成）STEEL指数",
+      "list_at": "2013-01-01T00:00:00+08:00",
+      "notes": "合成指数基准，不可交易"
+    },
+    {
+      "asset_id": "IDX_CSI_COAL",
+      "exchange": "SSE",
+      "instrument_type": "INDEX",
+      "name_zh": "（合成）COAL指数",
+      "list_at": "2013-01-01T00:00:00+08:00",
+      "notes": "合成指数基准，不可交易"
+    }
+  ],
+  "asset_maps": [
+    {
+      "asset_id": "ETF_SH_STEEL_A",
+      "industry_id": "CN_NBS_C31",
+      "weight": 1.0,
+      "valid_from": "2018-05-10"
+    },
+    {
+      "asset_id": "ETF_SZ_STEEL_B",
+      "industry_id": "CN_NBS_C31",
+      "weight": 1.0,
+      "valid_from": "2025-03-14"
+    },
+    {
+      "asset_id": "ETF_SH_STEEL_D",
+      "industry_id": "CN_NBS_C31",
+      "weight": 1.0,
+      "valid_from": "2025-11-10"
+    }
+  ],
+  "securities_links": [
+    {
+      "statistical_industry_id": "CN_NBS_C31",
+      "securities_industry_id": "SYNTH_CSI_STEEL",
+      "source_ref": "tests/fixtures/g0/etf_universe.json; synthetic demonstration only",
+      "valid_from": "2017-10-01",
+      "is_proxy": true,
+      "asset_ids": [
+        "ETF_SH_STEEL_A",
+        "ETF_SZ_STEEL_B",
+        "ETF_SH_STEEL_D"
+      ]
+    }
+  ]
+}

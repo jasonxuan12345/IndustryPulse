@@ -4,9 +4,35 @@
 
 ## 当前阶段
 
-**G0 契约冻结完成**（C-001..C-010、T-001..T-003 全部验收；git 标签 `contracts-v1`）。
-下一步：G1 十路并行（S/A/D/I/E/M/R/V/U/O + T 横向），按 `docs/contracts-v1/README.md`
-的路径所有权表开工。
+**G1 十路离线核心闭环已交付**；G0 冻结合同保持不变（标签 `contracts-v1`）。
+S/A/D/I/E/M/R/V/U/O 按独占路径实现，并补 T-004..006 和合成跨 lane 集成。
+本轮为工程/合成样本验收；真源质量、真实 ETF 主表和预测/投资有效性仍待
+各自门禁。后续按 G2 逐源审核接入，再跑真实月末快照和研究。
+
+## G1 交付
+
+- S/A：许可状态机、可验证续传、官方表格/期货/手工导入、候选校验和审查。
+- D/I：单写 DuckDB、不可变 Bronze、冻结快照、三模式 PIT、祖先及单位校验。
+- E/M/R：六维缺失与覆盖率、训练期评分、目标时钟、M00..04、内层搜索、
+  标签释放/purge/embargo、共同 OOS 和分年报告。
+- V/U/O：合成 ETF 宇宙、分红/停牌/信号隔离、四页 UI、配置、持久幂等作业、
+  健康/年龄与不可变预测快照；services/API 编排和15条冻结路由。
+
+任务映射、入口和限制见 `docs/g1/README.md` 及各组验收记录。
+
+## G1 本机验证（2026-10-13，Windows / Python 3.13.9）
+
+```text
+pytest                         323 passed（比 G0 新增105项），覆盖率91%
+ruff check / format --check    OK（含 apps/dashboard，103文件）
+mypy src                      OK（65文件，strict）
+contracts export --check       OK（冻结生成物同步）
+git diff --check               OK
+共享合同/fixture/配置/CI diff   空，无冻结边界改动
+```
+
+含1条第三方 Starlette/httpx TestClient 弃用警告，无测试失败。
+仓库仍无远端，Linux / Python 3.12 和 Actions 矩阵未在本轮实际执行。
 
 ## G0 交付清单
 
@@ -52,10 +78,13 @@ scripts/export_contracts.py --check  OK（84 个生成物同步）
 
 CI 配置同套命令（ubuntu/windows × 3.12/3.13）；仓库尚无远端，未在 Actions 实跑。
 
-## 已知事项 / G1 提醒
+## 已知事项 / 后续门禁
 
-- ApiResponse.result 的 result_kind 强类型由各 lane G1 提 PR 收紧（G0 冻结外壳）
+- lane 强类型报告已在自有模块定义；共享合同 Schema 收紧仍需独立版本评审
 - `tests/fixtures/g0` 是全 lane mock 数据源；新增场景走共享区评审
 - 正式 ADR（Python 3.13 决策）待补 `docs/adr/`
 - 规格文件（任务书 md/docx/pdf、两个 CSV、sample_configs）仍在根目录，待确认后迁移
 - IP-009 CLI 入口、pre-commit secret scanning 未做（不阻塞 G1）
+- S/A 真源跨月样本、许可和覆盖尚未验证，来源维持 CANDIDATE
+- V-001 真实主表依赖 G2 S-011，本轮仅合成宇宙工程验收
+- 模型保持 NOT_VALIDATED/UNCALIBRATED/NO_EDGE，不提供投资推荐
