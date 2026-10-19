@@ -189,8 +189,14 @@ class BacktestEngine:
         commission_rate = Decimal(str(self.costs.commission_bps)) / Decimal(10000)
         slippage_rate = Decimal(str(self.costs.slippage_bps)) / Decimal(10000)
 
+        dividend_income = Decimal(0)
         for day in days:
             cash *= 1 + daily_rate
+            for action in self.market.actions:
+                if action.ex_date == day and action.asset_id in positions:
+                    amount = positions[action.asset_id] * action.distribution_per_unit
+                    cash += amount
+                    dividend_income += amount
             scheduled = schedule.get(day)
             if scheduled is not None:
                 weights = scheduled
@@ -305,6 +311,10 @@ class BacktestEngine:
             )
             if benchmark_curve:
                 benchmark_metrics = _metrics(benchmark_curve, 0.0, 1)
+        if dividend_income > 0:
+            result_warnings.append(f"已计入现金分红合计 {dividend_income:.2f}")
+        else:
+            result_warnings.append("区间内未发生分红入账")
         return BacktestResult(
             start=days[0],
             end=days[-1],
@@ -384,12 +394,14 @@ class BacktestEngine:
         curve: list[tuple[date, Decimal]] = []
         daily_rate = Decimal(str(self.costs.cash_rate_annual)) / Decimal(TRADING_DAYS)
         for day in days:
-            if day < entry_day:
-                cash *= 1 + daily_rate
-                curve.append((day, cash))
-                continue
             cash *= 1 + daily_rate
-            curve.append((day, cash + quantity * self._close(asset_id, day)))
+            if day >= entry_day:
+                for action in self.market.actions:
+                    if action.ex_date == day and action.asset_id == asset_id:
+                        cash += quantity * action.distribution_per_unit
+                curve.append((day, cash + quantity * self._close(asset_id, day)))
+            else:
+                curve.append((day, cash))
         return curve
 
 

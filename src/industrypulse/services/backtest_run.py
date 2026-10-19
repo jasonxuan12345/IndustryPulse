@@ -13,7 +13,7 @@ from decimal import Decimal
 
 from industrypulse.contracts.common import TZ_SHANGHAI
 from industrypulse.contracts.context import ResearchMode
-from industrypulse.contracts.domain import AssetMaster, MarketBar
+from industrypulse.contracts.domain import AssetMaster, CorporateAction, MarketBar
 from industrypulse.investment import BacktestEngine, BacktestResult, CostModel, PortfolioConstraints
 from industrypulse.investment.market import HistoricalUniverse, MarketDataset
 from industrypulse.repositories import (
@@ -113,7 +113,10 @@ def run_backtest(
         )
     universe = HistoricalUniverse(assets)
     trading_days = sorted({bar.trade_date for bar in bars})
-    dataset = MarketDataset(universe, all_bars, [], trading_days)
+    actions: list[CorporateAction] = []
+    for item in assets:
+        actions.extend(market_repository.actions(item.asset_id))
+    dataset = MarketDataset(universe, all_bars, actions, trading_days)
     engine = BacktestEngine(
         dataset,
         costs=CostModel(
@@ -129,7 +132,11 @@ def run_backtest(
     warnings = [
         "信号规则：观测值 > threshold 时满仓，否则现金（基线规则，非策略结论）",
         "行情来源为第三方聚合站点（C 级证据）；adj_method=none（不复权原始价）",
-        "若未装载公司行动，本结果为**价格收益**，不含分红",
+        (
+            f"已装载 {len(actions)} 笔公司行动（现金分红），总收益含分红再投资前的现金加回"
+            if actions
+            else "未装载公司行动，本结果为**价格收益**，不含分红"
+        ),
         "成本假设：佣金/滑点/现金利率见 experiment 字段",
         *signal_warnings,
     ]
@@ -157,6 +164,7 @@ def run_backtest(
             "max_turnover": request.max_turnover,
         },
         "bars": len(bars),
+        "corporate_actions": len(actions),
         "rebalances": len(signals),
     }
     return result, metadata

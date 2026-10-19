@@ -49,6 +49,11 @@ from industrypulse.datahub.exchange_calendar import (
     derive_trading_days,
 )
 from industrypulse.datahub.fetcher import Fetcher
+from industrypulse.datahub.fund_dividend import (
+    DividendParseError,
+    parse_dividend_table,
+    to_corporate_actions,
+)
 from industrypulse.datahub.sina_etf import fetch_sina_kline
 from industrypulse.datahub.source_registry import SourceRegistry
 from industrypulse.repositories import (
@@ -67,6 +72,7 @@ from industrypulse.services import (
     IngestError,
     IngestService,
     MonthlyBackfill,
+    build_handlers,
     format_table,
     parse_claim,
     run_backtest,
@@ -220,6 +226,53 @@ def etf_ingest(
     )
 
 
+@etf_app.command("dividends")
+def etf_dividends(
+    database: Annotated[Path, typer.Option("--database")],
+    symbol: Annotated[str, typer.Option("--symbol", help="新浪代码，如 sh515210")],
+    asset_id: Annotated[str, typer.Option("--asset-id")],
+    interval: Annotated[float, typer.Option("--interval")] = 1.5,
+) -> None:
+    """采集基金分红送配并写入公司行动（每份分红金额）。"""
+    code = symbol[2:] if symbol[:2] in ("sh", "sz") else symbol
+    url = f"https://fund.eastmoney.com/f10/FHSP_{code}.html"
+    headers = {"User-Agent": "IndustryPulse/0.1 (research; contact=local)"}
+    try:
+        time.sleep(interval)
+        with httpx.Client(timeout=40, follow_redirects=True, headers=headers) as client:
+            response = client.get(url)
+        response.raise_for_status()
+        records = parse_dividend_table(response.text)
+    except (httpx.HTTPError, DividendParseError) as exc:
+        _fail(f"分红采集失败：{exc}")
+    if not records:
+        _fail(f"{asset_id} 未解析到任何分红记录（页面结构可能变化）")
+    market = DuckDBMarketRepository(database)
+    actions = to_corporate_actions(
+        records,
+        asset_id=asset_id,
+        source_note=f"来源 {url}（第三方聚合，C 级证据）",
+    )
+    for action in actions:
+        try:
+            market.register_action(action)
+        except MarketDataError as exc:
+            _fail(str(exc))
+    _emit(
+        {
+            "asset_id": asset_id,
+            "source": url,
+            "actions": [
+                {
+                    "ex_date": action.ex_date.isoformat(),
+                    "per_unit": str(action.distribution_per_unit),
+                }
+                for action in actions
+            ],
+        }
+    )
+
+
 @etf_app.command("list")
 def etf_list(database: Annotated[Path, typer.Option("--database")]) -> None:
     """列出行情仓储中的资产与 bar 数。"""
@@ -296,6 +349,44 @@ def backtest(
         out.parent.mkdir(parents=True, exist_ok=True)
         out.write_text(result.model_dump_json(indent=2) + "\n", encoding="utf-8")
         typer.echo(f"完整报告已写入 {out}")
+
+
+@app.command("serve")
+def serve(
+    database: Annotated[Path, typer.Option("--database")],
+    taxonomy: Annotated[Path, typer.Option("--taxonomy")] = Path("config/industries/steel-g2.yaml"),
+    snapshot_id: Annotated[str, typer.Option("--snapshot-id")] = "",
+    report_dir: Annotated[Path, typer.Option("--report-dir")] = Path("artifacts/reports"),
+    host: Annotated[str, typer.Option("--host")] = "127.0.0.1",
+    port: Annotated[int, typer.Option("--port")] = 8000,
+) -> None:
+    """以真实数据启动 API 服务（15 条冻结路由，能接的接真服务）。"""
+    import uvicorn
+
+    from industrypulse.api import create_app
+
+    observations = DuckDBObservationRepository(database)
+    try:
+        registry = TaxonomyRegistry.load(taxonomy)
+    except Exception as exc:  # noqa: BLE001
+        _fail(f"taxonomy 加载失败：{exc}")
+    resolved_snapshot = snapshot_id
+    if not resolved_snapshot:
+        with observations.database.transaction() as conn:
+            row = conn.execute(
+                "SELECT snapshot_id FROM publication ORDER BY snapshot_id DESC LIMIT 1"
+            ).fetchone()
+        if row is None:
+            _fail("数据库中没有已发布快照；先运行 backfill")
+        resolved_snapshot = str(row[0])
+    handlers = build_handlers(
+        observations=observations,
+        taxonomy=registry,
+        snapshot_id=resolved_snapshot,
+        report_dir=report_dir,
+    )
+    typer.echo(f"snapshot={resolved_snapshot} 已绑定 {len(handlers)} 条路由，监听 {host}:{port}")
+    uvicorn.run(create_app(handlers), host=host, port=port)
 
 
 @app.command("doctor")

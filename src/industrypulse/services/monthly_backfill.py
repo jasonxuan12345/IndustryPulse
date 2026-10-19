@@ -43,6 +43,9 @@ from industrypulse.services.ingest import (
 #: 国家统计局新闻发布列表页（相对页码）。
 LISTING_BASE = "https://www.stats.gov.cn/sj/zxfb/"
 
+#: 站点反爬挑战页特征；命中即中止，绝不当作"本页没有公告"。
+_CHALLENGE_MARKERS = ("Please ena", "captcha", "验证码", "访问过于频繁")
+
 #: 钢铁行业在国家统计局分行业表中的精确标签。
 STEEL_ROW = "黑色金属冶炼和压延加工业"
 
@@ -229,6 +232,11 @@ class MonthlyBackfill:
                     break  # 站点只保留有限分页：404 表示列表到此为止
                 raise
             html = Path(artifact.uri).read_text(encoding="utf-8")
+            if any(marker in html for marker in _CHALLENGE_MARKERS):
+                raise IngestError(
+                    f'{url} 返回反爬挑战页；已中止而不是当作"本页无公告"。'
+                    "请降低请求频率后重试（建议 >=1.5s/请求）"
+                )
             found = discover(html, base_url=url, kinds=tuple(kinds))
             added = 0
             for item in found:
