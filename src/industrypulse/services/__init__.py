@@ -7,6 +7,8 @@ from .as_published import (
     evaluate_claim,
     parse_claim,
 )
+from .backtest_run import BacktestRequest, build_rule_signals, run_backtest
+from .etf_ingest import EtfIngestError, EtfIngestReport, EtfIngestService
 from .ingest import (
     BatchIngestReport,
     BatchItem,
@@ -22,9 +24,13 @@ from .snapshots import ForecastSnapshotStore, SnapshotView
 
 __all__ = [
     "AsPublishedClaim",
+    "BacktestRequest",
     "BackfillOutcome",
     "BatchIngestReport",
     "ClaimError",
+    "EtfIngestError",
+    "EtfIngestReport",
+    "EtfIngestService",
     "ClaimVerdict",
     "BatchItem",
     "ForecastSnapshotStore",
@@ -36,8 +42,10 @@ __all__ = [
     "PitComparison",
     "SnapshotView",
     "compare_modes",
+    "build_rule_signals",
     "evaluate_claim",
     "format_table",
     "parse_claim",
+    "run_backtest",
     "period_bounds",
 ]

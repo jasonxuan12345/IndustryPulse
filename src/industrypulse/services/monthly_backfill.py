@@ -18,6 +18,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Protocol
 
+import httpx
+
 from industrypulse.contracts.observation import RawArtifact
 from industrypulse.core.html_tables import tables
 from industrypulse.datahub.adapters import (
@@ -220,7 +222,12 @@ class MonthlyBackfill:
         collected: dict[tuple[str, str], Announcement] = {}
         for page in range(self.max_pages):
             url = self._page_url(page)
-            artifact = self.fetcher.fetch(source_id, url, discovery_url=self.listing_base)
+            try:
+                artifact = self.fetcher.fetch(source_id, url, discovery_url=self.listing_base)
+            except httpx.HTTPStatusError as exc:
+                if exc.response.status_code == 404:
+                    break  # 站点只保留有限分页：404 表示列表到此为止
+                raise
             html = Path(artifact.uri).read_text(encoding="utf-8")
             found = discover(html, base_url=url, kinds=tuple(kinds))
             added = 0

@@ -28,6 +28,11 @@ _DDL = (
     "observation_start DATE, vintage_id BIGINT, "
     "PRIMARY KEY(snapshot_id,series_id,observation_start,vintage_id))",
     "CREATE TABLE IF NOT EXISTS ancestry(feature_id VARCHAR PRIMARY KEY, payload VARCHAR)",
+    "CREATE TABLE IF NOT EXISTS asset_master(asset_id VARCHAR PRIMARY KEY, payload VARCHAR)",
+    "CREATE TABLE IF NOT EXISTS market_bar(asset_id VARCHAR, trade_date DATE, payload VARCHAR, "
+    "PRIMARY KEY(asset_id,trade_date))",
+    "CREATE TABLE IF NOT EXISTS corporate_action(asset_id VARCHAR, ex_date DATE, "
+    "action_type VARCHAR, payload VARCHAR, PRIMARY KEY(asset_id,ex_date,action_type))",
 )
 
 

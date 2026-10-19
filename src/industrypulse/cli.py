@@ -27,6 +27,7 @@ import typer
 
 from industrypulse.contracts import CONTRACTS_VERSION
 from industrypulse.contracts.context import ResearchMode
+from industrypulse.contracts.domain import Exchange
 from industrypulse.contracts.observation import RawArtifact
 from industrypulse.contracts.sources import LegalStatus, SeriesSpec, SourceDescriptor
 from industrypulse.core import CalendarError, Settings, load_trading_calendar
@@ -48,17 +49,27 @@ from industrypulse.datahub.exchange_calendar import (
     derive_trading_days,
 )
 from industrypulse.datahub.fetcher import Fetcher
+from industrypulse.datahub.sina_etf import fetch_sina_kline
 from industrypulse.datahub.source_registry import SourceRegistry
-from industrypulse.repositories import DuckDBObservationRepository, PublicationError
+from industrypulse.repositories import (
+    DuckDBMarketRepository,
+    DuckDBObservationRepository,
+    MarketDataError,
+    PublicationError,
+)
 from industrypulse.services import (
     AsPublishedClaim,
+    BacktestRequest,
     BatchItem,
     ClaimError,
+    EtfIngestError,
+    EtfIngestService,
     IngestError,
     IngestService,
     MonthlyBackfill,
     format_table,
     parse_claim,
+    run_backtest,
 )
 from industrypulse.services import (
     compare_modes as build_pit_comparison,
@@ -68,8 +79,10 @@ from industrypulse.taxonomy import TaxonomyRegistry
 app = typer.Typer(add_completion=False, no_args_is_help=True, help="IndustryPulse 本地 CLI")
 source_app = typer.Typer(no_args_is_help=True, help="数据源目录、许可与生命周期")
 calendar_app = typer.Typer(no_args_is_help=True, help="交易日历装载与校验")
+etf_app = typer.Typer(no_args_is_help=True, help="ETF/指数行情采集")
 app.add_typer(source_app, name="source")
 app.add_typer(calendar_app, name="calendar")
+app.add_typer(etf_app, name="etf")
 
 DEFAULT_CATALOG = Path("source_catalog.csv")
 DEFAULT_TAXONOMY = Path("config/industries/steel.yaml")
@@ -160,6 +173,129 @@ def _resolve_claim(raw: str | None) -> AsPublishedClaim | None:
         return parse_claim(raw)
     except ClaimError as exc:
         _fail(str(exc))
+
+
+@etf_app.command("ingest")
+def etf_ingest(
+    database: Annotated[Path, typer.Option("--database")],
+    symbol: Annotated[str, typer.Option("--symbol", help="新浪代码，如 sh515210")],
+    asset_id: Annotated[str, typer.Option("--asset-id", help="合同层 asset_id，如 ETF_515210")],
+    name: Annotated[str, typer.Option("--name", help="中文名称")],
+    exchange: Annotated[str, typer.Option("--exchange")] = "SSE",
+    tracking_index: Annotated[
+        str | None, typer.Option("--tracking-index", help="跟踪指数 asset_id（可选）")
+    ] = None,
+    interval: Annotated[float, typer.Option("--interval", help="请求间隔秒数")] = 1.2,
+) -> None:
+    """采集 ETF/指数日线并写入不可变行情仓储（不复权原始价）。"""
+    market = DuckDBMarketRepository(database)
+    service = EtfIngestService(market, bronze_root=database.parent / "bronze-etf")
+    headers = {"User-Agent": "IndustryPulse/0.1 (research; contact=local)"}
+    try:
+        exchange_value = Exchange(exchange.upper())
+    except ValueError:
+        _fail(f"未知交易所：{exchange}")
+    try:
+        with httpx.Client(timeout=40, follow_redirects=True, headers=headers) as client:
+            report = service.ingest_symbol(
+                symbol=symbol,
+                asset_id=asset_id,
+                name_zh=name,
+                exchange=exchange_value,
+                tracking_index_id=tracking_index,
+                fetch=lambda code: fetch_sina_kline(code, client=client, interval=interval),
+            )
+    except (EtfIngestError, MarketDataError, ValueError) as exc:
+        _fail(str(exc))
+    _emit(
+        {
+            "asset_id": report.asset_id,
+            "symbol": report.symbol,
+            "bars": report.bars,
+            "inserted": report.inserted,
+            "first_day": report.first_day,
+            "last_day": report.last_day,
+            "artifact_sha256": report.artifact_sha256,
+        }
+    )
+
+
+@etf_app.command("list")
+def etf_list(database: Annotated[Path, typer.Option("--database")]) -> None:
+    """列出行情仓储中的资产与 bar 数。"""
+    market = DuckDBMarketRepository(database)
+    _emit(
+        [
+            {
+                "asset_id": asset.asset_id,
+                "name": asset.name_zh,
+                "type": asset.instrument_type.value,
+                "bars": len(market.bars(asset.asset_id)),
+            }
+            for asset in market.assets()
+        ]
+    )
+
+
+@app.command("backtest")
+def backtest(
+    database: Annotated[Path, typer.Option("--database")],
+    asset_id: Annotated[str, typer.Option("--asset-id", help="被回测的 ETF")],
+    series_id: Annotated[str, typer.Option("--series-id", help="驱动信号的经济指标序列")],
+    snapshot_id: Annotated[str, typer.Option("--snapshot-id", help="冻结观测快照")],
+    start: Annotated[str, typer.Option("--from", help="起始日 YYYY-MM-DD")],
+    end: Annotated[str, typer.Option("--to", help="结束日 YYYY-MM-DD")],
+    benchmark: Annotated[str | None, typer.Option("--benchmark", help="基准 asset_id")] = None,
+    threshold: Annotated[float, typer.Option("--threshold", help="规则阈值")] = 0.0,
+    commission_bps: Annotated[float, typer.Option("--commission-bps")] = 3.0,
+    slippage_bps: Annotated[float, typer.Option("--slippage-bps")] = 5.0,
+    cash_rate: Annotated[float, typer.Option("--cash-rate", help="现金年化利率")] = 0.015,
+    max_weight: Annotated[float, typer.Option("--max-weight")] = 1.0,
+    max_turnover: Annotated[float | None, typer.Option("--max-turnover")] = None,
+    out: Annotated[Path | None, typer.Option("--out", help="可选：写出完整 JSON 报告")] = None,
+) -> None:
+    """执行一次基线规则回测（V-005..V-010），输出净值与成本口径。"""
+    try:
+        request = BacktestRequest(
+            asset_id=asset_id,
+            benchmark_asset_id=benchmark,
+            series_id=series_id,
+            snapshot_id=snapshot_id,
+            start=date.fromisoformat(start),
+            end=date.fromisoformat(end),
+            threshold=threshold,
+            commission_bps=commission_bps,
+            slippage_bps=slippage_bps,
+            cash_rate_annual=cash_rate,
+            max_weight=max_weight,
+            max_turnover=max_turnover,
+        )
+    except ValueError as exc:
+        _fail(str(exc))
+    market = DuckDBMarketRepository(database)
+    observations = DuckDBObservationRepository(database)
+    try:
+        result, metadata = run_backtest(market, observations, request)
+    except (ValueError, PublicationError, MarketDataError) as exc:
+        _fail(str(exc))
+    m = result.metrics
+    _emit(
+        {
+            "experiment": metadata,
+            "metrics": m.model_dump(),
+            "benchmark_metrics": result.benchmark_metrics.model_dump()
+            if result.benchmark_metrics
+            else None,
+            "final_equity": str(result.final_equity),
+            "trades": len(result.trades),
+            "warnings": result.warnings,
+            "written_to": None,
+        }
+    )
+    if out is not None:
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(result.model_dump_json(indent=2) + "\n", encoding="utf-8")
+        typer.echo(f"完整报告已写入 {out}")
 
 
 @app.command("doctor")
