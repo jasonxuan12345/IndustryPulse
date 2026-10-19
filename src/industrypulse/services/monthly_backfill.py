@@ -30,6 +30,7 @@ from industrypulse.datahub.adapters import (
 )
 from industrypulse.datahub.discovery import Announcement, discover, in_range
 from industrypulse.repositories import DuckDBObservationRepository, PublicationError
+from industrypulse.services.as_published import AsPublishedClaim
 from industrypulse.services.ingest import (
     BatchIngestReport,
     BatchItem,
@@ -243,7 +244,7 @@ class MonthlyBackfill:
         source_id: str,
         snapshot_id: str,
         parser_version: str = "g2-v1",
-        contemporary: bool = False,
+        as_published: AsPublishedClaim | None = None,
         extra: Sequence[BatchItem] = (),
     ) -> BackfillOutcome:
         if not announcements and not extra:
@@ -287,7 +288,7 @@ class MonthlyBackfill:
         if not items:
             raise IngestError(f"全部 {len(announcements)} 份文档均解析失败")
         report = IngestService(self.repository, parser_version=parser_version).ingest_batch(
-            items, snapshot_id=snapshot_id, contemporary=contemporary
+            items, snapshot_id=snapshot_id, as_published=as_published
         )
         return BackfillOutcome(report=report, discovered=len(announcements), skipped=tuple(skipped))
 

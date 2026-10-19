@@ -24,7 +24,7 @@ from industrypulse.contracts.pit import SkipReason, select_vintages_as_of
 from industrypulse.contracts.sources import ReleasePolicy
 from industrypulse.datahub.adapters import ParsedObservation, parse_profit
 from industrypulse.repositories import DuckDBObservationRepository, PublicationError
-from industrypulse.services import IngestError, IngestReport, IngestService
+from industrypulse.services import AsPublishedClaim, IngestError, IngestReport, IngestService
 
 SERIES_ID = "cn.nbs.industry_c31.profit_ytd"
 ROW = "黑色金属冶炼和压延加工业"
@@ -119,14 +119,14 @@ def ingest(
     *,
     parsed: list[ParsedObservation] | None = None,
     retrieved_at: datetime | None = None,
-    contemporary: bool = False,
+    as_published: AsPublishedClaim | None = None,
 ) -> IngestReport:
     return IngestService(repository).ingest_document(
         artifact=artifact(content, retrieved_at=retrieved_at),
         content=content,
         parsed=parsed if parsed is not None else parse(content.decode("utf-8")),
         specs={SERIES_ID: repository.series_spec(SERIES_ID)},
-        contemporary=contemporary,
+        as_published=as_published,
     )
 
 
@@ -149,10 +149,30 @@ def test_publishes_vintage_with_conservative_value_grade(tmp_path: Path) -> None
     assert row.artifact_id == hashlib.sha256(content).hexdigest()
 
 
-def test_contemporary_claim_is_the_only_way_to_grade_a(tmp_path: Path) -> None:
+def test_capture_claim_within_window_grades_a(tmp_path: Path) -> None:
+    """只有提供同期捕获证据且落在 48h 窗口内，数值证据才可能到 A。"""
     repository = make_repository(tmp_path)
-    report = ingest(repository, page("1580.4").encode(), contemporary=True)
+    report = ingest(
+        repository,
+        page("1580.4").encode(),
+        as_published=AsPublishedClaim(method="capture", captured_at=None),
+    )
     assert report.vintages[0].value_evidence == EvidenceGrade.A
+    assert "as_published=capture" in report.vintages[0].notes
+
+
+def test_capture_claim_outside_window_stays_c(tmp_path: Path) -> None:
+    """抓取晚于发布 48h：正是历史回填的真实情况，必须停在 C。"""
+    repository = make_repository(tmp_path)
+    late = datetime(2025, 9, 30, tzinfo=TZ_SHANGHAI)
+    report = ingest(
+        repository,
+        page("1580.4").encode(),
+        retrieved_at=late,
+        as_published=AsPublishedClaim(method="capture", captured_at=None),
+    )
+    assert report.vintages[0].value_evidence == EvidenceGrade.C
+    assert "rejected" in report.vintages[0].notes
 
 
 def test_reingest_same_bytes_is_idempotent(tmp_path: Path) -> None:
@@ -269,7 +289,11 @@ def test_regrade_creates_new_snapshot_and_vintage(tmp_path: Path) -> None:
     repository = make_repository(tmp_path)
     content = page("1580.4").encode()
     conservative = ingest(repository, content)
-    asserted = ingest(repository, content, contemporary=True)
+    asserted = ingest(
+        repository,
+        content,
+        as_published=AsPublishedClaim(method="capture", captured_at=None),
+    )
 
     assert asserted.snapshot_id != conservative.snapshot_id
     assert asserted.created == 1

@@ -43,6 +43,8 @@ from industrypulse.core.evidence import release_grade, value_grade
 from industrypulse.datahub.adapters import ParsedObservation
 from industrypulse.repositories import DuckDBObservationRepository
 
+from .as_published import AsPublishedClaim, evaluate_claim
+
 _PERIOD = re.compile(r"^(\d{4})-(0[1-9]|1[0-2])$")
 
 #: 未声明 intraday_time 时的默认发布时刻（§6.4 只知日期时统一 09:30 口径）。
@@ -62,6 +64,7 @@ class IngestReport(ContractBaseModel):
     created: Annotated[int, Field(ge=0)]
     reused: Annotated[int, Field(ge=0)]
     vintages: Annotated[list[ObservationVintage], Field(min_length=1)]
+    claim: NonEmptyStr | None = None
 
 
 class BatchIngestReport(ContractBaseModel):
@@ -73,6 +76,7 @@ class BatchIngestReport(ContractBaseModel):
     created: Annotated[int, Field(ge=0)]
     reused: Annotated[int, Field(ge=0)]
     vintages: Annotated[list[ObservationVintage], Field(min_length=1)]
+    claim: NonEmptyStr | None = None
 
 
 @dataclass(frozen=True)
@@ -112,7 +116,7 @@ class IngestService:
         period: str,
         content: bytes,
         series_ids: Sequence[str] = (),
-        contemporary: bool = False,
+        as_published: AsPublishedClaim | None = None,
         trusted_copy: bool = False,
         policy_date: bool = False,
     ) -> str:
@@ -125,7 +129,12 @@ class IngestService:
             {
                 "parser_version": self.parser_version,
                 "series": sorted(set(series_ids)),
-                "contemporary": contemporary,
+                "as_published": None
+                if as_published is None
+                else [
+                    as_published.method,
+                    as_published.captured_at.isoformat() if as_published.captured_at else None,
+                ],
                 "trusted_copy": trusted_copy,
                 "policy_date": policy_date,
             },
@@ -141,28 +150,36 @@ class IngestService:
         content: bytes,
         parsed: Sequence[ParsedObservation],
         specs: Mapping[str, SeriesSpec],
-        contemporary: bool,
+        as_published: AsPublishedClaim | None,
         trusted_copy: bool,
         policy_date: bool,
-    ) -> tuple[RawArtifact, list[ObservationVintage], int, int]:
-        """归档原件并构造版本（不发布）。供单文档与批量两条路径共用。"""
+    ) -> tuple[RawArtifact, list[ObservationVintage], int, int, str]:
+        """归档原件并构造版本（不发布）。返回 (原件, 版本, 新建数, 复用数, 证据结论)。"""
         if not parsed:
             raise IngestError("没有任何解析结果；拒绝发布空文档")
         archived = self.repository.archive(artifact, content)
         built: list[ObservationVintage] = []
         created = reused = 0
+        claim_note = ""
         for item in parsed:
             spec = specs.get(item.series_id)
             if spec is None:
                 raise IngestError(f"未登记 SeriesSpec：{item.series_id}（先运行 init）")
+            verdict = evaluate_claim(
+                as_published,
+                publication_at=item.publication_at,
+                fallback_captured_at=archived.retrieved_at,
+            )
+            claim_note = verdict.describe(as_published.method if as_published else "capture")
             candidate = self._build(
                 item,
                 spec,
                 archived,
                 vintage_id=1,
-                contemporary=contemporary,
+                contemporary=verdict.ok,
                 trusted_copy=trusted_copy,
                 policy_date=policy_date,
+                claim_note=claim_note,
             )
             existing = self.repository.vintages_for(
                 candidate.series_id, candidate.observation_start
@@ -176,7 +193,7 @@ class IngestService:
             next_id = max((row.vintage_id for row in existing), default=0) + 1
             built.append(candidate.model_copy(update={"vintage_id": next_id}))
             created += 1
-        return archived, built, created, reused
+        return archived, built, created, reused, claim_note
 
     def ingest_document(
         self,
@@ -186,20 +203,20 @@ class IngestService:
         parsed: Sequence[ParsedObservation],
         specs: Mapping[str, SeriesSpec],
         snapshot_id: str | None = None,
-        contemporary: bool = False,
+        as_published: AsPublishedClaim | None = None,
         trusted_copy: bool = False,
         policy_date: bool = False,
     ) -> IngestReport:
         """归档原件并发布该文档的全部观测；任一行失败则全部回滚。
 
-        ``contemporary`` 只有在人工核验过"这份文件是当期原件而非现行修订版"后才能置 True。
+        只有提供 ``as_published`` 证据且落在捕获窗口内，数值证据才可能高于 C。
         """
-        archived, built, created, reused = self._stage(
+        archived, built, created, reused, claim_note = self._stage(
             artifact=artifact,
             content=content,
             parsed=parsed,
             specs=specs,
-            contemporary=contemporary,
+            as_published=as_published,
             trusted_copy=trusted_copy,
             policy_date=policy_date,
         )
@@ -210,7 +227,7 @@ class IngestService:
             period=label,
             content=content,
             series_ids=[item.series_id for item in parsed],
-            contemporary=contemporary,
+            as_published=as_published,
             trusted_copy=trusted_copy,
             policy_date=policy_date,
         )
@@ -222,6 +239,7 @@ class IngestService:
             created=created,
             reused=reused,
             vintages=built,
+            claim=claim_note or None,
         )
 
     def ingest_batch(
@@ -229,7 +247,7 @@ class IngestService:
         items: Sequence[BatchItem],
         *,
         snapshot_id: str,
-        contemporary: bool = False,
+        as_published: AsPublishedClaim | None = None,
         trusted_copy: bool = False,
         policy_date: bool = False,
     ) -> BatchIngestReport:
@@ -245,19 +263,22 @@ class IngestService:
         artifact_ids: list[str] = []
         staged: dict[tuple[str, date, int], ObservationVintage] = {}
         created = reused = 0
+        claim_notes: list[str] = []
         for item in items:
-            archived, built, item_created, item_reused = self._stage(
+            archived, built, item_created, item_reused, item_claim = self._stage(
                 artifact=item.artifact,
                 content=item.content,
                 parsed=item.parsed,
                 specs=item.specs,
-                contemporary=contemporary,
+                as_published=as_published,
                 trusted_copy=trusted_copy,
                 policy_date=policy_date,
             )
             artifact_ids.append(archived.artifact_id)
             created += item_created
             reused += item_reused
+            if item_claim:
+                claim_notes.append(item_claim)
             for row in built:
                 staged.setdefault((row.series_id, row.observation_start, row.vintage_id), row)
         rows = [staged[key] for key in sorted(staged)]
@@ -269,6 +290,7 @@ class IngestService:
             created=created,
             reused=reused,
             vintages=rows,
+            claim=claim_notes[0] if claim_notes else None,
         )
 
     @staticmethod
@@ -301,6 +323,7 @@ class IngestService:
         contemporary: bool,
         trusted_copy: bool,
         policy_date: bool,
+        claim_note: str = "",
     ) -> ObservationVintage:
         if parsed.series_id != spec.series_id:
             raise IngestError(f"解析序列 {parsed.series_id} 与规格 {spec.series_id} 不符")
@@ -363,7 +386,10 @@ class IngestService:
             value_evidence=value,
             artifact_id=artifact.artifact_id,
             source_url=artifact.source_url,
-            notes=f"ingested via {self.parser_version}; locator={parsed.locator}",
+            notes=(
+                f"ingested via {self.parser_version}; locator={parsed.locator}"
+                + (f"; {claim_note}" if claim_note else "")
+            ),
         )
 
 

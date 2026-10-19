@@ -51,11 +51,14 @@ from industrypulse.datahub.fetcher import Fetcher
 from industrypulse.datahub.source_registry import SourceRegistry
 from industrypulse.repositories import DuckDBObservationRepository, PublicationError
 from industrypulse.services import (
+    AsPublishedClaim,
     BatchItem,
+    ClaimError,
     IngestError,
     IngestService,
     MonthlyBackfill,
     format_table,
+    parse_claim,
 )
 from industrypulse.services import (
     compare_modes as build_pit_comparison,
@@ -149,6 +152,14 @@ def calendar_derive(
             "written_to": str(out),
         }
     )
+
+
+def _resolve_claim(raw: str | None) -> AsPublishedClaim | None:
+    """把 CLI 取值解析为证据声明；非法取值直接失败。"""
+    try:
+        return parse_claim(raw)
+    except ClaimError as exc:
+        _fail(str(exc))
 
 
 @app.command("doctor")
@@ -414,10 +425,13 @@ def ingest(
         typer.Option("--params-file", help="解析器参数 JSON 文件（Windows 下比 --params 更可靠）"),
     ] = None,
     parser_version: Annotated[str, typer.Option("--parser-version")] = "g2-v1",
-    contemporary: Annotated[
-        bool,
-        typer.Option("--contemporary", help="已人工核验该文件是同期原件（否则数值证据只能为 C）"),
-    ] = False,
+    as_published: Annotated[
+        str | None,
+        typer.Option(
+            "--as-published",
+            help="同期原件证据：auto（用抓取时点）或 capture:<ISO8601>；缺省则数值证据只能为 C",
+        ),
+    ] = None,
     trusted_copy: Annotated[bool, typer.Option("--trusted-copy")] = False,
     snapshot_id: Annotated[
         str | None, typer.Option("--snapshot-id", help="缺省按内容寻址生成")
@@ -448,6 +462,7 @@ def ingest(
         html = content.decode("utf-8")
     except UnicodeDecodeError as exc:
         _fail(f"文档不是 UTF-8 HTML：{exc}")
+    claim = _resolve_claim(as_published)
     repository = DuckDBObservationRepository(database)
     try:
         parsed = _run_parser(parser, html, period, payload)
@@ -478,7 +493,7 @@ def ingest(
             parsed=parsed,
             specs=specs,
             snapshot_id=snapshot_id,
-            contemporary=contemporary,
+            as_published=claim,
             trusted_copy=trusted_copy,
         )
     except (IngestError, PublicationError, ValueError) as exc:
@@ -620,10 +635,10 @@ def backfill(
     manifest: Annotated[Path, typer.Option("--manifest", help="回填清单 JSON")],
     snapshot_id: Annotated[str, typer.Option("--snapshot-id", help="冻结快照 ID")],
     parser_version: Annotated[str, typer.Option("--parser-version")] = "g2-v1",
-    contemporary: Annotated[
-        bool,
-        typer.Option("--contemporary", help="已核验全部文档均为同期原件（默认 False）"),
-    ] = False,
+    as_published: Annotated[
+        str | None,
+        typer.Option("--as-published", help="同期原件证据：auto 或 capture:<ISO8601>"),
+    ] = None,
     trusted_copy: Annotated[bool, typer.Option("--trusted-copy")] = False,
 ) -> None:
     """离线批量回填多份公告到同一个冻结快照（O-006）。
@@ -636,11 +651,12 @@ def backfill(
           "parser": "profit",
           "params_file": "data/incoming/params-2025-07.json"}]
     """
+    claim = _resolve_claim(as_published)
     repository = DuckDBObservationRepository(database)
     items = _batch_items_from_manifest(repository, manifest, datetime.now(UTC))
     try:
         report = IngestService(repository, parser_version=parser_version).ingest_batch(
-            items, snapshot_id=snapshot_id, contemporary=contemporary, trusted_copy=trusted_copy
+            items, snapshot_id=snapshot_id, as_published=claim, trusted_copy=trusted_copy
         )
     except (IngestError, PublicationError, ValueError) as exc:
         _fail(str(exc))
@@ -663,7 +679,9 @@ def backfill_monthly(
     max_pages: Annotated[int, typer.Option("--max-pages", help="列表页翻页上限")] = 30,
     interval: Annotated[float, typer.Option("--interval", help="请求间隔秒数")] = 1.0,
     parser_version: Annotated[str, typer.Option("--parser-version")] = "g2-v1",
-    contemporary: Annotated[bool, typer.Option("--contemporary")] = False,
+    as_published: Annotated[
+        str | None, typer.Option("--as-published", help="同期原件证据：auto 或 capture:<ISO8601>")
+    ] = None,
     include_manifest: Annotated[
         Path | None,
         typer.Option("--include-manifest", help="可选：把其它来源的文档并入同一快照"),
@@ -676,6 +694,7 @@ def backfill_monthly(
     selected = [item.strip() for item in kinds.split(",") if item.strip()]
     if not selected:
         _fail("--kinds 不能为空")
+    claim = _resolve_claim(as_published)
     repository = DuckDBObservationRepository(database)
     try:
         descriptor = repository.source_descriptor(source_id)
@@ -709,7 +728,7 @@ def backfill_monthly(
                 source_id=source_id,
                 snapshot_id=snapshot_id,
                 parser_version=parser_version,
-                contemporary=contemporary,
+                as_published=claim,
                 extra=extra,
             )
         except (IngestError, PublicationError, ValueError) as exc:
