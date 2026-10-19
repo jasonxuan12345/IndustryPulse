@@ -8,17 +8,20 @@ from .ingest import (
     IngestService,
     period_bounds,
 )
+from .monthly_backfill import BackfillOutcome, MonthlyBackfill
 from .pipeline import PipelineService
 from .pit_report import PitComparison, compare_modes, format_table
 from .snapshots import ForecastSnapshotStore, SnapshotView
 
 __all__ = [
+    "BackfillOutcome",
     "BatchIngestReport",
     "BatchItem",
     "ForecastSnapshotStore",
     "IngestError",
     "IngestReport",
     "IngestService",
+    "MonthlyBackfill",
     "PipelineService",
     "PitComparison",
     "SnapshotView",

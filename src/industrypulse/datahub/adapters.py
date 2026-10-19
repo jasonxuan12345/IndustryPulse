@@ -13,7 +13,13 @@ from zipfile import ZipFile
 from industrypulse.contracts.common import TZ_SHANGHAI
 from industrypulse.contracts.observation import MissingReason, RawArtifact
 from industrypulse.contracts.sources import TimestampPrecision
-from industrypulse.core.html_tables import header_span, locate, parse_number, tables
+from industrypulse.core.html_tables import (
+    header_span,
+    is_publisher_footnote,
+    locate,
+    parse_number,
+    tables,
+)
 from industrypulse.datahub.publication import extract_publication
 from industrypulse.datahub.source_registry import SourceRegistry
 
@@ -70,7 +76,13 @@ def parse_table(
         cell.text,
         is_ytd,
         population,
-        MissingReason.NOT_COLLECTED if value is None else None,
+        (
+            MissingReason.WITHDRAWN_BY_PUBLISHER
+            if value is None and is_publisher_footnote(cell.text)
+            else MissingReason.NOT_COLLECTED
+            if value is None
+            else None
+        ),
         publication_at=publication_at,
         timestamp_precision=precision,
     )

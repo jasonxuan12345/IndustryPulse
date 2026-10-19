@@ -21,6 +21,7 @@ from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import Annotated, Any, NoReturn
 
+import httpx
 import typer
 
 from industrypulse.contracts import CONTRACTS_VERSION
@@ -40,12 +41,14 @@ from industrypulse.datahub.adapters import (
     parse_tsf,
     resolve_table_column,
 )
+from industrypulse.datahub.fetcher import Fetcher
 from industrypulse.datahub.source_registry import SourceRegistry
 from industrypulse.repositories import DuckDBObservationRepository, PublicationError
 from industrypulse.services import (
     BatchItem,
     IngestError,
     IngestService,
+    MonthlyBackfill,
     format_table,
 )
 from industrypulse.services import (
@@ -448,73 +451,53 @@ def compare_modes(
         typer.echo(f"\nJSON 报告已写入 {out}")
 
 
-@app.command("backfill")
-def backfill(
-    database: Annotated[Path, typer.Option("--database")],
-    manifest: Annotated[Path, typer.Option("--manifest", help="回填清单 JSON")],
-    snapshot_id: Annotated[str, typer.Option("--snapshot-id", help="冻结快照 ID")],
-    parser_version: Annotated[str, typer.Option("--parser-version")] = "g2-v1",
-    contemporary: Annotated[
-        bool,
-        typer.Option("--contemporary", help="已核验全部文档均为同期原件（默认 False）"),
-    ] = False,
-    trusted_copy: Annotated[bool, typer.Option("--trusted-copy")] = False,
-) -> None:
-    """离线批量回填多份公告到同一个冻结快照（O-006）。
-
-    清单格式（JSON 数组）：:
-
-        [{"source_id": "cn.nbs", "period": "2025-07",
-          "file": "data/incoming/2025-07-profit.html",
-          "url": "https://www.stats.gov.cn/...",
-          "parser": "profit",
-          "params_file": "data/incoming/params-2025-07.json"}]
-    """
+def _batch_items_from_manifest(
+    repository: DuckDBObservationRepository, manifest: Path, retrieved_at: datetime
+) -> list[BatchItem]:
+    """把回填清单解析为 BatchItem 列表；任何结构问题都给出定位到序号的错误。"""
     if not manifest.is_file():
         _fail(f"清单不存在：{manifest}")
     try:
         raw = json.loads(manifest.read_text(encoding="utf-8-sig"))
     except json.JSONDecodeError as exc:
-        _fail(f"--manifest 不是合法 JSON：{exc}")
+        _fail(f"{manifest} 不是合法 JSON：{exc}")
     entries = raw.get("documents") if isinstance(raw, dict) else raw
     if not isinstance(entries, list) or not entries:
-        _fail("清单必须是非空 JSON 数组（或含 documents 数组的对象）")
-    repository = DuckDBObservationRepository(database)
-    retrieved_at = datetime.now(UTC)
+        _fail(f"{manifest} 必须是非空 JSON 数组（或含 documents 数组的对象）")
     items: list[BatchItem] = []
     for index, entry in enumerate(entries, start=1):
         if not isinstance(entry, dict):
-            _fail(f"清单第 {index} 项不是对象")
+            _fail(f"{manifest} 第 {index} 项不是对象")
         missing = [
             key for key in ("source_id", "period", "file", "url", "parser") if key not in entry
         ]
         if missing:
-            _fail(f"清单第 {index} 项缺少字段：{', '.join(missing)}")
+            _fail(f"{manifest} 第 {index} 项缺少字段：{', '.join(missing)}")
         document = Path(entry["file"])
         if not document.is_file():
-            _fail(f"清单第 {index} 项文件不存在：{document}")
+            _fail(f"{manifest} 第 {index} 项文件不存在：{document}")
         if "params_file" in entry:
             params_source = Path(entry["params_file"])
             if not params_source.is_file():
-                _fail(f"清单第 {index} 项参数文件不存在：{params_source}")
+                _fail(f"{manifest} 第 {index} 项参数文件不存在：{params_source}")
             params_text = params_source.read_text(encoding="utf-8-sig")
         else:
             params_text = json.dumps(entry.get("params", {}), ensure_ascii=False)
         try:
             params_object: Any = json.loads(params_text)
         except json.JSONDecodeError as exc:
-            _fail(f"清单第 {index} 项参数不是合法 JSON：{exc}")
+            _fail(f"{manifest} 第 {index} 项参数不是合法 JSON：{exc}")
         if not isinstance(params_object, dict):
-            _fail(f"清单第 {index} 项参数必须是对象")
+            _fail(f"{manifest} 第 {index} 项参数必须是对象")
         content = document.read_bytes()
         try:
             html = content.decode("utf-8")
         except UnicodeDecodeError as exc:
-            _fail(f"清单第 {index} 项不是 UTF-8 HTML：{exc}")
+            _fail(f"{manifest} 第 {index} 项不是 UTF-8 文本：{exc}")
         try:
             parsed = _run_parser(entry["parser"], html, entry["period"], params_object)
         except (IngestError, ValueError) as exc:
-            _fail(f"清单第 {index} 项解析失败：{exc}")
+            _fail(f"{manifest} 第 {index} 项解析失败：{exc}")
         specs: dict[str, SeriesSpec] = {}
         for item in parsed:
             try:
@@ -543,6 +526,33 @@ def backfill(
                 specs=specs,
             )
         )
+    return items
+
+
+@app.command("backfill")
+def backfill(
+    database: Annotated[Path, typer.Option("--database")],
+    manifest: Annotated[Path, typer.Option("--manifest", help="回填清单 JSON")],
+    snapshot_id: Annotated[str, typer.Option("--snapshot-id", help="冻结快照 ID")],
+    parser_version: Annotated[str, typer.Option("--parser-version")] = "g2-v1",
+    contemporary: Annotated[
+        bool,
+        typer.Option("--contemporary", help="已核验全部文档均为同期原件（默认 False）"),
+    ] = False,
+    trusted_copy: Annotated[bool, typer.Option("--trusted-copy")] = False,
+) -> None:
+    """离线批量回填多份公告到同一个冻结快照（O-006）。
+
+    清单格式（JSON 数组）：:
+
+        [{"source_id": "cn.nbs", "period": "2025-07",
+          "file": "data/incoming/2025-07-profit.html",
+          "url": "https://www.stats.gov.cn/...",
+          "parser": "profit",
+          "params_file": "data/incoming/params-2025-07.json"}]
+    """
+    repository = DuckDBObservationRepository(database)
+    items = _batch_items_from_manifest(repository, manifest, datetime.now(UTC))
     try:
         report = IngestService(repository, parser_version=parser_version).ingest_batch(
             items, snapshot_id=snapshot_id, contemporary=contemporary, trusted_copy=trusted_copy
@@ -550,6 +560,87 @@ def backfill(
     except (IngestError, PublicationError, ValueError) as exc:
         _fail(str(exc))
     _emit(report.model_dump(mode="json"))
+
+
+@app.command("backfill-monthly")
+def backfill_monthly(
+    database: Annotated[Path, typer.Option("--database")],
+    source_id: Annotated[str, typer.Option("--source-id", help="合同层 source_id，须已 permit")],
+    start: Annotated[str, typer.Option("--from", help="起始所属期 YYYY-MM")],
+    end: Annotated[str, typer.Option("--to", help="结束所属期 YYYY-MM")],
+    snapshot_id: Annotated[str, typer.Option("--snapshot-id", help="冻结快照 ID")],
+    kinds: Annotated[
+        str, typer.Option("--kinds", help="逗号分隔：profit,pmi,iva")
+    ] = "profit,pmi,iva",
+    workdir: Annotated[Path, typer.Option("--workdir", help="抓取原件的内容寻址目录")] = Path(
+        "data/incoming/raw"
+    ),
+    max_pages: Annotated[int, typer.Option("--max-pages", help="列表页翻页上限")] = 30,
+    interval: Annotated[float, typer.Option("--interval", help="请求间隔秒数")] = 1.0,
+    parser_version: Annotated[str, typer.Option("--parser-version")] = "g2-v1",
+    contemporary: Annotated[bool, typer.Option("--contemporary")] = False,
+    include_manifest: Annotated[
+        Path | None,
+        typer.Option("--include-manifest", help="可选：把其它来源的文档并入同一快照"),
+    ] = None,
+    dry_run: Annotated[
+        bool, typer.Option("--dry-run", help="只发现并列出公告，不抓取正文")
+    ] = False,
+) -> None:
+    """按月回填：自动发现官方公告 -> 抓取 -> 解析 -> 单一冻结快照（O-006）。"""
+    selected = [item.strip() for item in kinds.split(",") if item.strip()]
+    if not selected:
+        _fail("--kinds 不能为空")
+    repository = DuckDBObservationRepository(database)
+    try:
+        descriptor = repository.source_descriptor(source_id)
+    except PublicationError as exc:
+        _fail(f"{exc}（先运行 source permit）")
+    registry = SourceRegistry([descriptor])
+    workdir.mkdir(parents=True, exist_ok=True)
+    headers = {"User-Agent": "IndustryPulse/0.1 (research; contact=local)"}
+    with httpx.Client(timeout=60, follow_redirects=False, headers=headers) as client:
+        fetcher = Fetcher(registry, workdir, client, retries=2, interval=interval)
+        backfill = MonthlyBackfill(repository, fetcher, max_pages=max_pages)
+        try:
+            announcements = backfill.discover(
+                source_id=source_id, kinds=selected, start=start, end=end
+            )
+        except (ValueError, PublicationError) as exc:
+            _fail(f"公告发现失败：{exc}")
+        typer.echo(f"发现公告 {len(announcements)} 份")
+        for announcement in announcements:
+            typer.echo(f"  {announcement.kind:<7}{announcement.period}  {announcement.title[:44]}")
+        if dry_run:
+            return
+        try:
+            extra = (
+                _batch_items_from_manifest(repository, include_manifest, datetime.now(UTC))
+                if include_manifest is not None
+                else []
+            )
+            outcome = backfill.run(
+                announcements,
+                source_id=source_id,
+                snapshot_id=snapshot_id,
+                parser_version=parser_version,
+                contemporary=contemporary,
+                extra=extra,
+            )
+        except (IngestError, PublicationError, ValueError) as exc:
+            _fail(str(exc))
+    typer.echo("")
+    _emit(
+        {
+            "snapshot_id": outcome.report.snapshot_id,
+            "created": outcome.report.created,
+            "reused": outcome.report.reused,
+            "documents_ingested": outcome.discovered - len(outcome.skipped),
+            "documents_skipped": len(outcome.skipped),
+            "vintages": len(outcome.report.vintages),
+            "skipped": list(outcome.skipped),
+        }
+    )
 
 
 if __name__ == "__main__":

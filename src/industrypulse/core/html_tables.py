@@ -81,9 +81,21 @@ def tables(html: str) -> list[list[list[Cell]]]:
     return result
 
 
+#: 官方表格用「（注2）」这类脚注标注代替数值（常见于同比不可比）。
+_FOOTNOTE = re.compile(r"^[（(]注\s*\d+[）)]$")
+
+#: 明确的"无值"占位符。
+_MISSING_TOKENS = frozenset({"", "—", "--", "…", "...", "-", "N/A", "NA"})
+
+
+def is_publisher_footnote(text: str) -> bool:
+    """该单元格是否为出版方脚注（意味着数值被有意不公布或不可比）。"""
+    return bool(_FOOTNOTE.fullmatch(text.strip()))
+
+
 def parse_number(text: str) -> Decimal | None:
     text = text.strip().replace(",", "").replace("−", "-").replace("％", "%")
-    if text in {"", "—", "--", "…", "...", "-", "N/A"}:
+    if text in _MISSING_TOKENS or is_publisher_footnote(text):
         return None
     if not re.fullmatch(r"[+-]?\d+(?:\.\d+)?%?", text):
         raise ValueError(f"not a numeric cell: {text!r}")
