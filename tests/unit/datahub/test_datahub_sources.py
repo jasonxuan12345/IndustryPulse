@@ -218,3 +218,22 @@ def test_manual_import(tmp_path: Path, xlsx: bool) -> None:
     parsed = import_manual(path, artifact, registry())[0]
     assert parsed.value == 0 and parsed.publication_at is not None
     assert parsed.artifact_id == "manual"
+
+
+def test_publication_without_meta_uses_header_datetime() -> None:
+    """2021–2024 公告页没有 PubDate meta，日期以裸 "YYYY/MM/DD HH:MM" 出现在页头。"""
+    from industrypulse.contracts.sources import TimestampPrecision
+    from industrypulse.datahub.publication import extract_publication
+
+    html = "<html><body><h1>标题</h1><span>2022/07/27 09:30</span><p>正文</p></body></html>"
+    stamp, precision = extract_publication(html)
+    assert stamp is not None and stamp.isoformat() == "2022-07-27T09:30:00+08:00"
+    assert precision == TimestampPrecision.MINUTE
+
+
+def test_publication_conflicting_header_times_are_rejected() -> None:
+    from industrypulse.datahub.publication import extract_publication
+
+    html = "<html><body><span>2022/07/27 09:30</span><span>2022/07/28 10:00</span></body></html>"
+    with __import__("pytest").raises(ValueError, match="conflicting"):
+        extract_publication(html)

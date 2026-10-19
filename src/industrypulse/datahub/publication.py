@@ -35,6 +35,12 @@ def extract_publication(html: str) -> tuple[datetime | None, TimestampPrecision]
             r"(\d{4}[-/]\d{2}[-/]\d{2}(?:\s+\d{2}:\d{2}(?::\d{2})?)?)",
             clean,
         )
+        if not values:
+            # 2021–2024 的公告页没有 PubDate meta，也没有"发布时间："前缀，
+            # 日期以裸 "2022/07/27 09:30" 形式出现在页头。只扫描前 4000 字，
+            # 并沿用下方的"多值即冲突"保护，避免抓到正文里的日期。
+            head = re.sub(r"\s+", " ", clean[:4000])
+            values = re.findall(r"\d{4}[-/]\d{2}[-/]\d{2}\s+\d{2}:\d{2}(?::\d{2})?", head)
     parsed: set[tuple[datetime, TimestampPrecision]] = set()
     for value in values:
         normalized = value.strip().replace("/", "-")

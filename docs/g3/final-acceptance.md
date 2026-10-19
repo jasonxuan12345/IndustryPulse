@@ -42,20 +42,24 @@
 | 观测版本 | **649 条**（2021-10 ~ 2026-09，47–50 期/序列） |
 | STRICT 可用性 | **0%**：无一份文档能举证为"同期原件"，`value_evidence` 停在 C |
 | RECONSTRUCTED 覆盖率 | 月度 as-of 从 19 条单调增至 179 条，2026-10 达 15/15 |
-| OOS 结论 | **未产生**：虽已有 4.8 年样本，但未执行 R-012 冻结 holdout |
+| OOS 执行 | **已执行**：`exp-steel-real-v1`，35 个决策样本，共同 OOS **仅 8 个** |
+| OOS 结论 | **INSUFFICIENT_EVIDENCE**：8 个样本无法支持任何优势声明 |
 
 **为什么不通过**：
 
 1. **STRICT 结构性不可用**。第三方网页存档（archive.org / archive.today /
    memento）在本环境全部不可达，历史文档无法补证；唯一可行路径是"发布后 48h 内
    捕获"（已实现 `--as-published` 证据链），只能从今往后累积。
-2. **OOS 流程未执行**。已有 4.8 年样本（2021-10 起），但 R-012 冻结 holdout 与
-   R-011 区块 bootstrap 尚未跑，因此不能声称任何统计优势。
+2. **OOS 样本过少**。已执行真实实验（RECONSTRUCTED PIT + 冻结 manifest +
+   purge/embargo），但 35 个决策样本中只有 8 个落入共同 OOS 窗口；
+   M01/M02 因内层无已公布验证样本被判 INSUFFICIENT_EVIDENCE。
+   8 个样本上的 Brier 差异（M03 0.072 vs M00 0.875）是**小样本过拟合**，
+   系统据此拒绝宣称优势。
 3. **模型状态全部为 `NOT_VALIDATED / UNCALIBRATED / NO_EDGE`**，系统未宣称任何
    预测优势——这是设计意图。
 
-**要转为"可评估"，需要**：执行 R-012（冻结 holdout）+ R-011（不确定性区间），
-以及 STRICT 样本 ≥24 个月（前向捕获累积中）。
+**要转为"可评估"，需要**：更大的 OOS 窗口（当前 8 个样本；建议 ≥60）
+与 R-011 区块 bootstrap 区间，以及 STRICT 样本 ≥24 个月（前向捕获累积中）。
 
 ---
 
