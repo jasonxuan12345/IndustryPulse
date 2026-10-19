@@ -9,6 +9,30 @@ S/A/D/I/E/M/R/V/U/O 按独占路径实现，并补 T-004..006 和合成跨 lane 
 本轮为工程/合成样本验收；真源质量、真实 ETF 主表和预测/投资有效性仍待
 各自门禁。后续按 G2 逐源审核接入，再跑真实月末快照和研究。
 
+## P6 ETF 口径验证与 STRICT 证据链（2026-10-19）
+
+**两个探针结论已落地为代码。**
+
+- **ETF 复权口径定论：新浪 K 线是不复权原始价**（与腾讯 raw 最大差 0.000000，
+  与 qfq 差 0.12）。与 `investment/market.py::total_return` 的口径完全对齐。
+- **分红**：raw/qfq 比值反推出 2024-12-24、2025-12-24 两次除息（各约 0.06 元/份），
+  与新浪「累计分红 0.225 元」量级一致；但东财/新浪/巨潮的官方逐笔来源全部不可用
+  （DNS 失败 / Service not found / POST 空）。→ V-006 必须把分红做成可插拔来源，
+  默认 `none` 并显式标注，不得静默忽略。
+- **STRICT 裸开关已移除**：`--contemporary` 换成 `--as-published auto|capture:<ISO8601>`，
+  只有「捕获时点距发布 ≤48h」才允许升格；判定结果写入 notes 并作为 `report.claim` 返回。
+  历史回填实测被正确拒绝：`距发布 10042.4h 超出 48h 窗口`。
+
+```text
+pytest                         408 passed（比 P5 新增11项）
+ruff check / format --check    OK（124 文件）
+mypy src                      OK（74 文件，strict）
+contracts export --check       OK（共享合同未改）
+```
+
+验收记录见 `docs/g2/p6-acceptance.md`、`docs/g2/probe-report.md`。
+**STRICT 只能 forward-only**：需从下一次公告起在 48h 内捕获，逐步累积样本。
+
 ## P5 真实交易日历（2026-10-19）
 
 **唯一已知会影响 STRICT 正确性的未决项已关闭**：用"官方日行情文件是否存在"为证据，
