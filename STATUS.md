@@ -9,6 +9,31 @@ S/A/D/I/E/M/R/V/U/O 按独占路径实现，并补 T-004..006 和合成跨 lane 
 本轮为工程/合成样本验收；真源质量、真实 ETF 主表和预测/投资有效性仍待
 各自门禁。后续按 G2 逐源审核接入，再跑真实月末快照和研究。
 
+## P4 按月回填与公告自动发现（2026-10-19）
+
+**真实样本密度已就位**：42 份公告自动发现、41 份入库，15 条序列共 **183 个观测版本**，
+冻结快照 `g2-steel-monthly-2026-10-19c`（含期货，多源同一快照）。
+
+- 新增 `datahub/discovery.py`：严格正则识别利润/PMI/工业增加值公告（含年度利润折算 12 月、
+  1—2 月合并公告折算 2 月）；不搜索、不猜 URL。
+- 新增 `services/monthly_backfill.py` + CLI `backfill-monthly`：发现 -> 抓取（S 线 Fetcher
+  许可门禁）-> 解析 -> 单快照发布；`--include-manifest` 可并入其它来源。
+- 按月 as-of 覆盖率：RECONSTRUCTED 信息集从 19 条单调增至 179 条，2026-10 达 15/15；
+  STRICT 仍全时域 0%。
+
+本轮修复：官方「（注2）」脚注被误判为解析错误（现记为
+`withdrawn_by_publisher` 缺失，4 条）；口径不符被"换表重试"掩盖（新增
+`UnusableDocument` 立即上报，IVA 2026-02 累计口径正确拒绝）；翻页终止过早导致漏采。
+
+```text
+pytest                         391 passed（比 P3 新增9项）
+ruff check / format --check    OK（120 文件）
+mypy src                      OK（72 文件，strict）
+contracts export --check       OK（共享合同未改）
+```
+
+验收记录见 `docs/g2/p4-acceptance.md`。**下一项**：真实交易日历落地。
+
 ## P3 期货接入与 §18.3 类别收口（2026-10-19）
 
 **§18.3 的四类数据要求（利润/生产/宏观/期货）已全部满足**：15 条真实序列、
