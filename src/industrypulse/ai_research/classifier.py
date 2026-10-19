@@ -1,7 +1,12 @@
-"""Release and numeric-vintage confidence are graded independently."""
+"""Release and numeric-vintage confidence are graded independently.
 
-from industrypulse.contracts.observation import EvidenceCandidate, EvidenceClass, EvidenceGrade
+规则实现已收敛到 :mod:`industrypulse.core.evidence`，本模块保留 A 线原有的
+调用形状（``classify(candidate, ...)``），行为逐字段不变。
+"""
+
+from industrypulse.contracts.observation import EvidenceCandidate, EvidenceGrade
 from industrypulse.contracts.sources import TimestampPrecision
+from industrypulse.core.evidence import grades_for_candidate
 
 
 def classify(
@@ -12,18 +17,17 @@ def classify(
     trusted_copy: bool = False,
     policy_date: bool = False,
 ) -> tuple[EvidenceGrade, EvidenceGrade]:
-    if candidate.publication_at is None:
-        release = EvidenceGrade.C if policy_date else EvidenceGrade.D
-    elif precision in {TimestampPrecision.SECOND, TimestampPrecision.MINUTE}:
-        release = EvidenceGrade.A
-    elif precision == TimestampPrecision.DAY:
-        release = EvidenceGrade.B
-    else:
-        release = EvidenceGrade.C
-    if candidate.parsed_value is None or candidate.evidence_class == EvidenceClass.SEARCH_SNIPPET:
-        value = EvidenceGrade.D
-    elif contemporary and candidate.raw_sha256 and candidate.table_locator:
-        value = EvidenceGrade.B if trusted_copy else EvidenceGrade.A
-    else:
-        value = EvidenceGrade.C
-    return release, value
+    return grades_for_candidate(
+        has_publication=candidate.publication_at is not None,
+        precision=precision,
+        has_value=candidate.parsed_value is not None,
+        evidence_class=candidate.evidence_class,
+        has_raw_hash=bool(candidate.raw_sha256),
+        has_locator=bool(candidate.table_locator),
+        contemporary=contemporary,
+        trusted_copy=trusted_copy,
+        policy_date=policy_date,
+    )
+
+
+__all__ = ["classify"]

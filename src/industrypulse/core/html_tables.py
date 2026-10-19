@@ -93,6 +93,42 @@ def parse_number(text: str) -> Decimal | None:
     return value
 
 
+def header_span(table: list[list[Cell]]) -> tuple[int, int]:
+    """返回表头区 ``[start, end)``。
+
+    真实官方表格常有三类干扰，合成 fixture 一个都没有：
+
+    1. **表题/单位横幅行**：合并单元格展开后整行文本相同（如全行 "单位：%"）；
+    2. **多级表头**：利润总额 / 金额 / （亿元）；
+    3. **同表数据行**：表格把表头和数据放在同一张表里。
+
+    若把"目标行之上的所有行"都当表头，数据值会混进表头标签集合导致精确列定位
+    失败。这里先跳过横幅行，再取"首列仍等于表头存根标签"的连续块。
+    """
+    if not table:
+        return (0, 0)
+    start = 0
+    while (
+        start < len(table)
+        and len(table[start]) > 1
+        and len({cell.text for cell in table[start]}) == 1
+    ):
+        start += 1
+    if start >= len(table):
+        return (start, start)
+    stub = table[start][0].text
+    end = start
+    while end < len(table) and table[end] and table[end][0].text == stub:
+        end += 1
+    return (start, end)
+
+
+def header_row_count(table: list[list[Cell]]) -> int:
+    """表头行数（:func:`header_span` 的便捷封装）。"""
+    start, end = header_span(table)
+    return end - start
+
+
 def locate(html: str, row_label: str, column_label: str, *, table_index: int | None = None) -> Cell:
     matches: list[Cell] = []
     for index, table in enumerate(tables(html), start=1):
@@ -105,12 +141,17 @@ def locate(html: str, row_label: str, column_label: str, *, table_index: int | N
                     for data_row in table[1:]:
                         if data_row and data_row[0].text == column_label:
                             matches.append(data_row[c])
+        header_start, header_end = header_span(table)
         for r, row in enumerate(table):
             if not row or row[0].text != row_label:
                 continue
             for c in range(1, len(row)):
                 headers = list(
-                    dict.fromkeys(table[h][c].text for h in range(r) if c < len(table[h]))
+                    dict.fromkeys(
+                        table[h][c].text
+                        for h in range(header_start, min(r, header_end))
+                        if c < len(table[h])
+                    )
                 )
                 if column_label in headers or column_label == " / ".join(headers):
                     matches.append(row[c])

@@ -175,8 +175,18 @@ class DuckDBObservationRepository:
             old = conn.execute(
                 "SELECT payload FROM raw_artifact WHERE artifact_id=?", [artifact.artifact_id]
             ).fetchone()
-            if old and old[0] != archived.model_dump_json():
-                raise PublicationError("immutable artifact_id conflict")
+            if old:
+                # artifact_id 是内容哈希：同一字节的重复归档是幂等操作。
+                # 只有"同 ID 不同内容/不同来源"才算冲突；retrieved_at、source_url 等
+                # 捕获元数据保持首次记录——首次抓取时间才是诚实的时间证据。
+                stored = RawArtifact.model_validate_json(old[0])
+                if (stored.sha256, stored.byte_size, stored.source_id) != (
+                    digest,
+                    artifact.byte_size,
+                    artifact.source_id,
+                ):
+                    raise PublicationError("immutable artifact_id conflict")
+                return stored
             path.parent.mkdir(parents=True, exist_ok=True)
             if path.exists():
                 if hashlib.sha256(path.read_bytes()).hexdigest() != digest:
@@ -282,6 +292,37 @@ class DuckDBObservationRepository:
                 conn.execute("INSERT INTO publication_row VALUES (?,?,?,?)", [snapshot_id, *key])
             conn.execute("INSERT INTO publication VALUES (?,?)", [snapshot_id, digest])
         return digest
+
+    def vintages_for(
+        self, series_id: str, observation_start: date
+    ) -> tuple[ObservationVintage, ...]:
+        """某序列-所属期已知的全部版本，按 vintage_id 升序。
+
+        摄取层用它做两件事：判断重放是否幂等（内容签名一致则复用），
+        以及为修订分配下一个 vintage_id。也是 G2 D-012 修订差异报告的基础。
+        """
+        with self.database.transaction() as conn:
+            rows = conn.execute(
+                "SELECT payload FROM observation_vintage WHERE series_id=? "
+                "AND observation_start=? ORDER BY vintage_id",
+                [series_id, observation_start],
+            ).fetchall()
+        return tuple(ObservationVintage.model_validate_json(row[0]) for row in rows)
+
+    def next_vintage_id(self, series_id: str, observation_start: date) -> int:
+        """下一个单调递增的 vintage_id（修订只新增、绝不改写旧行，§5.5）。"""
+        existing = self.vintages_for(series_id, observation_start)
+        return max((item.vintage_id for item in existing), default=0) + 1
+
+    def series_spec(self, series_id: str) -> SeriesSpec:
+        """读取已登记的序列规格；未登记则抛 PublicationError（不返回默认值）。"""
+        with self.database.transaction() as conn:
+            return SeriesSpec.model_validate_json(self._get(conn, "series", series_id))
+
+    def source_descriptor(self, source_id: str) -> SourceDescriptor:
+        """读取已登记的数据源描述符（含许可状态）。"""
+        with self.database.transaction() as conn:
+            return SourceDescriptor.model_validate_json(self._get(conn, "source", source_id))
 
     def select(self, series_ids: Sequence[str], ctx: AnalysisContextLike) -> AsOfSelection:
         if not series_ids:

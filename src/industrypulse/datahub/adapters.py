@@ -11,7 +11,7 @@ from zipfile import ZipFile
 
 from industrypulse.contracts.observation import MissingReason, RawArtifact
 from industrypulse.contracts.sources import TimestampPrecision
-from industrypulse.core.html_tables import locate, parse_number
+from industrypulse.core.html_tables import header_span, locate, parse_number, tables
 from industrypulse.datahub.publication import extract_publication
 from industrypulse.datahub.source_registry import SourceRegistry
 
@@ -71,6 +71,63 @@ def parse_table(
     )
 
 
+@dataclass(frozen=True)
+class TableColumn:
+    """表格某一列的精确表头标签与单位（供 parse_* 原样传入）。"""
+
+    label: str
+    unit: str
+
+
+_PAREN_TRANSLATION = str.maketrans({"（": "(", "）": ")", "％": "%"})
+
+
+def _normalized_unit(text: str) -> str:
+    return text.translate(_PAREN_TRANSLATION).strip().strip("()")
+
+
+def resolve_table_column(
+    html: str, *, table_index: int, metric: str = "利润总额", sub: str = "金额"
+) -> TableColumn:
+    """从多级表头中解析出指定指标的精确列标签与单位。
+
+    只做确定性结构匹配：表头首格必须等于 ``metric``，且表头块中存在一格等于
+    ``sub``；匹配数不为 1 即拒绝。这样既兼容官方页面全角/半角括号的排版差异，
+    又不会在列含义不清时"猜一个"。
+
+    返回的 ``label`` 必须原样传给 :func:`parse_profit` 等解析器，由 ``locate``
+    再做一次精确匹配，形成双重确认。
+    """
+    collection = tables(html)
+    if not 1 <= table_index <= len(collection):
+        raise ValueError(f"table_index 越界：{table_index}，共 {len(collection)} 张表")
+    table = collection[table_index - 1]
+    header_start, header_end = header_span(table)
+    if header_end <= header_start:
+        raise ValueError("未识别到表头区，拒绝猜测列含义")
+    width = max((len(row) for row in table), default=0)
+    matches: list[TableColumn] = []
+    for column in range(1, width):
+        cells = [
+            table[row][column].text
+            for row in range(header_start, header_end)
+            if column < len(table[row])
+        ]
+        if not cells or cells[0] != metric or sub not in cells[1:]:
+            continue
+        unit = _normalized_unit(cells[-1])
+        if unit not in {"亿元", "万元", "%"}:
+            raise ValueError(f"未登记的表头单位：{cells[-1]!r}")
+        matches.append(TableColumn(label=" / ".join(dict.fromkeys(cells)), unit=unit))
+    if len(matches) != 1:
+        raise ValueError(f"{metric}/{sub} 列定位不唯一：found {len(matches)}")
+    return matches[0]
+
+
+#: 分行业财务表的指标 -> series 后缀（列名必须显式包含该指标名）。
+_INDUSTRY_METRICS = {"营业收入": "revenue", "营业成本": "cost", "利润总额": "profit"}
+
+
 def parse_profit(
     html: str,
     *,
@@ -79,20 +136,28 @@ def parse_profit(
     column: str,
     unit: str = "亿元",
     table_index: int | None = None,
+    metric: str = "利润总额",
 ) -> ParsedObservation:
+    """规模以上工业企业分行业财务表：营业收入 / 营业成本 / 利润总额 的金额或同比。
+
+    ``metric`` 必须与列名一致，且单位必须与口径匹配；不猜、不做单位换算。
+    """
     # January/February is a joint period; never fabricate a January value.
     if period.endswith("-01"):
         raise ValueError("industrial profit has no standalone January release")
     if row != "黑色金属冶炼和压延加工业":
         raise ValueError("the C31 adapter requires the exact official industry label")
-    if "利润总额" not in column:
-        raise ValueError("profit columns must name the metric explicitly")
+    if metric not in _INDUSTRY_METRICS:
+        raise ValueError(f"未登记的财务指标：{metric!r}")
+    if metric not in column:
+        raise ValueError("columns must name the metric explicitly")
     is_growth = "同比" in column
     if (is_growth and unit != "%") or (not is_growth and unit not in {"亿元", "万元"}):
-        raise ValueError("profit amount/growth unit mismatch")
+        raise ValueError("amount/growth unit mismatch")
+    suffix = _INDUSTRY_METRICS[metric]
     return parse_table(
         html,
-        series_id="cn.nbs.industry_c31.profit_ytd" + ("_yoy" if is_growth else ""),
+        series_id=f"cn.nbs.industry_c31.{suffix}_ytd" + ("_yoy" if is_growth else ""),
         period=period,
         row=row,
         column=column,
@@ -159,6 +224,41 @@ def parse_pmi(
         period=period,
         row=row,
         column=column,
+        unit="%",
+        is_ytd=False,
+        population="制造业采购经理调查",
+        table_index=table_index,
+    )
+
+
+#: 真实 PMI 月表的列名 -> series 后缀（列名取自官方页面原文，含内部空格）。
+PMI_MATRIX_COLUMNS = {
+    "PMI": "headline",
+    "生产": "production",
+    "新订单": "new_orders",
+    "原材料 库存": "raw_inventory",
+    "从业人员": "employment",
+    "供应商 配送时间": "supplier_delivery",
+}
+
+
+def parse_pmi_matrix(
+    html: str, *, period: str, month_label: str, indicator: str, table_index: int
+) -> ParsedObservation:
+    """PMI 月表（真实公告版式：行为月份、列为指标）。
+
+    与 :func:`parse_pmi` 的区别：后者假设行是指标、列是所属期，那是合成 fixture
+    的形状；国家统计局实际页面是反过来的，且首行是 "单位：%" 横幅。两个形状
+    都保留，调用方必须显式选择，不做自动判别。
+    """
+    if indicator not in PMI_MATRIX_COLUMNS:
+        raise ValueError(f"未登记的 PMI 列：{indicator!r}")
+    return parse_table(
+        html,
+        series_id=f"cn.nbs.pmi.{PMI_MATRIX_COLUMNS[indicator]}",
+        period=period,
+        row=month_label,
+        column=indicator,
         unit="%",
         is_ytd=False,
         population="制造业采购经理调查",

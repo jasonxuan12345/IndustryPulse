@@ -1,0 +1,475 @@
+{
+  "version": "steel-g2-2026-10-19",
+  "synthetic": false,
+  "nodes": [
+    {
+      "industry_id": "CN_NBS_C31",
+      "standard": "GB/T 4754-2017",
+      "code": "31",
+      "names": {
+        "zh": "黑色金属冶炼和压延加工业",
+        "en": "Ferrous metal smelting and rolling"
+      },
+      "valid_from": "2017-10-01",
+      "notes": "真实 GB/T 4754-2017 行业代码；数据来自国家统计局公开新闻发布页（2026-10-19 核验）"
+    }
+  ],
+  "series": [
+    {
+      "series_id": "cn.nbs.industry_c31.revenue_ytd",
+      "source_id": "cn.nbs",
+      "unit": "亿元",
+      "unit_scale": "1",
+      "frequency": "M",
+      "revision_policy": "revised_later",
+      "timestamp_precision": "minute",
+      "is_ytd": true,
+      "description": "黑色金属冶炼和压延加工业 营业收入累计（国家统计局分行业表）",
+      "tags": [],
+      "industry_standard_version": "GB/T 4754-2017"
+    },
+    {
+      "series_id": "cn.nbs.industry_c31.revenue_ytd_yoy",
+      "source_id": "cn.nbs",
+      "unit": "%",
+      "unit_scale": "1",
+      "frequency": "M",
+      "revision_policy": "revised_later",
+      "timestamp_precision": "minute",
+      "is_ytd": true,
+      "description": "黑色金属冶炼和压延加工业 营业收入累计同比",
+      "tags": [],
+      "industry_standard_version": "GB/T 4754-2017"
+    },
+    {
+      "series_id": "cn.nbs.industry_c31.cost_ytd",
+      "source_id": "cn.nbs",
+      "unit": "亿元",
+      "unit_scale": "1",
+      "frequency": "M",
+      "revision_policy": "revised_later",
+      "timestamp_precision": "minute",
+      "is_ytd": true,
+      "description": "黑色金属冶炼和压延加工业 营业成本累计",
+      "tags": [],
+      "industry_standard_version": "GB/T 4754-2017"
+    },
+    {
+      "series_id": "cn.nbs.industry_c31.cost_ytd_yoy",
+      "source_id": "cn.nbs",
+      "unit": "%",
+      "unit_scale": "1",
+      "frequency": "M",
+      "revision_policy": "revised_later",
+      "timestamp_precision": "minute",
+      "is_ytd": true,
+      "description": "黑色金属冶炼和压延加工业 营业成本累计同比",
+      "tags": [],
+      "industry_standard_version": "GB/T 4754-2017"
+    },
+    {
+      "series_id": "cn.nbs.industry_c31.profit_ytd",
+      "source_id": "cn.nbs",
+      "unit": "亿元",
+      "unit_scale": "1",
+      "frequency": "M",
+      "revision_policy": "revised_later",
+      "timestamp_precision": "minute",
+      "is_ytd": true,
+      "description": "黑色金属冶炼和压延加工业 利润总额累计",
+      "tags": [],
+      "industry_standard_version": "GB/T 4754-2017"
+    },
+    {
+      "series_id": "cn.nbs.industry_c31.profit_ytd_yoy",
+      "source_id": "cn.nbs",
+      "unit": "%",
+      "unit_scale": "1",
+      "frequency": "M",
+      "revision_policy": "revised_later",
+      "timestamp_precision": "minute",
+      "is_ytd": true,
+      "description": "黑色金属冶炼和压延加工业 利润总额累计同比",
+      "tags": [],
+      "industry_standard_version": "GB/T 4754-2017"
+    },
+    {
+      "series_id": "cn.nbs.pmi.headline",
+      "source_id": "cn.nbs",
+      "unit": "%",
+      "unit_scale": "1",
+      "frequency": "M",
+      "revision_policy": "revised_later",
+      "timestamp_precision": "minute",
+      "is_ytd": false,
+      "description": "制造业PMI（总体）",
+      "tags": [
+        "macro_proxy"
+      ]
+    },
+    {
+      "series_id": "cn.nbs.pmi.production",
+      "source_id": "cn.nbs",
+      "unit": "%",
+      "unit_scale": "1",
+      "frequency": "M",
+      "revision_policy": "revised_later",
+      "timestamp_precision": "minute",
+      "is_ytd": false,
+      "description": "制造业PMI 生产",
+      "tags": [
+        "macro_proxy"
+      ]
+    },
+    {
+      "series_id": "cn.nbs.pmi.new_orders",
+      "source_id": "cn.nbs",
+      "unit": "%",
+      "unit_scale": "1",
+      "frequency": "M",
+      "revision_policy": "revised_later",
+      "timestamp_precision": "minute",
+      "is_ytd": false,
+      "description": "制造业PMI 新订单",
+      "tags": [
+        "macro_proxy"
+      ]
+    },
+    {
+      "series_id": "cn.nbs.pmi.raw_inventory",
+      "source_id": "cn.nbs",
+      "unit": "%",
+      "unit_scale": "1",
+      "frequency": "M",
+      "revision_policy": "revised_later",
+      "timestamp_precision": "minute",
+      "is_ytd": false,
+      "description": "制造业PMI 原材料库存",
+      "tags": [
+        "macro_proxy"
+      ]
+    },
+    {
+      "series_id": "cn.nbs.pmi.employment",
+      "source_id": "cn.nbs",
+      "unit": "%",
+      "unit_scale": "1",
+      "frequency": "M",
+      "revision_policy": "revised_later",
+      "timestamp_precision": "minute",
+      "is_ytd": false,
+      "description": "制造业PMI 从业人员",
+      "tags": [
+        "macro_proxy"
+      ]
+    },
+    {
+      "series_id": "cn.nbs.pmi.supplier_delivery",
+      "source_id": "cn.nbs",
+      "unit": "%",
+      "unit_scale": "1",
+      "frequency": "M",
+      "revision_policy": "revised_later",
+      "timestamp_precision": "minute",
+      "is_ytd": false,
+      "description": "制造业PMI 供应商配送时间",
+      "tags": [
+        "macro_proxy"
+      ]
+    },
+    {
+      "series_id": "cn.nbs.industry.c31",
+      "source_id": "cn.nbs",
+      "unit": "%",
+      "unit_scale": "1",
+      "frequency": "M",
+      "revision_policy": "revised_later",
+      "timestamp_precision": "minute",
+      "is_ytd": false,
+      "description": "黑色金属冶炼和压延加工业 规模以上工业增加值当月同比",
+      "tags": [],
+      "industry_standard_version": "GB/T 4754-2017"
+    }
+  ],
+  "indicators": [
+    {
+      "indicator_id": "c31_revenue_ytd",
+      "series_ids": [
+        "cn.nbs.industry_c31.revenue_ytd"
+      ],
+      "dimension": "demand",
+      "economic_direction": "positive",
+      "level": "CORE",
+      "industry_ids": [
+        "CN_NBS_C31"
+      ],
+      "role": "feature",
+      "valid_from": "2017-10-01",
+      "description": "行业营业收入累计"
+    },
+    {
+      "indicator_id": "c31_revenue_yoy",
+      "series_ids": [
+        "cn.nbs.industry_c31.revenue_ytd_yoy"
+      ],
+      "dimension": "demand",
+      "economic_direction": "positive",
+      "level": "CORE",
+      "industry_ids": [
+        "CN_NBS_C31"
+      ],
+      "role": "feature",
+      "valid_from": "2017-10-01",
+      "description": "行业营业收入累计同比"
+    },
+    {
+      "indicator_id": "c31_cost_ytd",
+      "series_ids": [
+        "cn.nbs.industry_c31.cost_ytd"
+      ],
+      "dimension": "supply",
+      "economic_direction": "negative",
+      "level": "EXTENDED",
+      "industry_ids": [
+        "CN_NBS_C31"
+      ],
+      "role": "feature",
+      "valid_from": "2017-10-01",
+      "description": "行业营业成本累计"
+    },
+    {
+      "indicator_id": "c31_cost_yoy",
+      "series_ids": [
+        "cn.nbs.industry_c31.cost_ytd_yoy"
+      ],
+      "dimension": "supply",
+      "economic_direction": "negative",
+      "level": "EXTENDED",
+      "industry_ids": [
+        "CN_NBS_C31"
+      ],
+      "role": "feature",
+      "valid_from": "2017-10-01",
+      "description": "行业营业成本累计同比"
+    },
+    {
+      "indicator_id": "c31_profit_ytd",
+      "series_ids": [
+        "cn.nbs.industry_c31.profit_ytd"
+      ],
+      "dimension": "profitability",
+      "economic_direction": "positive",
+      "level": "CORE",
+      "industry_ids": [
+        "CN_NBS_C31"
+      ],
+      "role": "label",
+      "valid_from": "2017-10-01",
+      "description": "行业利润总额累计（当期评价主标签）"
+    },
+    {
+      "indicator_id": "c31_profit_yoy",
+      "series_ids": [
+        "cn.nbs.industry_c31.profit_ytd_yoy"
+      ],
+      "dimension": "profitability",
+      "economic_direction": "positive",
+      "level": "CORE",
+      "industry_ids": [
+        "CN_NBS_C31"
+      ],
+      "role": "feature",
+      "valid_from": "2017-10-01",
+      "description": "行业利润总额累计同比"
+    },
+    {
+      "indicator_id": "pmi_headline",
+      "series_ids": [
+        "cn.nbs.pmi.headline"
+      ],
+      "dimension": "demand",
+      "economic_direction": "positive",
+      "level": "CORE",
+      "industry_ids": [
+        "CN_NBS_C31"
+      ],
+      "role": "macro_proxy",
+      "valid_from": "2017-10-01",
+      "description": "制造业PMI（宏观代理，非钢铁专属）"
+    },
+    {
+      "indicator_id": "pmi_production",
+      "series_ids": [
+        "cn.nbs.pmi.production"
+      ],
+      "dimension": "supply",
+      "economic_direction": "positive",
+      "level": "CORE",
+      "industry_ids": [
+        "CN_NBS_C31"
+      ],
+      "role": "macro_proxy",
+      "valid_from": "2017-10-01",
+      "description": "PMI 生产（宏观代理）"
+    },
+    {
+      "indicator_id": "pmi_new_orders",
+      "series_ids": [
+        "cn.nbs.pmi.new_orders"
+      ],
+      "dimension": "demand",
+      "economic_direction": "positive",
+      "level": "CORE",
+      "industry_ids": [
+        "CN_NBS_C31"
+      ],
+      "role": "macro_proxy",
+      "valid_from": "2017-10-01",
+      "description": "PMI 新订单（宏观代理）"
+    },
+    {
+      "indicator_id": "pmi_raw_inventory",
+      "series_ids": [
+        "cn.nbs.pmi.raw_inventory"
+      ],
+      "dimension": "inventory",
+      "economic_direction": "positive",
+      "level": "EXTENDED",
+      "industry_ids": [
+        "CN_NBS_C31"
+      ],
+      "role": "macro_proxy",
+      "valid_from": "2017-10-01",
+      "description": "PMI 原材料库存（宏观代理）"
+    },
+    {
+      "indicator_id": "pmi_employment",
+      "series_ids": [
+        "cn.nbs.pmi.employment"
+      ],
+      "dimension": "supply",
+      "economic_direction": "positive",
+      "level": "EXTENDED",
+      "industry_ids": [
+        "CN_NBS_C31"
+      ],
+      "role": "macro_proxy",
+      "valid_from": "2017-10-01",
+      "description": "PMI 从业人员（宏观代理）"
+    },
+    {
+      "indicator_id": "pmi_supplier_delivery",
+      "series_ids": [
+        "cn.nbs.pmi.supplier_delivery"
+      ],
+      "dimension": "supply",
+      "economic_direction": "negative",
+      "level": "EXTENDED",
+      "industry_ids": [
+        "CN_NBS_C31"
+      ],
+      "role": "macro_proxy",
+      "valid_from": "2017-10-01",
+      "description": "PMI 供应商配送时间（宏观代理）"
+    },
+    {
+      "indicator_id": "c31_iva_yoy",
+      "series_ids": [
+        "cn.nbs.industry.c31"
+      ],
+      "dimension": "supply",
+      "economic_direction": "positive",
+      "level": "CORE",
+      "industry_ids": [
+        "CN_NBS_C31"
+      ],
+      "role": "feature",
+      "valid_from": "2017-10-01",
+      "description": "行业工业增加值当月同比"
+    }
+  ],
+  "series_maps": [
+    {
+      "industry_id": "CN_NBS_C31",
+      "series_id": "cn.nbs.industry_c31.revenue_ytd",
+      "role": "feature",
+      "valid_from": "2017-10-01"
+    },
+    {
+      "industry_id": "CN_NBS_C31",
+      "series_id": "cn.nbs.industry_c31.revenue_ytd_yoy",
+      "role": "feature",
+      "valid_from": "2017-10-01"
+    },
+    {
+      "industry_id": "CN_NBS_C31",
+      "series_id": "cn.nbs.industry_c31.cost_ytd",
+      "role": "feature",
+      "valid_from": "2017-10-01"
+    },
+    {
+      "industry_id": "CN_NBS_C31",
+      "series_id": "cn.nbs.industry_c31.cost_ytd_yoy",
+      "role": "feature",
+      "valid_from": "2017-10-01"
+    },
+    {
+      "industry_id": "CN_NBS_C31",
+      "series_id": "cn.nbs.industry_c31.profit_ytd",
+      "role": "label",
+      "valid_from": "2017-10-01"
+    },
+    {
+      "industry_id": "CN_NBS_C31",
+      "series_id": "cn.nbs.industry_c31.profit_ytd_yoy",
+      "role": "feature",
+      "valid_from": "2017-10-01"
+    },
+    {
+      "industry_id": "CN_NBS_C31",
+      "series_id": "cn.nbs.pmi.headline",
+      "role": "macro_proxy",
+      "valid_from": "2017-10-01"
+    },
+    {
+      "industry_id": "CN_NBS_C31",
+      "series_id": "cn.nbs.pmi.production",
+      "role": "macro_proxy",
+      "valid_from": "2017-10-01"
+    },
+    {
+      "industry_id": "CN_NBS_C31",
+      "series_id": "cn.nbs.pmi.new_orders",
+      "role": "macro_proxy",
+      "valid_from": "2017-10-01"
+    },
+    {
+      "industry_id": "CN_NBS_C31",
+      "series_id": "cn.nbs.pmi.raw_inventory",
+      "role": "macro_proxy",
+      "valid_from": "2017-10-01"
+    },
+    {
+      "industry_id": "CN_NBS_C31",
+      "series_id": "cn.nbs.pmi.employment",
+      "role": "macro_proxy",
+      "valid_from": "2017-10-01"
+    },
+    {
+      "industry_id": "CN_NBS_C31",
+      "series_id": "cn.nbs.pmi.supplier_delivery",
+      "role": "macro_proxy",
+      "valid_from": "2017-10-01"
+    },
+    {
+      "industry_id": "CN_NBS_C31",
+      "series_id": "cn.nbs.industry.c31",
+      "role": "feature",
+      "valid_from": "2017-10-01"
+    }
+  ],
+  "relations": [],
+  "assets": [],
+  "asset_maps": [],
+  "securities_links": []
+}

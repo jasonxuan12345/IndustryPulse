@@ -31,6 +31,9 @@ dependencies = [
     "uvicorn[standard]>=0.30,<1",
 ]
 
+[project.scripts]
+industrypulse = "industrypulse.cli:app"
+
 [project.optional-dependencies]
 dev = [
     "hypothesis>=6.100,<7",   # 任务书 §2.1 质量栈；PIT/vintage 属性测试使用
