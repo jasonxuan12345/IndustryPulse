@@ -16,6 +16,7 @@ Python 样板串起来。本模块提供最小但完整的操作面：
 
 import hashlib
 import json
+import time
 from dataclasses import asdict
 from datetime import UTC, date, datetime
 from pathlib import Path
@@ -40,6 +41,11 @@ from industrypulse.datahub.adapters import (
     parse_shfe_daily,
     parse_tsf,
     resolve_table_column,
+)
+from industrypulse.datahub.exchange_calendar import (
+    ProbeError,
+    build_calendar,
+    derive_trading_days,
 )
 from industrypulse.datahub.fetcher import Fetcher
 from industrypulse.datahub.source_registry import SourceRegistry
@@ -74,6 +80,75 @@ def _emit(payload: Any) -> None:
 def _fail(message: str) -> NoReturn:
     typer.secho(f"error: {message}", fg=typer.colors.RED, err=True)
     raise typer.Exit(code=1)
+
+
+SHFE_DAILY_ENDPOINT = "https://www.shfe.com.cn/data/tradedata/future/dailydata/kx{stamp}.dat"
+
+
+@calendar_app.command("derive")
+def calendar_derive(
+    start: Annotated[str, typer.Option("--from", help="起始日 YYYY-MM-DD")],
+    end: Annotated[str, typer.Option("--to", help="结束日 YYYY-MM-DD")],
+    out: Annotated[Path, typer.Option("--out", help="输出规范化日历 JSON")],
+    exchange: Annotated[str, typer.Option("--exchange", help="目前仅支持 shfe")] = "shfe",
+    interval: Annotated[float, typer.Option("--interval", help="请求间隔秒数")] = 0.15,
+    lag_days: Annotated[int, typer.Option("--lag-days", help="行情发布滞后天数")] = 2,
+) -> None:
+    """按"官方日行情文件是否存在"推导交易日历（可验证证据，不猜）。"""
+    if exchange.lower() != "shfe":
+        _fail(f"暂不支持交易所 {exchange}；目前仅实现 shfe")
+    try:
+        first = date.fromisoformat(start)
+        last = date.fromisoformat(end)
+    except ValueError as exc:
+        _fail(f"--from/--to 不是合法日期：{exc}")
+    headers = {
+        "User-Agent": "IndustryPulse/0.1 (research; contact=local)",
+        "Referer": "https://www.shfe.com.cn/",
+    }
+
+    with httpx.Client(timeout=30, follow_redirects=False, headers=headers) as client:
+
+        def probe(day: date) -> bool:
+            url = SHFE_DAILY_ENDPOINT.format(stamp=day.strftime("%Y%m%d"))
+            for _ in range(2):
+                time.sleep(interval)
+                try:
+                    response = client.head(url)
+                except httpx.HTTPError as exc:
+                    raise ProbeError(f"{day} 探测失败：{exc!r}") from exc
+                if response.status_code == 200:
+                    return True
+                if response.status_code != 404:
+                    raise ProbeError(f"{day} 返回未知状态 {response.status_code}，拒绝推断")
+            return False
+
+        try:
+            days, _evidence, report = derive_trading_days(
+                probe, start=first, end=last, today=date.today(), publication_lag_days=lag_days
+            )
+        except ProbeError as exc:
+            _fail(str(exc))
+    calendar = build_calendar(
+        days,
+        report=report,
+        source_ref=f"SHFE 日行情端点探测 {SHFE_DAILY_ENDPOINT}",
+        version=f"shfe-derived-{report.evidence_sha256[:12]}",
+    )
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(calendar.model_dump_json(indent=2) + "\n", encoding="utf-8")
+    _emit(
+        {
+            "version": calendar.version,
+            "exchange": calendar.exchange,
+            "first_day": calendar.days[0].isoformat(),
+            "last_day": calendar.days[-1].isoformat(),
+            "trading_days": len(calendar.days),
+            "probed_weekdays": report.probed,
+            "evidence_sha256": report.evidence_sha256,
+            "written_to": str(out),
+        }
+    )
 
 
 @app.command("doctor")
@@ -421,6 +496,10 @@ def compare_modes(
         list[str] | None, typer.Option("--mode", help="strict_pit/reconstructed_pit/exploratory")
     ] = None,
     out: Annotated[Path | None, typer.Option("--out", help="可选：写出 JSON 报告")] = None,
+    calendar_path: Annotated[
+        Path | None,
+        typer.Option("--calendar", help="交易日历 JSON；用于 B 级发布的次一交易日规则"),
+    ] = None,
 ) -> None:
     """三种研究模式的 as-of 对照表（§20.5）：含行级可用性原因。"""
     try:
@@ -437,7 +516,13 @@ def compare_modes(
         )
     except ValueError as exc:
         _fail(f"--mode 非法：{exc}")
-    repository = DuckDBObservationRepository(database)
+    trading_days: tuple[date, ...] = ()
+    if calendar_path is not None:
+        try:
+            trading_days = load_trading_calendar(calendar_path).as_tuple()
+        except CalendarError as exc:
+            _fail(f"交易日历不可用：{exc}")
+    repository = DuckDBObservationRepository(database, trading_days=trading_days)
     try:
         comparison = build_pit_comparison(
             repository, series, points, modes, snapshot_id=snapshot_id

@@ -71,15 +71,15 @@ class TradingCalendar(ContractBaseModel):
         return day in set(self.days)
 
 
-def _raw_days(path: Path) -> tuple[list[Any], str | None, str | None]:
-    """读取原始日期序列，返回 (原始值列表, 版本, 出处)。"""
+def _raw_days(path: Path) -> tuple[list[Any], str | None, str | None, str | None]:
+    """读取原始日期序列，返回 (原始值列表, 版本, 出处, 交易所)。"""
     if path.suffix.lower() == ".csv":
         with path.open(encoding="utf-8-sig", newline="") as stream:
             rows = list(csv.DictReader(stream))
         if rows and "date" not in {key.lower() for key in rows[0]}:
             raise CalendarError("CSV 日历必须包含 date 列，禁止按列位置猜测")
         csv_days: list[Any] = [row.get("date") or row.get("DATE") for row in rows]
-        return csv_days, None, None
+        return csv_days, None, None, None
     try:
         document = json.loads(path.read_text(encoding="utf-8-sig"))
     except json.JSONDecodeError as exc:
@@ -91,10 +91,12 @@ def _raw_days(path: Path) -> tuple[list[Any], str | None, str | None]:
         raise CalendarError("日历 JSON 缺少 trading_days 数组")
     version = document.get("calendar_version") or document.get("version")
     source = document.get("source_ref") or document.get("description") or document.get("source")
+    declared_exchange = document.get("exchange")
     return (
         list(raw_days),
         version if isinstance(version, str) else None,
         (source if isinstance(source, str) else None),
+        (declared_exchange if isinstance(declared_exchange, str) else None),
     )
 
 
@@ -117,7 +119,7 @@ def load_trading_calendar(
         raise CalendarError(f"日历文件不存在：{target}")
     raw = target.read_bytes()
     digest = hashlib.sha256(raw).hexdigest()
-    values, declared_version, declared_source = _raw_days(target)
+    values, declared_version, declared_source, declared_exchange = _raw_days(target)
 
     days: list[date] = []
     for index, value in enumerate(values, start=1):
@@ -140,7 +142,8 @@ def load_trading_calendar(
     try:
         return TradingCalendar(
             version=declared_version or f"sha256-{digest[:12]}",
-            exchange=exchange,
+            # 文件自带 exchange 时以文件为准，避免用 CLI 默认值覆盖来源声明
+            exchange=declared_exchange or exchange,
             source_ref=declared_source or str(target.resolve()),
             source_sha256=digest,
             days=ordered,
