@@ -17,7 +17,7 @@ Python 样板串起来。本模块提供最小但完整的操作面：
 import hashlib
 import json
 from dataclasses import asdict
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import Annotated, Any, NoReturn
 
@@ -36,6 +36,7 @@ from industrypulse.datahub.adapters import (
     parse_pmi,
     parse_pmi_matrix,
     parse_profit,
+    parse_shfe_daily,
     parse_tsf,
     resolve_table_column,
 )
@@ -273,6 +274,13 @@ def _run_parser(
                     )
                 )
         return results
+    if name == "shfe-json":
+        trading_day = date.fromisoformat(str(required("trading_date")))
+        if period != f"{trading_day.year:04d}-{trading_day.month:02d}":
+            raise IngestError("--period 必须与 trading_date 同年月")
+        return [
+            parse_shfe_daily(html, trading_date=trading_day, contract=str(required("contract")))
+        ]
     if name == "pmi-table":
         index = required("table_index")
         month_label = required("month_label")

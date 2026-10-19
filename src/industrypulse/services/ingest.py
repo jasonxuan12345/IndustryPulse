@@ -308,7 +308,11 @@ class IngestService:
             raise IngestError(
                 f"单位不一致：解析得到 {parsed.unit!r}，SeriesSpec 声明 {spec.unit!r}；禁止静默换算"
             )
-        start, end = period_bounds(parsed.period)
+        if parsed.observation_start is not None and parsed.observation_end is not None:
+            # 日频等非月度序列：按真实所属期边界，不按月近似
+            start, end = parsed.observation_start, parsed.observation_end
+        else:
+            start, end = period_bounds(parsed.period)
         retrieved_at = parsed.retrieved_at or artifact.retrieved_at
         publication_at = parsed.publication_at
         policy = spec.release_policy

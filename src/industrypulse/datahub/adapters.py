@@ -1,6 +1,7 @@
 """Offline official-table adapters; no guessed remote APIs or contract rolling."""
 
 import csv
+import json
 from dataclasses import dataclass, replace
 from datetime import date, datetime
 from decimal import Decimal
@@ -9,6 +10,7 @@ from urllib.parse import urlsplit
 from xml.etree import ElementTree
 from zipfile import ZipFile
 
+from industrypulse.contracts.common import TZ_SHANGHAI
 from industrypulse.contracts.observation import MissingReason, RawArtifact
 from industrypulse.contracts.sources import TimestampPrecision
 from industrypulse.core.html_tables import header_span, locate, parse_number, tables
@@ -34,6 +36,9 @@ class ParsedObservation:
     artifact_id: str | None = None
     source_url: str | None = None
     timestamp_precision: TimestampPrecision = TimestampPrecision.UNKNOWN
+    #: 日频/非月度序列的真实所属期边界；None 时由 period(YYYY-MM) 推自然月。
+    observation_start: date | None = None
+    observation_end: date | None = None
 
 
 def parse_table(
@@ -354,6 +359,84 @@ def parse_inventory(rows: list[dict[str, str]], expected_dates: set[date]) -> In
         if all(f"{day}:{product}" in values for product in ("RB", "HC")):
             covered.add(day)
     return InventoryReport(values, len(expected_dates), len(covered))
+
+
+def _shfe_publication(
+    payload: dict[str, object],
+) -> tuple[datetime | None, TimestampPrecision]:
+    """从 ``update_date``（如 ``20261019 15:56:16``）取发布时间；缺失即 UNKNOWN。"""
+    raw = payload.get("update_date")
+    if not isinstance(raw, str):
+        return None, TimestampPrecision.UNKNOWN
+    try:
+        stamp = datetime.strptime(raw.strip().replace("/", "-"), "%Y%m%d %H:%M:%S")
+    except ValueError:
+        return None, TimestampPrecision.UNKNOWN
+    return stamp.replace(tzinfo=TZ_SHANGHAI), TimestampPrecision.SECOND
+
+
+def parse_shfe_daily(payload_text: str, *, trading_date: date, contract: str) -> ParsedObservation:
+    """上期所日行情 JSON -> 指定合约的结算价观测。
+
+    只取调用方**显式指定**的合约，绝不自动挑"主力"：主力切换会产生合约拼接式
+    未来函数（S-007 明令禁止）。``小计`` 等非合约行与缺失结算价的行一律跳过，
+    其余数值校验复用 :func:`parse_shfe`。
+    """
+    try:
+        payload = json.loads(payload_text)
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"SHFE 日行情不是合法 JSON：{exc}") from exc
+    if not isinstance(payload, dict):
+        raise ValueError("SHFE 日行情顶层必须是对象")
+    instruments = payload.get("o_curinstrument")
+    if not isinstance(instruments, list) or not instruments:
+        raise ValueError("SHFE 日行情缺少 o_curinstrument 数组")
+    report = str(payload.get("report_date") or "")
+    if report and report != trading_date.strftime("%Y%m%d"):
+        raise ValueError(f"文件报告日 {report} 与请求交易日 {trading_date.isoformat()} 不一致")
+    rows: list[dict[str, str]] = []
+    for item in instruments:
+        if not isinstance(item, dict):
+            continue
+        product = str(item.get("PRODUCTID", ""))
+        month = str(item.get("DELIVERYMONTH", ""))
+        settlement = item.get("SETTLEMENTPRICE")
+        if not product.endswith("_f") or len(month) != 4 or not month.isdigit():
+            continue  # 小计行 / 非期货品种
+        if settlement in (None, ""):
+            continue
+        rows.append(
+            {
+                "trading_date": trading_date.isoformat(),
+                "contract": f"{product[:-2].upper()}{month}",
+                "settlement": str(settlement),
+                "volume": str(item.get("VOLUME") or 0),
+                "open_interest": str(item.get("OPENINTEREST") or 0),
+            }
+        )
+    quotes = parse_shfe(rows, trading_date)
+    target = contract.strip().upper()
+    match = next((quote for quote in quotes if quote.contract == target), None)
+    if match is None:
+        listed = ", ".join(quote.contract for quote in quotes)
+        raise ValueError(f"当日行情中没有合约 {target}；可选：{listed}")
+    publication_at, precision = _shfe_publication(payload)
+    return ParsedObservation(
+        series_id=f"cn.shfe.{target[:2].lower()}{target[2:]}.settlement",
+        period=f"{trading_date.year:04d}-{trading_date.month:02d}",
+        value=match.settlement,
+        unit="元/吨",
+        row_label=match.contract,
+        column_label="结算价",
+        locator=f"kx[{trading_date.isoformat()}]/{match.contract}/SETTLEMENTPRICE",
+        raw_text=str(match.settlement),
+        is_ytd=False,
+        statistical_population="上海期货交易所 期货合约日行情",
+        publication_at=publication_at,
+        timestamp_precision=precision,
+        observation_start=trading_date,
+        observation_end=trading_date,
+    )
 
 
 def _xlsx_rows(path: Path) -> list[dict[str, str]]:

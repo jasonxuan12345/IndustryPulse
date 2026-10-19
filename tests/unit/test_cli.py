@@ -172,6 +172,7 @@ FINANCIAL_PAGE = """<html><head><meta name="PubDate" content="2026/09/28 09:30">
 def test_backfill_expands_one_document_into_six_series(tmp_path: Path) -> None:
     database = tmp_path / "pulse.duckdb"
     permit(database, "SRC-NBS-PROFIT", "cn.nbs", tmp_path / "audit.jsonl")
+    permit(database, "SRC-SHFE-RB", "cn.shfe", tmp_path / "audit.jsonl")
     initialized = runner.invoke(
         app, ["init", "--database", str(database), "--taxonomy", "config/industries/steel-g2.yaml"]
     )

@@ -1,5 +1,5 @@
 {
-  "version": "steel-g2-2026-10-19",
+  "version": "steel-g2-2026-10-19b",
   "synthetic": false,
   "nodes": [
     {
@@ -189,6 +189,30 @@
       "description": "黑色金属冶炼和压延加工业 规模以上工业增加值当月同比",
       "tags": [],
       "industry_standard_version": "GB/T 4754-2017"
+    },
+    {
+      "series_id": "cn.shfe.rb2701.settlement",
+      "source_id": "cn.shfe",
+      "unit": "元/吨",
+      "unit_scale": "1",
+      "frequency": "D",
+      "revision_policy": "revised_later",
+      "timestamp_precision": "second",
+      "is_ytd": false,
+      "description": "螺纹钢 RB2701 合约日结算价（上海期货交易所日行情）",
+      "tags": []
+    },
+    {
+      "series_id": "cn.shfe.hc2701.settlement",
+      "source_id": "cn.shfe",
+      "unit": "元/吨",
+      "unit_scale": "1",
+      "frequency": "D",
+      "revision_policy": "revised_later",
+      "timestamp_precision": "second",
+      "is_ytd": false,
+      "description": "热轧卷板 HC2701 合约日结算价（上海期货交易所日行情）",
+      "tags": []
     }
   ],
   "indicators": [
@@ -386,6 +410,36 @@
       "role": "feature",
       "valid_from": "2017-10-01",
       "description": "行业工业增加值当月同比"
+    },
+    {
+      "indicator_id": "rb2701_settlement",
+      "series_ids": [
+        "cn.shfe.rb2701.settlement"
+      ],
+      "dimension": "price",
+      "economic_direction": "positive",
+      "level": "CORE",
+      "industry_ids": [
+        "CN_NBS_C31"
+      ],
+      "role": "feature",
+      "valid_from": "2017-10-01",
+      "description": "螺纹钢期货结算价（单合约口径，禁止主力拼接）"
+    },
+    {
+      "indicator_id": "hc2701_settlement",
+      "series_ids": [
+        "cn.shfe.hc2701.settlement"
+      ],
+      "dimension": "price",
+      "economic_direction": "positive",
+      "level": "EXTENDED",
+      "industry_ids": [
+        "CN_NBS_C31"
+      ],
+      "role": "feature",
+      "valid_from": "2017-10-01",
+      "description": "热轧卷板期货结算价（单合约口径，禁止主力拼接）"
     }
   ],
   "series_maps": [
@@ -464,6 +518,18 @@
     {
       "industry_id": "CN_NBS_C31",
       "series_id": "cn.nbs.industry.c31",
+      "role": "feature",
+      "valid_from": "2017-10-01"
+    },
+    {
+      "industry_id": "CN_NBS_C31",
+      "series_id": "cn.shfe.rb2701.settlement",
+      "role": "feature",
+      "valid_from": "2017-10-01"
+    },
+    {
+      "industry_id": "CN_NBS_C31",
+      "series_id": "cn.shfe.hc2701.settlement",
       "role": "feature",
       "valid_from": "2017-10-01"
     }
