@@ -1,0 +1,28 @@
+{
+  "version": "nonferrous-v1",
+  "synthetic": false,
+  "nodes": [
+    {
+      "industry_id": "CN_NBS_C09",
+      "standard": "GB/T 4754-2017",
+      "code": "09",
+      "names": {
+        "zh": "有色金属矿采选业"
+      },
+      "valid_from": "2017-10-01",
+      "notes": "采矿盈利主要受矿价、品位、采选成本影响，与冶炼分开建模。"
+    },
+    {
+      "industry_id": "CN_NBS_C32",
+      "standard": "GB/T 4754-2017",
+      "code": "32",
+      "names": {
+        "zh": "有色金属冶炼和压延加工业"
+      },
+      "valid_from": "2017-10-01",
+      "notes": "冶炼盈利须跟踪加工费、电价与原料；不以金属价格单独代替利润。"
+    }
+  ],
+  "series": [],
+  "indicators": []
+}

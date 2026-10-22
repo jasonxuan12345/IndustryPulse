@@ -133,9 +133,10 @@ class BaselineModel:
         base = sum(self.history) / len(self.history)
         probabilities: list[float] = []
         x = self.pipeline.transform(features)
+        estimated = self.estimator.predict_proba(x) if self.estimator is not None else None
         for i, row in enumerate(features.rows):
-            if self.estimator is not None:
-                probability = float(self.estimator.predict_proba([x[i]])[0][1])
+            if estimated is not None:
+                probability = float(estimated[i][1])
             elif self.model_id == "M01_SEASONAL":
                 probability = self.seasonal.get(row.decision_as_of.month, base)
             elif self.model_id == "M02_AR":

@@ -9,9 +9,13 @@ from uuid import uuid4
 
 from fastapi import FastAPI, Request
 from fastapi.encoders import jsonable_encoder
+from fastapi.exception_handlers import request_validation_exception_handler
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
 
+from industrypulse.api.dashboard import ROOT, create_dashboard_router
+from industrypulse.api.model_settings import create_model_router
 from industrypulse.contracts import (
     ROUTES,
     TZ_SHANGHAI,
@@ -35,7 +39,22 @@ class ApiFailure(Exception):
 def create_app(
     handlers: Mapping[str, Handler] | None = None, settings: Settings | None = None
 ) -> FastAPI:
+    from industrypulse.api.workbench import create_workbench_router
+
     application = FastAPI(title="IndustryPulse", version="1.0.0")
+    application.include_router(create_dashboard_router())
+    application.include_router(create_model_router())
+    application.include_router(create_workbench_router())
+    web_root = ROOT / "apps/dashboard/web"
+    if web_root.is_dir():
+        application.mount(
+            "/dashboard-assets", StaticFiles(directory=web_root), name="dashboard-assets"
+        )
+
+        @application.get("/", include_in_schema=False)
+        def dashboard() -> FileResponse:
+            return FileResponse(web_root / "index.html")
+
     resolved = settings or Settings.from_env()
     bindings = dict(handlers or {})
 
@@ -49,8 +68,16 @@ def create_app(
 
     @application.exception_handler(RequestValidationError)
     async def invalid_input(request: Request, exc: RequestValidationError) -> JSONResponse:
+        if request.url.path.startswith(("/api/dashboard/", "/api/workbench/")):
+            return await request_validation_exception_handler(request, exc)
         _ = exc
         return await failure(request, ApiFailure(ErrorCode.CONTRACT_MISMATCH, "请求参数与合同不符"))
+
+    @application.exception_handler(ValueError)
+    async def invalid_workbench(request: Request, exc: ValueError) -> JSONResponse:
+        if request.url.path.startswith("/api/workbench/"):
+            return JSONResponse(status_code=422, content={"detail": str(exc)})
+        raise exc
 
     def endpoint_for(path: str) -> Callable[..., Any]:
         def endpoint(

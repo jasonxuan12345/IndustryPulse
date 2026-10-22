@@ -1,0 +1,18 @@
+{
+  "version": "semiconductor-v1",
+  "synthetic": false,
+  "nodes": [
+    {
+      "industry_id": "CN_NBS_C3972",
+      "standard": "GB/T 4754-2017",
+      "code": "3972",
+      "names": {
+        "zh": "半导体分立器件制造"
+      },
+      "valid_from": "2017-10-01",
+      "notes": "统计分类不等于整个半导体证券板块；集成电路制造另有口径。当前无行业利润真实序列，不强行建模。"
+    }
+  ],
+  "series": [],
+  "indicators": []
+}

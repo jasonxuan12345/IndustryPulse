@@ -121,8 +121,19 @@ class EvidencePipeline:
     def extract_unstructured(self, document: bytes, artifact: RawArtifact) -> EvidenceCandidate:
         from industrypulse.ai_research.llm_extract import validate_output
 
+        metadata = {
+            "source_url": artifact.source_url,
+            "raw_sha256": artifact.sha256,
+            "retrieved_at": artifact.retrieved_at.isoformat(),
+        }
+        import json
+
         output = self.provider.extract(
-            document.decode("utf-8"), EvidenceCandidate.model_json_schema()
+            "原件元数据（不属于正文）：\n"
+            + json.dumps(metadata, ensure_ascii=False)
+            + "\n原文：\n"
+            + document.decode("utf-8"),
+            EvidenceCandidate.model_json_schema(),
         )
         candidate = validate_output(output, document, artifact)
         return self.queue.reconcile([candidate])[0]

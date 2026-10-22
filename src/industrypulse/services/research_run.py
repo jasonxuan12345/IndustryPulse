@@ -27,14 +27,17 @@ from industrypulse.contracts.model import (
     TargetRow,
     TargetSpec,
 )
+from industrypulse.contracts.pit import effective_available_at
 from industrypulse.contracts.research import ApprovalState, ExperimentSpec, SplitKind, SplitSpec
 from industrypulse.repositories import DuckDBObservationRepository
 
 
 class _Clock:
-    def __init__(self, as_of: datetime, snapshot_id: str) -> None:
+    def __init__(
+        self, as_of: datetime, snapshot_id: str, mode: ResearchMode = ResearchMode.RECONSTRUCTED_PIT
+    ) -> None:
         self.as_of = as_of
-        self.research_mode = ResearchMode.RECONSTRUCTED_PIT
+        self.research_mode = mode
         self.dataset_snapshot_id = snapshot_id
 
 
@@ -73,14 +76,21 @@ def build_frames(
     end: date,
     horizon_months: int = 3,
     feature_spec_version: str = "g2-f1",
+    research_mode: ResearchMode = ResearchMode.RECONSTRUCTED_PIT,
 ) -> DatasetBuild:
     """构造真实数据的研究帧。缺数据的决策日与样本直接跳过并计数。"""
     rows: list[FeatureRow] = []
     targets: list[TargetRow] = []
     decision_dates: list[date] = []
     skipped = 0
+    label_clock = _Clock(
+        datetime.combine(end, time(23, 59), tzinfo=TZ_SHANGHAI), snapshot_id, research_mode
+    )
+    label_history = observations.fetch([label_series], label_clock).vintages
     for decision in _month_ends(start, end):
-        clock = _Clock(datetime.combine(decision, time(17), tzinfo=TZ_SHANGHAI), snapshot_id)
+        clock = _Clock(
+            datetime.combine(decision, time(17), tzinfo=TZ_SHANGHAI), snapshot_id, research_mode
+        )
         selection = observations.select(list(feature_series) + [label_series], clock)
         visible = {row.series_id: row for row in selection.selected}
         if label_series not in visible or visible[label_series].value is None:
@@ -100,7 +110,7 @@ def build_frames(
             continue
         target_period_month = _add_months(date(decision.year, decision.month, 1), horizon_months)
         label_period = target_period_month.replace(day=1)
-        future = observations.vintages_for(label_series, label_period)
+        future = [item for item in label_history if item.observation_start == label_period]
         if not future:
             skipped += 1
             continue
@@ -127,7 +137,12 @@ def build_frames(
                 decision_as_of=clock.as_of,
                 target_period=label_period.strftime("%Y-%m"),
                 value=label_value,
-                label_available_at=latest_future.publication_at,
+                label_available_at=effective_available_at(
+                    latest_future,
+                    research_mode,
+                    trading_days=observations.trading_days,
+                    conservative_lag_days=observations.conservative_lag_days,
+                ),
             )
         )
         decision_dates.append(decision)
@@ -138,7 +153,7 @@ def build_frames(
         snapshot_id=f"{snapshot_id}:{feature_spec_version}",
         feature_spec_version=feature_spec_version,
         schema_hash=hashlib.sha256(json.dumps(list(feature_series)).encode()).hexdigest(),
-        research_mode=ResearchMode.RECONSTRUCTED_PIT,
+        research_mode=research_mode,
         built_at=datetime.now(TZ_SHANGHAI),
         rows=rows,
     )
@@ -184,7 +199,7 @@ def make_experiment_spec(
         train_end=train_end,
         test_start=outer_start,
         test_end=outer_end,
-        purge_months=3,
+        purge_months=targets.spec.horizon_months,
         embargo_months=1,
     )
     inner_train_end = date(train_end.year - 1, train_end.month, 1)
@@ -201,7 +216,7 @@ def make_experiment_spec(
         test_start=inner_test_start,
         # 内层测试必须严格早于 cutoff，否则超参搜索会看到 OOS
         test_end=date(train_end.year, train_end.month, 1) - timedelta(days=1),
-        purge_months=3,
+        purge_months=targets.spec.horizon_months,
         embargo_months=1,
     )
     return ExperimentSpec(

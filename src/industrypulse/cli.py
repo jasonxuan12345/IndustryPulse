@@ -17,6 +17,7 @@ Python 样板串起来。本模块提供最小但完整的操作面：
 import hashlib
 import json
 import time
+from collections.abc import Callable
 from dataclasses import asdict
 from datetime import UTC, date, datetime
 from pathlib import Path
@@ -972,6 +973,36 @@ def backfill_monthly(
             "skipped": list(outcome.skipped),
         }
     )
+
+
+@app.command("workbench-run")
+def workbench_run(
+    action: Annotated[
+        str, typer.Argument(help="forecast / experiment / backtest / backup / expand / holdout")
+    ],
+    options_file: Annotated[Path | None, typer.Option("--options-file")] = None,
+) -> None:
+    """运行真实工作台任务；参数可从 JSON 文件读取。"""
+    from industrypulse.services.industry_expand import expand_industries
+    from industrypulse.services.workbench import Workbench
+
+    service = Workbench()
+    options = json.loads(options_file.read_text(encoding="utf-8-sig")) if options_file else {}
+    options.setdefault("as_of", datetime.now().astimezone().isoformat())
+    actions: dict[str, Callable[[dict[str, Any]], dict[str, Any]]] = {
+        "forecast": service.forecast,
+        "experiment": service.experiment,
+        "backtest": service.backtest,
+        "backup": service.backup,
+        "holdout": service.final_holdout,
+        "expand": lambda payload: expand_industries(service, payload),
+    }
+    if action not in actions:
+        _fail("未知任务类型")
+    try:
+        _emit(actions[action](options))
+    except (ValueError, KeyError) as exc:
+        _fail(str(exc))
 
 
 if __name__ == "__main__":
