@@ -1,0 +1,117 @@
+# 行业目录：统一 12 个领域的市场数据映射
+# board: 东方财富行业板块（QuoteID 90.BKxxxx），作为行业指数主源（§8 行业指数优先）
+# etfs:  同领域代表性 ETF（主 + 备选），用于交易型数据与回测；2026-10-23 实测验证名称与流动性
+# companies: 行业龙头 A 股（用于公司页行情；代码均经 qt.gtimg.cn 实测存在）
+domains:
+  semiconductor:
+    name: 半导体
+    board: BK1036
+    etfs: { primary: sh512480, alternatives: [sz159995] }
+    companies:
+      - { symbol: sh688981, name: 中芯国际 }
+      - { symbol: sz002371, name: 北方华创 }
+      - { symbol: sh600584, name: 长电科技 }
+      - { symbol: sz300661, name: 圣邦股份 }
+  ai:
+    name: 人工智能
+    board: BK0800
+    etfs: { primary: sz159819, alternatives: [sh515070] }
+    companies:
+      - { symbol: sz300308, name: 中际旭创 }
+      - { symbol: sz002230, name: 科大讯飞 }
+      - { symbol: sh688111, name: 金山办公 }
+      - { symbol: sz300474, name: 景嘉微 }
+  energy:
+    name: 新能源
+    board: BK0493
+    etfs: { primary: sh516160, alternatives: [sz159875, sz159857] }
+    companies:
+      - { symbol: sz300750, name: 宁德时代 }
+      - { symbol: sh601012, name: 隆基绿能 }
+      - { symbol: sh600438, name: 通威股份 }
+      - { symbol: sz300274, name: 阳光电源 }
+  steel:
+    name: 钢铁
+    board: BK0479
+    etfs: { primary: sh515210, alternatives: [] }
+    companies:
+      - { symbol: sh600019, name: 宝钢股份 }
+      - { symbol: sz000708, name: 中信特钢 }
+      - { symbol: sh600010, name: 包钢股份 }
+  health:
+    name: 医药生物
+    board: BK1216
+    etfs: { primary: sh512010, alternatives: [sh512170] }
+    companies:
+      - { symbol: sh600276, name: 恒瑞医药 }
+      - { symbol: sz300760, name: 迈瑞医疗 }
+      - { symbol: sh603259, name: 药明康德 }
+      - { symbol: sz300122, name: 智飞生物 }
+  metals:
+    name: 有色金属
+    board: BK0478
+    etfs: { primary: sh512400, alternatives: [] }
+    companies:
+      - { symbol: sh601899, name: 紫金矿业 }
+      - { symbol: sh603993, name: 洛阳钼业 }
+      - { symbol: sz002460, name: 赣锋锂业 }
+  chemicals:
+    name: 化工与能源
+    board: BK0538
+    etfs: { primary: sz159870, alternatives: [sh516020, sh515220] }
+    companies:
+      - { symbol: sh600309, name: 万华化学 }
+      - { symbol: sh600486, name: 扬农化工 }
+      - { symbol: sh601088, name: 中国神华 }
+      - { symbol: sh601225, name: 陕西煤业 }
+  auto:
+    name: 汽车与出行
+    board: BK1211
+    etfs: { primary: sh516110, alternatives: [sz159872] }
+    companies:
+      - { symbol: sz002594, name: 比亚迪 }
+      - { symbol: sh600104, name: 上汽集团 }
+      - { symbol: sz300014, name: 亿纬锂能 }
+  digital:
+    name: 通信与软件
+    board: BK0448
+    etfs: { primary: sh515880, alternatives: [sz159852] }
+    companies:
+      - { symbol: sh600522, name: 中天科技 }
+      - { symbol: sz002396, name: 星网锐捷 }
+      - { symbol: sh600845, name: 宝信软件 }
+      - { symbol: sz000938, name: 紫光股份 }
+  consumer:
+    name: 消费与供应链
+    board: BK1037
+    etfs: { primary: sz159928, alternatives: [sh515170, sh512690] }
+    companies:
+      - { symbol: sh600519, name: 贵州茅台 }
+      - { symbol: sz000858, name: 五粮液 }
+      - { symbol: sh601888, name: 中国中免 }
+      - { symbol: sz002241, name: 歌尔股份 }
+  finance:
+    name: 金融与资本市场
+    board: BK0473
+    etfs: { primary: sh510230, alternatives: [sh512000] }
+    companies:
+      - { symbol: sh600030, name: 中信证券 }
+      - { symbol: sh601318, name: 中国平安 }
+      - { symbol: sh600036, name: 招商银行 }
+  macro:
+    name: 宏观与政策
+    board: BK0475
+    etfs: { primary: sh510300, alternatives: [] }
+    companies:
+      - { symbol: sh601988, name: 中国银行 }
+      - { symbol: sh601398, name: 工商银行 }
+
+# 市场基准（§6 中国市场基准；历史与快照同源）
+benchmarks:
+  csi300: { symbol: sh000300, name: 沪深300 }
+  sse: { symbol: sh000001, name: 上证指数 }
+  szse: { symbol: sz399001, name: 深证成指 }
+  csi500: { symbol: sh000905, name: 中证500 }
+  csi1000: { symbol: sh000852, name: 中证1000 }
+  chinext: { symbol: sz399006, name: 创业板指 }
+  star50: { symbol: sh000688, name: 科创50 }

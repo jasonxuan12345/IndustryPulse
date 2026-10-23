@@ -1004,6 +1004,45 @@ def workbench_run(
     except (ValueError, KeyError) as exc:
         _fail(str(exc))
 
+@app.command("market-sync")
+def market_sync(
+    macro: bool = typer.Option(False, "--macro", help="同步宏观指标（东财数据中心 + akshare 适配层）"),
+    history: bool = typer.Option(False, "--history", help="回填行业指数/ETF/基准日 K 历史"),
+    bars: int = typer.Option(760, "--bars", help="历史回填棒数（约 3 年）"),
+) -> None:
+    """行情与宏观数据同步（Dashboard 市场数据层的离线刷新入口）。"""
+    from industrypulse.market.service import MarketService
+
+    service = MarketService()
+    if not (macro or history):
+        macro = history = True
+    summary: dict[str, object] = {}
+    if history:
+        symbols: list[str] = []
+        for config in service.sectors_config["domains"].values():
+            symbols.append(config["board"])
+            symbols.append(config["etfs"]["primary"])
+            symbols.extend(
+                alternative for alternative in config["etfs"].get("alternatives", [])
+            )
+        symbols += [item["symbol"] for item in service.sectors_config["benchmarks"].values()]
+        succeeded = failed = 0
+        for symbol in dict.fromkeys(symbols):
+            try:
+                service._load_kline(symbol)
+                succeeded += 1
+            except Exception as exc:  # noqa: BLE001 - 单源失败继续
+                failed += 1
+                typer.echo(f"  失败 {symbol}: {str(exc)[:80]}")
+        summary["history"] = {"succeeded": succeeded, "failed": failed, "bars": bars}
+        service._flush_bars()
+        service.health.persist()
+    if macro:
+        counts = service.sync_macro()
+        service.health.persist()
+        summary["macro"] = counts
+    _emit(summary)
+
 
 if __name__ == "__main__":
     app()

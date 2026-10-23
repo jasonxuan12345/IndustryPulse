@@ -38,6 +38,16 @@ class Sector(BaseModel):
     net_flow: float | None = None
     heat: float | None = Field(default=None, ge=0, le=100)
     trend: list[Point] = Field(default_factory=list)
+    heat_components: dict[str, object] | None = None
+    news_count_24h: int | None = None
+    latest_date: str | None = None
+    index_source: str | None = None
+    trend_label: str | None = None
+    net_flow_label: str | None = None
+    etf: dict[str, object] | None = None
+    amount: float | None = None
+    amount_metric: str | None = None
+    flow_status: str | None = None
 
 
 class Story(BaseModel):
@@ -64,6 +74,7 @@ class Company(BaseModel):
     symbol: str
     focus: str
     change: float | None = None
+    quote: dict[str, object] | None = None
 
 
 class Feed(BaseModel):
@@ -78,6 +89,7 @@ class Feed(BaseModel):
     stories: list[Story]
     companies: list[Company]
     collection: dict[str, object] | None = None
+    market: dict[str, object] | None = None
 
 
 def demo_feed() -> Feed:
@@ -177,6 +189,21 @@ def demo_feed() -> Feed:
     )
 
 
+_market_service: "object | None" = None
+
+
+def market_service() -> "MarketService | None":
+    """行情服务单例；INDUSTRYPULSE_MARKET_DATA=0 可整体停用。"""
+    global _market_service
+    if os.getenv("INDUSTRYPULSE_MARKET_DATA", "1") == "0":
+        return None
+    if _market_service is None:
+        from industrypulse.market.service import MarketService
+
+        _market_service = MarketService()
+    return _market_service  # type: ignore[no-any-return]
+
+
 def create_dashboard_router(service: NewsService | None = None) -> APIRouter:
     service = service or NewsService()
     router = APIRouter(prefix="/api/dashboard", tags=["dashboard"])
@@ -210,7 +237,19 @@ def create_dashboard_router(service: NewsService | None = None) -> APIRouter:
                     stories=[],
                     companies=[],
                 )
-            return Feed.model_validate(service.feed())
+            payload = service.feed()
+            market = market_service()
+            if market is not None:
+                try:
+                    from industrypulse.market.service import enrich_sector_trends
+
+                    payload = enrich_sector_trends(payload, market)
+                except Exception as exc:  # noqa: BLE001 - 行情失败不拖垮资讯
+                    payload["market"] = {
+                        "status": "failed",
+                        "message": f"行情数据源暂时失败：{str(exc)[:80]}",
+                    }
+            return Feed.model_validate(payload)
         except (httpx.HTTPError, ValueError, OSError) as exc:
             raise HTTPException(502, "资讯源读取失败，请检查接口配置或导入文件") from exc
 
@@ -257,5 +296,40 @@ def create_dashboard_router(service: NewsService | None = None) -> APIRouter:
             }
         except (OSError, RuntimeError) as exc:
             raise HTTPException(503, "研究数据库暂不可读") from exc
+
+    @router.get("/market/overview")
+    def market_overview(refresh: str = "") -> dict[str, object]:
+        market = market_service()
+        if market is None:
+            raise HTTPException(404, "行情数据层已停用（INDUSTRYPULSE_MARKET_DATA=0）")
+        return market.overview(wait=refresh == "1")
+
+    @router.get("/sectors/{domain_id}")
+    def sector_detail(domain_id: str) -> dict[str, object]:
+        market = market_service()
+        if market is None:
+            raise HTTPException(404, "行情数据层已停用")
+        try:
+            return market.sector_detail(domain_id)
+        except KeyError as exc:
+            raise HTTPException(404, f"未知领域: {domain_id}") from exc
+
+    @router.get("/macro")
+    def macro() -> dict[str, object]:
+        market = market_service()
+        if market is None:
+            raise HTTPException(404, "行情数据层已停用")
+        market.ensure_macro_sync()
+        return market.macro()
+
+    @router.get("/data-health")
+    def data_health() -> dict[str, object]:
+        market = market_service()
+        if market is None:
+            raise HTTPException(404, "行情数据层已停用")
+        return {
+            "updated_at": datetime.now(TZ_SHANGHAI).isoformat(),
+            "sources": market.data_health(),
+        }
 
     return router

@@ -112,7 +112,7 @@ render=function(){
     const progress=state.feed.collection;
     if(state.page!=='settings') {
       const banner=document.createElement('div');banner.className='notice source-live-notice';
-      banner.textContent=progress.running?`↻ 正在从公开渠道采集真实资讯 ${progress.completed} / ${progress.total}，结果会自动出现。`:`● 内置真实资讯 · 已启用 ${progress.enabled_sources} 个通道。新闻不等于行情；价格、资金流与走势未接入时留空。`;
+      banner.textContent=progress.running?`↻ 正在从公开渠道采集真实资讯 ${progress.completed} / ${progress.total}，结果会自动出现。`:`● 内置真实资讯 · 已启用 ${progress.enabled_sources} 个通道。行情与宏观数据来自交易所/东财/腾讯公开接口，资金流暂缺时明确标注。`;
       if(progress.warning)banner.textContent+=' '+progress.warning;
       if(!progress.running&&progress.enabled_sources===0)banner.textContent='尚未启用任何资讯源，请在“数据接入与设置”勾选并保存。';
       else if(!progress.running&&progress.successful_sources===0)banner.textContent='尚无成功采集的资讯，请在“数据接入与设置”查看来源连接状态。';

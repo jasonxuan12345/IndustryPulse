@@ -1,6 +1,28 @@
 # STATUS — IndustryPulse
 
-最后更新：2026-10-22（Asia/Shanghai）
+最后更新：2026-10-23（Asia/Shanghai）
+
+## 2026-10-23 数据补齐与 UI 可用化专项（第一轮）
+
+**统一行情/宏观数据层已落地，Dashboard 主要界面从"—"变为真实数据。**
+
+- 新增 `src/industrypulse/market/`：providers（腾讯行情/东财板块与数据中心/akshare 适配层）、
+  MarketService（TTL 缓存 + 快照持久 + 后台刷新 + 配置指纹失效）、SourceHealthMonitor。
+- 行业行情：12 领域 100% 有真实涨跌幅与 180 点趋势（东财板块指数，降级为行业 ETF 代理并标注）；
+  七大基准指数报价；40+ 行业龙头 A 股行情（现价/市值/PE/PB）注入公司页。
+- 宏观：31 项真实指标入库 DuckDB（26 fresh / 5 stale，期次日期随 UI 显示）；
+  GDP/CPI/PPI/PMI/社融/M1/M2/LPR/Shibor/国债收益率/进出口/社零/工业增加值/用电量/失业率/两融等。
+- HeatScore 透明算法（新闻 40% + 增速 20% + 成交 30% + 波动 10%，分量可查）。
+- API：`/api/dashboard/market/overview`、`/sectors/{id}`、`/macro`、`/data-health`；
+  feed 增强并入行情数据，单源失败不拖垮资讯。
+- 已知缺口：东财板块资金流在本网络间歇封锁（UI 明示原因，恢复自动有数）；
+  NBS 结构化查询 403（BLOCKED，公告解析管道不受影响）；美元中间价上游停更（stale）；
+  行业专属商品价格逐行业接入留待下一轮。
+- 测试：新增 `tests/unit/test_market_layer.py` 24 项（全 mock 网络）；联网验收脚本
+  `scripts/verify_data_coverage.py` 生成 `reports/data-coverage-latest.md`。
+- 行业目录统一：资讯/行情/ETF/公司共用 12 领域 ID（news_sources.yaml = market/sectors.yaml）。
+- akshare 为可选依赖（pyproject `[project.optional-dependencies] market`）。
+
 
 ## 默认模型 UI 配置
 

@@ -1,0 +1,71 @@
+# 宏观指标注册表：provider+source 取数，field 映射为指标
+# - provider=eastmoney: 东财数据中心报表（快，JSON）
+# - provider=akshare:  社区适配层（可选依赖，部分为分页爬取，仅用于日级刷新）
+# 期次/单位/频率在服务层随数据返回，UI 必须展示最新期次（§29 freshness）。
+indicators:
+  # —— 东财数据中心（原生，快） ——
+  - { id: gdp_quarterly, name: GDP 当季总量, provider: eastmoney, source: RPT_ECONOMY_GDP,
+      date_field: REPORT_DATE, field: DOMESTICL_PRODUCT_BASE, unit: 亿元, freq: quarterly }
+  - { id: cpi_yoy, name: CPI 同比, provider: eastmoney, source: RPT_ECONOMY_CPI,
+      date_field: REPORT_DATE, field: NATIONAL_SAME, unit: "%", freq: monthly }
+  - { id: ppi_yoy, name: PPI 同比, provider: eastmoney, source: RPT_ECONOMY_PPI,
+      date_field: REPORT_DATE, field: BASE_SAME, unit: "%", freq: monthly }
+  - { id: pmi_mfg, name: 制造业 PMI, provider: eastmoney, source: RPT_ECONOMY_PMI,
+      date_field: REPORT_DATE, field: MAKE_INDEX, unit: "", freq: monthly }
+  - { id: fixed_asset_invest, name: 固定资产投资累计, provider: eastmoney, source: RPT_ECONOMY_ASSET_INVEST,
+      date_field: REPORT_DATE, field: BASE_ACCUMULATE, unit: 亿元, freq: monthly }
+  - { id: fiscal_income, name: 财政收入累计, provider: eastmoney, source: RPT_ECONOMY_INCOME,
+      date_field: REPORT_DATE, field: BASE_ACCUMULATE, unit: 亿元, freq: monthly }
+  - { id: tax_income, name: 税收收入累计, provider: eastmoney, source: RPT_ECONOMY_TAX,
+      date_field: REPORT_DATE, field: TAX_INCOME, unit: 亿元, freq: quarterly }
+  - { id: fdi_actual, name: 实际使用外资, provider: eastmoney, source: RPT_ECONOMY_FDI,
+      date_field: REPORT_DATE, field: ACTUAL_FOREIGN, unit: 万元, freq: monthly }
+  - { id: house_price_bj, name: 北京新建商品住宅价格指数, provider: eastmoney, source: RPT_ECONOMY_HOUSE_PRICE,
+      date_field: REPORT_DATE, field: FIRST_COMHOUSE_BASE, city_field: CITY, city: 北京,
+      unit: 指数, freq: monthly }
+  - { id: northbound_net, name: 北向资金累计净买入, provider: eastmoney, source: RPT_MUTUAL_DEAL_HISTORY,
+      date_field: _date, field: ACCUM_DEAL_AMT, unit: 万元, freq: daily }
+
+  # —— akshare 适配层（可选依赖；月度指标每日刷新一次即可） ——
+  - { id: m2_yoy, name: M2 同比, provider: akshare, source: macro_china_money_supply,
+      date_field: 月份, field: 货币和准货币(M2)-同比增长, unit: "%", freq: monthly }
+  - { id: m1_yoy, name: M1 同比, provider: akshare, source: macro_china_money_supply,
+      date_field: 月份, field: 货币(M1)-同比增长, unit: "%", freq: monthly }
+  - { id: social_financing_increment, name: 社会融资规模增量, provider: akshare, source: macro_china_shrzgm,
+      date_field: 月份, field: 社会融资规模增量, unit: 亿元, freq: monthly }
+  - { id: lpr_1y, name: LPR 1 年, provider: akshare, source: macro_china_lpr,
+      date_field: TRADE_DATE, field: LPR1Y, unit: "%", freq: monthly }
+  - { id: lpr_5y, name: LPR 5 年, provider: akshare, source: macro_china_lpr,
+      date_field: TRADE_DATE, field: LPR5Y, unit: "%", freq: monthly }
+  - { id: export_yoy, name: 出口金额当月同比, provider: akshare, source: macro_china_hgjck,
+      date_field: 月份, field: 当月出口额-同比增长, unit: "%", freq: monthly }
+  - { id: import_yoy, name: 进口金额当月同比, provider: akshare, source: macro_china_hgjck,
+      date_field: 月份, field: 当月进口额-同比增长, unit: "%", freq: monthly }
+  - { id: retail_yoy, name: 社会消费品零售同比, provider: akshare, source: macro_china_consumer_goods_retail,
+      date_field: 月份, field: 同比增长, unit: "%", freq: monthly }
+  - { id: industrial_value_added_yoy, name: 工业增加值同比, provider: akshare, source: macro_china_gyzjz,
+      date_field: 月份, field: 同比增长, unit: "%", freq: monthly }
+  - { id: electricity_yoy, name: 全社会用电量同比, provider: akshare, source: macro_china_society_electricity,
+      date_field: 统计时间, field: 全社会用电量同比, unit: "%", freq: monthly }
+  - { id: urban_unemployment, name: 城镇调查失业率, provider: akshare, source: macro_china_urban_unemployment,
+      date_field: date, field: value, unit: "%", freq: monthly }
+  - { id: shibor_on, name: Shibor 隔夜, provider: akshare, source: macro_china_shibor_all,
+      date_field: 日期, field: O/N-定价, unit: "%", freq: daily }
+  - { id: shibor_1w, name: Shibor 1 周, provider: akshare, source: macro_china_shibor_all,
+      date_field: 日期, field: 1W-定价, unit: "%", freq: daily }
+  - { id: cn_gov_bond_10y, name: 中国国债收益率 10 年, provider: akshare, source: bond_zh_us_rate,
+      date_field: 日期, field: 中国国债收益率10年, unit: "%", freq: daily }
+  - { id: us_gov_bond_10y, name: 美国国债收益率 10 年, provider: akshare, source: bond_zh_us_rate,
+      date_field: 日期, field: 美国国债收益率10年, unit: "%", freq: daily }
+  - { id: margin_balance_sh, name: 沪市融资融券余额, provider: akshare, source: macro_china_market_margin_sh,
+      date_field: 日期, field: 融资融券余额, unit: 元, freq: daily }
+  - { id: fx_reserves, name: 国家外汇储备, provider: akshare, source: macro_china_foreign_exchange_gold,
+      date_field: 统计时间, field: 国家外汇储备, unit: 亿美元, freq: monthly }
+  - { id: gold_reserves, name: 央行黄金储备, provider: akshare, source: macro_china_foreign_exchange_gold,
+      date_field: 统计时间, field: 黄金储备, unit: 万盎司, freq: monthly }
+  - { id: usdcny_mid, name: 美元兑人民币中间价, provider: akshare, source: macro_china_rmb,
+      date_field: 日期, field: 美元/人民币_中间价, unit: "", freq: daily }
+  - { id: consumer_confidence, name: 消费者信心指数, provider: akshare, source: macro_china_xfzxx,
+      date_field: 月份, field: 消费者信心指数-指数值, unit: 指数, freq: monthly }
+  - { id: enterprise_boom, name: 企业景气指数, provider: akshare, source: macro_china_enterprise_boom_index,
+      date_field: 季度, field: 企业景气指数-指数, unit: 指数, freq: quarterly }

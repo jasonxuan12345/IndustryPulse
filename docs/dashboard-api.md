@@ -39,11 +39,16 @@ $env:INDUSTRYPULSE_FEED_TOKEN = 'optional-bearer-token'
 - 资讯：`id`（稳定唯一）, `sector`（领域 id）, `category`（news/hotspot/personnel）, `title`, `summary`, `published_at`（ISO 8601 含时区）, `source`, `url`（可空）, `company`（可空）, `tags`。
 - 公司：`id`, `sector`, `name`, `symbol`, `focus`, `change`（可空）。公司资讯通过 `company` 名称关联。
 
-接口：`GET /api/dashboard/feed`、`POST /api/dashboard/feed`、`GET /api/dashboard/schema`、
+接口：`GET /api/dashboard/feed`（已并入真实行情：sectors[].change/trend/net_flow/heat、
+companies[].quote、market 元数据）、`POST /api/dashboard/feed`、`GET /api/dashboard/schema`、
 `GET /api/dashboard/research`；可在 `/docs` 查看交互 API 文档。
+行情/宏观（2026-10-23 起）：`GET /api/dashboard/market/overview`（可选 `?refresh=1` 同步重建）、
+`GET /api/dashboard/sectors/{id}`、`GET /api/dashboard/macro`、`GET /api/dashboard/data-health`。
 内置源：`GET /api/dashboard/sources`、`POST /api/dashboard/sources/settings`、
 `POST /api/dashboard/sources/refresh`。刷新立即返回采集进度，不阻塞界面。
 原 `/v1` 冻结合同保持不变。
+行情层可用 `INDUSTRYPULSE_MARKET_DATA=0` 整体停用；离线刷新用
+`industrypulse market-sync --history --macro`。来源与 fallback 见 `data/data-source-catalog.md`。
 
 可选环境变量：`INDUSTRYPULSE_FEED_FILE` 指定 JSON 路径，
 `INDUSTRYPULSE_DASHBOARD_DB` 指定真实研究 DuckDB 路径。
