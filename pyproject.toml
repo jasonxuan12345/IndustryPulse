@@ -7,6 +7,7 @@ name = "industrypulse"
 version = "0.1.0"
 description = "IndustryPulse：行业经济监测、预测与投资研究系统（本地优先、模块化单体）"
 readme = "README.md"
+license = { text = "MIT" }
 # 任务书原文锁定 3.12；经项目所有者确认改用 3.13（本机实际环境），保留 3.12 兼容区间
 requires-python = ">=3.12,<3.14"
 authors = [{ name = "Jackson" }]
