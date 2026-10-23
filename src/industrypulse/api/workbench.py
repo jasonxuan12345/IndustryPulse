@@ -8,7 +8,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any, Literal
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from pydantic import AwareDatetime, BaseModel, Field
 
 from industrypulse.contracts import TZ_SHANGHAI, ResearchMode
@@ -26,6 +26,11 @@ class Context(BaseModel):
     as_of: AwareDatetime = Field(default_factory=lambda: datetime.now(TZ_SHANGHAI))
     snapshot: str = ""
     lag: int = Field(default=5, ge=0, le=90)
+
+
+class Question(Context):
+    question: str = Field(min_length=1, max_length=800)
+    sector: str = Field(default="", max_length=40)
 
 
 class Operation(BaseModel):
@@ -81,6 +86,63 @@ def create_workbench_router() -> APIRouter:
             return build_economic_state(workspace(), context.mode, context.as_of, context.snapshot)
         except ValueError as exc:
             raise HTTPException(422, str(exc)) from exc
+
+    @router.post("/ask")
+    def ask(body: Question, request: Request) -> dict[str, Any]:
+        from industrypulse.ai_research.model_gateway import complete, load_connection
+        from industrypulse.intelligence.event_book import EventBook
+        from industrypulse.services.economic_state import build_economic_state
+        from industrypulse.services.research_ask import (
+            SYSTEM,
+            guard_answer,
+            question_prompt,
+            research_packet,
+        )
+
+        connection = load_connection()
+        if connection is None or not connection.enabled or not connection.model:
+            raise HTTPException(422, "请先在设置中启用并保存模型")
+        try:
+            state = build_economic_state(
+                workspace(), body.mode, body.as_of, body.snapshot
+            )
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from exc
+        brief = None
+        if body.sector:
+            news = getattr(request.app.state, "news_service", None)
+            if news is None:
+                brief = {
+                    "sector": body.sector,
+                    "clusters": [],
+                    "events": [],
+                    "error": "事件简报暂时读不出来",
+                }
+            else:
+                try:
+                    stories = list(news.feed().get("stories", []))
+                    brief = EventBook(news.directory / "events.json").brief(
+                        stories, body.sector, None
+                    )
+                except (OSError, ValueError, RuntimeError):
+                    brief = {
+                        "sector": body.sector,
+                        "clusters": [],
+                        "events": [],
+                        "error": "事件简报暂时读不出来",
+                    }
+        packet = research_packet(state, brief)
+        try:
+            text = complete(connection, question_prompt(body.question, packet), system=SYSTEM)
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from exc
+        guarded = guard_answer(text)
+        return {
+            "answer": guarded["answer"],
+            "withheld": guarded["withheld"],
+            "model": connection.model,
+            "packet": packet,
+        }
 
     @router.post("/macro")
     def macro(context: Context) -> dict[str, Any]:
