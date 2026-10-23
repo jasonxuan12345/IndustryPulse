@@ -21,8 +21,10 @@
 
 解释器按顺序选择：`-PythonPath` 参数或环境变量 `INDUSTRYPULSE_PYTHON`（可以是
 python.exe，也可以是 conda 环境目录，脚本自动定位其中的 python.exe）→
-项目 `.venv`（`uv sync` 创建）→ PATH 上的 `python` / `py`（通过版本探测才采用，
-Microsoft Store 占位程序会被自动排除）。都找不到时给出对应修复提示。
+`data/launcher.json` 中保存的选择 → 项目 `.venv`（`uv sync` 创建）→
+PATH 上的 `python` / `py`（通过版本探测才采用，Microsoft Store 占位程序会被自动排除）。
+没有任何可用解释器且控制台可交互时，会提示直接粘贴路径：验证通过后保存到
+`data/launcher.json`（不入 Git），后续启动自动使用；`-Prompt` 可随时重新选择。
 参数可以从 cmd 启动器透传，例如 `启动IndustryPulse.cmd -Port 8766`。
 
 默认读取 `data/g2.duckdb`，由 `industrypulse.api.runtime:app` 启动真实旧版 API 与新工作台。

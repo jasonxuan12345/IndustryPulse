@@ -2,12 +2,15 @@
     [int]$Port = 8765,
     [switch]$NoBrowser,
     # 显式指定解释器；缺省读环境变量 INDUSTRYPULSE_PYTHON（可以是 python.exe 或 conda 环境目录）
-    [string]$PythonPath = $env:INDUSTRYPULSE_PYTHON
+    [string]$PythonPath = $env:INDUSTRYPULSE_PYTHON,
+    # 强制进入交互式路径选择（默认仅在没有可用解释器且控制台可交互时提示）
+    [switch]$Prompt
 )
 
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent $PSScriptRoot
 Set-Location $projectRoot
+$settingsPath = Join-Path $projectRoot 'data\launcher.json'
 
 # 项目声明 >=3.12,<3.14；3.11 仅尽力运行（低于声明下限时提示但不阻止）
 $supportedVersions = @('3.12', '3.13')
@@ -43,6 +46,48 @@ function Resolve-Interpreter([string]$Candidate) {
     return (Resolve-Path -LiteralPath $path).Path
 }
 
+function Get-SavedPython {
+    if (-not (Test-Path -LiteralPath $settingsPath)) { return $null }
+    try {
+        $saved = (Get-Content -LiteralPath $settingsPath -Raw -Encoding UTF8 | ConvertFrom-Json).python
+    } catch { return $null }
+    if ($saved) { return [string]$saved }
+    return $null
+}
+
+function Save-Python([string]$Exe) {
+    $directory = Split-Path -Parent $settingsPath
+    if (-not (Test-Path -LiteralPath $directory)) {
+        New-Item -ItemType Directory -Path $directory -Force | Out-Null
+    }
+    $json = @{ python = $Exe } | ConvertTo-Json
+    # UTF-8 无 BOM，便于其他工具读取
+    [System.IO.File]::WriteAllText($settingsPath, $json, (New-Object System.Text.UTF8Encoding($false)))
+}
+
+function Select-PythonInteractively {
+    # 非交互控制台（计划任务 / CI，stdin 被重定向）跳过提示，保持可脚本化
+    if (-not $Prompt -and ([Console]::IsInputRedirected -or -not [Environment]::UserInteractive)) {
+        return $null
+    }
+    Write-Host @'
+没有找到可用的 Python。可以直接粘贴路径，验证通过后会记住，后续启动不再询问。
+可以粘贴 python.exe，也可以粘贴环境目录（如 conda：C:\Users\you\.conda\envs\myenv）。
+'@
+    foreach ($attempt in 1..5) {
+        $entered = (Read-Host 'Python 路径（直接回车放弃）').Trim()
+        if (-not $entered) { return $null }
+        $resolved = Resolve-Interpreter $entered
+        if ($resolved) {
+            Save-Python $resolved
+            Write-Host "已保存到 data/launcher.json，后续启动将自动使用。" -ForegroundColor Green
+            return $resolved
+        }
+        Write-Host '该路径不可用：需要能运行的 3.11-3.13 python.exe 或环境目录，请重试。' -ForegroundColor Yellow
+    }
+    return $null
+}
+
 $python = $null
 if ($PythonPath) {
     $python = Resolve-Interpreter $PythonPath
@@ -52,6 +97,7 @@ if ($PythonPath) {
     }
 } else {
     $candidates = @(
+        (Get-SavedPython),
         (Join-Path $projectRoot '.venv\Scripts\python.exe'),
         (Get-Command python -ErrorAction SilentlyContinue).Source,
         (Get-Command py -ErrorAction SilentlyContinue).Source
@@ -60,14 +106,15 @@ if ($PythonPath) {
         $python = Resolve-Interpreter $candidate
         if ($python) { break }
     }
+    if (-not $python) { $python = Select-PythonInteractively }
 }
 
 if (-not $python) {
     Write-Host @'
-未找到可用的 Python。任一方式即可解决：
+仍未选择 Python。任一方式即可解决：
   1. uv sync --all-extras          在项目根目录创建 .venv（推荐）
   2. setx INDUSTRYPULSE_PYTHON "C:\path\envs\myenv"   指向已有环境或 conda 环境目录
-  3. ./scripts/start-dashboard.ps1 -PythonPath "C:\path\python.exe"
+  3. 再次运行启动脚本，按提示粘贴 Python 路径
 '@ -ForegroundColor Red
     exit 1
 }
