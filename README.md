@@ -60,6 +60,9 @@ uv sync --all-extras
 ./scripts/start-dashboard.ps1     # 或直接双击 启动IndustryPulse.cmd
 ```
 
+没有 uv？启动脚本会依次尝试 `-PythonPath` 参数、`INDUSTRYPULSE_PYTHON` 环境变量
+（可直接指向 conda 环境目录）、项目 `.venv` 和 PATH 上的 Python，任选其一即可。
+
 启动后自动打开独立应用窗口（不占用普通浏览器），默认地址 http://127.0.0.1:8765 。
 启动控制台是总开关：关闭控制台或按 Ctrl+C 会结束界面、服务与全部后台任务；
 关闭应用窗口同样退出。数据、设置与调度配置在重启后沿用。

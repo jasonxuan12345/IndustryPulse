@@ -19,6 +19,12 @@
 ./scripts/start-dashboard.ps1 -Port 8766
 ```
 
+解释器按顺序选择：`-PythonPath` 参数或环境变量 `INDUSTRYPULSE_PYTHON`（可以是
+python.exe，也可以是 conda 环境目录，脚本自动定位其中的 python.exe）→
+项目 `.venv`（`uv sync` 创建）→ PATH 上的 `python` / `py`（通过版本探测才采用，
+Microsoft Store 占位程序会被自动排除）。都找不到时给出对应修复提示。
+参数可以从 cmd 启动器透传，例如 `启动IndustryPulse.cmd -Port 8766`。
+
 默认读取 `data/g2.duckdb`，由 `industrypulse.api.runtime:app` 启动真实旧版 API 与新工作台。
 配置 `INDUSTRYPULSE_DASHBOARD_DB` 可切换数据库。安装使用 `uv sync --all-extras`，包含 LightGBM。
 无需模型 API；八类统计模型均在本机运行。LightGBM 使用独立进程解决 Windows 与 DuckDB 的运行库冲突。

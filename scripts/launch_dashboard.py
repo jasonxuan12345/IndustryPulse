@@ -213,6 +213,10 @@ def main() -> int:
     parser.add_argument("--port", type=int, default=8765)
     parser.add_argument("--no-browser", action="store_true")
     options = parser.parse_args()
+    # 外部解释器（如 conda 环境）可能未安装本包；子进程统一从 src 导入
+    os.environ["PYTHONPATH"] = os.pathsep.join(
+        part for part in (str(ROOT / "src"), os.environ.get("PYTHONPATH")) if part
+    )
     with socket.socket() as probe:
         if probe.connect_ex(("127.0.0.1", options.port)) == 0:
             print(f"Port {options.port} is already in use. Close the existing launcher first.")
