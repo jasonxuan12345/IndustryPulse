@@ -64,7 +64,9 @@
 
 ### 其他数据与服务
 
-- 资讯：`INDUSTRYPULSE_FEED_URL` / `INDUSTRYPULSE_FEED_TOKEN`，结构见 `dashboard-api.md`。
+- 资讯：默认内置公开来源。在设置页按领域/行业勾选，点「保存选择并启用」即可。
+  默认每 15 分钟自动采集；无须 Key，后台在切换页面或最小化时继续更新。详情见 `news-sources.md`。
+- 自定义资讯（高级可选）：`INDUSTRYPULSE_FEED_URL` / `INDUSTRYPULSE_FEED_TOKEN`，结构见 `dashboard-api.md`。
 - 搜索：`INDUSTRYPULSE_SEARCH_URL` 接收 POST `{query, domains, limit}`，返回 `{results:[{url,title,snippet}]}`。
 - 抽取：`INDUSTRYPULSE_LLM_URL` 接收 POST `{document,schema,instruction}`，返回 `{candidate:EvidenceCandidate}` 或 `{output:"JSON字符串"}`。
 - 搜索/抽取认证使用 `INDUSTRYPULSE_RESEARCH_TOKEN`。未配置时仍可用官方 NBS 发现、确定性表格抽取和手工导入。

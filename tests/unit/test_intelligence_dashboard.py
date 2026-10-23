@@ -1,9 +1,16 @@
 from __future__ import annotations
 
+import pytest
 from fastapi.testclient import TestClient
 
 from industrypulse.api.app import create_app
 from industrypulse.api.dashboard import demo_feed
+
+
+@pytest.fixture(autouse=True)
+def isolate_news_sources(tmp_path, monkeypatch):
+    monkeypatch.setenv("INDUSTRYPULSE_NEWS_DIR", str(tmp_path / "news"))
+    monkeypatch.setenv("INDUSTRYPULSE_NEWS_AUTO_FETCH", "0")
 
 
 def test_feed_import_roundtrip_and_validation(tmp_path, monkeypatch) -> None:
@@ -11,7 +18,7 @@ def test_feed_import_roundtrip_and_validation(tmp_path, monkeypatch) -> None:
     monkeypatch.setenv("INDUSTRYPULSE_FEED_FILE", str(tmp_path / "feed.json"))
     client = TestClient(create_app())
     assert client.get("/").status_code == 200
-    assert client.get("/api/dashboard/feed").json()["mode"] == "demo"
+    assert client.get("/api/dashboard/feed").json()["mode"] == "live"
     payload = demo_feed().model_dump(mode="json")
     payload.update(mode="live", source="test provider")
     assert client.post("/api/dashboard/feed", json=payload).status_code == 200

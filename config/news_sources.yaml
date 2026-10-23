@@ -1,0 +1,141 @@
+domains:
+  - id: semiconductor
+    name: 半导体
+    industries:
+      - {id: chip-design, name: 芯片设计, keywords: [芯片, 集成电路, chip, semiconductor, GPU, Nvidia, AMD, Arm]}
+      - {id: chip-fab, name: 晶圆制造, keywords: [晶圆, 台积电, 中芯, TSMC, foundry, wafer, Intel, Samsung]}
+      - {id: chip-equipment, name: 设备与材料, keywords: [光刻, 半导体设备, 硅片, lithography, ASML, Applied Materials, etch, deposition]}
+      - {id: chip-packaging, name: 封装与存储, keywords: [封装, 存储, 内存, HBM, DRAM, NAND, packaging, memory, Micron]}
+  - id: ai
+    name: 人工智能
+    industries:
+      - {id: ai-models, name: 大模型与应用, keywords: [人工智能, 大模型, 智能体, artificial intelligence, OpenAI, DeepSeek, LLM, ChatGPT, generative AI]}
+      - {id: ai-compute, name: 算力与数据中心, keywords: [算力, 数据中心, 英伟达, GPU, data center, datacenter, Nvidia, accelerator]}
+      - {id: robotics, name: 机器人与自动化, keywords: [机器人, 自动化, robot, robotics, humanoid, automation]}
+  - id: energy
+    name: 新能源
+    industries:
+      - {id: solar, name: 光伏, keywords: [光伏, 太阳能, 硅料, solar, photovoltaic, polysilicon]}
+      - {id: wind, name: 风电, keywords: [风电, 风机, wind power, wind energy, offshore wind, turbine]}
+      - {id: batteries, name: 锂电与储能, keywords: [电池, 储能, 锂, 宁德时代, battery, batteries, energy storage, lithium, CATL]}
+      - {id: hydrogen, name: 氢能, keywords: [氢能, 绿氢, 电解槽, hydrogen, electrolyser, electrolyzer, fuel cell]}
+  - id: steel
+    name: 钢铁
+    industries:
+      - {id: steel-making, name: 钢铁冶炼, keywords: [钢铁, 钢材, 钢厂, steel, steelmaking, blast furnace, ArcelorMittal]}
+      - {id: iron-coal, name: 铁矿与焦煤, keywords: [铁矿, 焦煤, 焦炭, 煤炭, iron ore, coking coal, metallurgical coal, coke]}
+  - id: health
+    name: 医药生物
+    industries:
+      - {id: biotech, name: 生物科技, keywords: [生物, 创新药, 抗体, 临床, biotech, biotechnology, clinical, antibody]}
+      - {id: pharma, name: 制药与医药商业, keywords: [医药, 制药, 药品, pharmaceutical, pharma, drug, FDA, medicine]}
+      - {id: medtech, name: 医疗器械, keywords: [医疗器械, 医疗设备, medical device, medtech, diagnostic, imaging, surgical]}
+  - id: metals
+    name: 有色金属
+    industries:
+      - {id: base-metals, name: 工业金属, keywords: [铜, 铝, 镍, 锌, 有色, copper, aluminium, aluminum, nickel, zinc, mining]}
+      - {id: precious-metals, name: 贵金属与稀土, keywords: [黄金, 白银, 稀土, gold, silver, rare earth, platinum]}
+  - id: chemicals
+    name: 化工与能源
+    industries:
+      - {id: chemicals-basic, name: 基础与精细化工, keywords: [化工, 化学, 农药, 化肥, chemical, chemistry, fertilizer, polymer]}
+      - {id: oil-gas, name: 石油天然气, keywords: [石油, 原油, 天然气, 炼油, crude, oil, gas, petroleum, LNG, OPEC]}
+  - id: auto
+    name: 汽车与出行
+    industries:
+      - {id: ev, name: 新能源汽车, keywords: [电动车, 新能源汽车, 比亚迪, 特斯拉, electric vehicle, EV, Tesla, BYD]}
+      - {id: auto-parts, name: 汽车零部件与智驾, keywords: [汽车, 零部件, 智驾, 自动驾驶, automotive, autonomous, self-driving, lidar]}
+  - id: digital
+    name: 通信与软件
+    industries:
+      - {id: telecom, name: 通信与网络, keywords: [通信, 光通信, 光模块, 5G, 6G, telecom, wireless, networking, optical, Ericsson]}
+      - {id: software, name: 软件与云服务, keywords: [软件, 云服务, 云计算, 开源, software, cloud, SaaS, open source, cybersecurity]}
+  - id: consumer
+    name: 消费与供应链
+    industries:
+      - {id: retail, name: 零售与电商, keywords: [零售, 电商, 消费, retail, ecommerce, e-commerce, consumer, Alibaba, Amazon]}
+      - {id: supply-chain, name: 物流与供应链, keywords: [物流, 供应链, 航运, 港口, logistics, supply chain, shipping, freight]}
+  - id: finance
+    name: 金融与资本市场
+    industries:
+      - {id: markets, name: 股票与资本市场, keywords: [股市, A股, 美股, 上市, IPO, stock, market, equities, ETF, Nasdaq]}
+      - {id: banking, name: 银行与金融服务, keywords: [银行, 保险, 证券, 金融, bank, banking, insurance, financial, credit]}
+  - id: macro
+    name: 宏观与政策
+    industries:
+      - {id: policy, name: 央行与产业政策, keywords: [央行, 政策, 利率, 美联储, central bank, Federal Reserve, interest rate, monetary, tariff]}
+      - {id: economy, name: 经济与国际贸易, keywords: [经济, 通胀, 贸易, 出口, GDP, economy, economic, inflation, trade, export, employment]}
+
+sources:
+  - {id: ithome, name: IT之家, url: 'https://www.ithome.com/rss/', domains: [semiconductor, ai, digital, auto], language: zh, recommended: true}
+  - {id: kr36, name: 36氪, url: 'https://www.36kr.com/feed', domains: ['*'], language: zh, recommended: true}
+  - {id: tmtpost, name: 钛媒体, url: 'https://www.tmtpost.com/rss.xml', domains: ['*'], language: zh}
+  - {id: geekpark, name: 极客公园, url: 'https://www.geekpark.net/rss', domains: [ai, semiconductor, digital, auto], language: zh}
+  - {id: leiphone, name: 雷峰网, url: 'https://www.leiphone.com/feed', domains: [ai, semiconductor, digital, auto], language: zh}
+  - {id: infoq, name: InfoQ 中文, url: 'https://www.infoq.cn/feed', domains: [ai, digital], language: zh}
+  - {id: sspai, name: 少数派, url: 'https://sspai.com/feed', domains: [digital, ai, consumer], language: zh}
+  - {id: chinanews-finance, name: 中新网·财经, url: 'https://www.chinanews.com.cn/rss/finance.xml', domains: ['*'], language: zh, recommended: true}
+  - {id: chinanews-all, name: 中新网·即时新闻, url: 'https://www.chinanews.com.cn/rss/scroll-news.xml', domains: ['*'], language: zh}
+  - {id: wscn-live, name: 华尔街见闻·快讯, url: 'https://api-one.wallstcn.com/apiv1/content/lives?channel=global-channel&limit=100', domains: ['*'], language: zh, kind: wallstreetcn, recommended: true}
+  - {id: wscn-news, name: 华尔街见闻·资讯, url: 'https://api-one.wallstcn.com/apiv1/content/information-flow?channel=global-channel&accept=article&limit=100', domains: ['*'], language: zh, kind: wallstreetcn}
+  - {id: semiengineering, name: Semiconductor Engineering, url: 'https://semiengineering.com/feed/', domains: [semiconductor, ai], recommended: true}
+  - {id: eetimes, name: EE Times, url: 'https://www.eetimes.com/feed/', domains: [semiconductor, digital, auto], recommended: true}
+  - {id: eenews, name: eeNews Europe, url: 'https://www.eenewseurope.com/en/feed/', domains: [semiconductor, digital, energy]}
+  - {id: edn, name: EDN 电子设计, url: 'https://www.edn.com/feed/', domains: [semiconductor, digital, auto]}
+  - {id: eejournal, name: EE Journal, url: 'https://www.eejournal.com/feed/', domains: [semiconductor, digital]}
+  - {id: digitimes, name: DIGITIMES 亚洲科技, url: 'https://www.digitimes.com/rss/daily.xml', domains: [semiconductor, ai, digital], recommended: true}
+  - {id: fierceelectronics, name: Fierce Electronics, url: 'https://www.fierceelectronics.com/rss/xml', domains: [semiconductor, ai, digital]}
+  - {id: nvidia-news, name: NVIDIA 官方新闻, url: 'https://nvidianews.nvidia.com/releases.xml', domains: [semiconductor, ai, auto], category: official, recommended: true}
+  - {id: nvidia-blog, name: NVIDIA 官方博客, url: 'https://blogs.nvidia.com/feed/', domains: [ai, semiconductor, auto], category: official}
+  - {id: st-news, name: 意法半导体官方新闻, url: 'https://newsroom.st.com/feed/', domains: [semiconductor, auto, energy], category: official}
+  - {id: samsung-news, name: 三星官方新闻, url: 'https://news.samsung.com/global/feed', domains: [semiconductor, ai, digital], category: official}
+  - {id: arm-news, name: Arm 官方新闻, url: 'https://newsroom.arm.com/rss', domains: [semiconductor, ai, auto], category: official}
+  - {id: huggingface, name: Hugging Face 官方博客, url: 'https://huggingface.co/blog/feed.xml', domains: [ai, digital], category: official, recommended: true}
+  - {id: openai-news, name: OpenAI 官方新闻, url: 'https://openai.com/news/rss.xml', domains: [ai], category: official}
+  - {id: google-research, name: Google Research, url: 'https://research.google/blog/rss/', domains: [ai, digital, health], category: official}
+  - {id: aws-ml, name: AWS 机器学习博客, url: 'https://aws.amazon.com/blogs/machine-learning/feed/', domains: [ai, digital], category: official}
+  - {id: mit-ai, name: MIT·人工智能, url: 'https://news.mit.edu/rss/topic/artificial-intelligence2', domains: [ai], category: research}
+  - {id: techcrunch, name: TechCrunch, url: 'https://techcrunch.com/feed/', domains: [ai, digital, consumer, auto]}
+  - {id: ars-tech, name: Ars Technica, url: 'https://feeds.arstechnica.com/arstechnica/technology-lab', domains: [ai, digital, semiconductor]}
+  - {id: verge, name: The Verge, url: 'https://www.theverge.com/rss/index.xml', domains: [ai, digital, auto, consumer]}
+  - {id: cleantechnica, name: CleanTechnica, url: 'https://cleantechnica.com/feed/', domains: [energy, auto], recommended: true}
+  - {id: electrek, name: Electrek, url: 'https://electrek.co/feed/', domains: [energy, auto], recommended: true}
+  - {id: renewable-world, name: Renewable Energy World, url: 'https://www.renewableenergyworld.com/feed/', domains: [energy]}
+  - {id: energy-storage, name: Energy Storage News, url: 'https://www.energy-storage.news/feed/', domains: [energy], recommended: true}
+  - {id: offshore-wind, name: Offshore Wind, url: 'https://www.offshorewind.biz/feed/', domains: [energy]}
+  - {id: eia-energy, name: 美国 EIA·能源观察, url: 'https://www.eia.gov/rss/todayinenergy.xml', domains: [energy, chemicals, steel, macro], category: official}
+  - {id: worldsteel, name: 世界钢铁协会, url: 'https://www.worldsteel.org/feed/', domains: [steel], category: official, recommended: true}
+  - {id: miningweekly, name: Mining Weekly, url: 'https://www.miningweekly.com/page/latest-news/feed', domains: [metals, steel, chemicals], recommended: true}
+  - {id: statnews, name: STAT 医药新闻, url: 'https://www.statnews.com/feed/', domains: [health], recommended: true}
+  - {id: fda-news, name: FDA 官方新闻, url: 'https://www.fda.gov/about-fda/contact-fda/stay-informed/rss-feeds/press-releases/rss.xml', domains: [health], category: official, recommended: true}
+  - {id: who-news, name: 世界卫生组织新闻, url: 'https://www.who.int/rss-feeds/news-english.xml', domains: [health], category: official}
+  - {id: sciencedaily-health, name: ScienceDaily·医疗健康, url: 'https://www.sciencedaily.com/rss/health_medicine.xml', domains: [health], category: research}
+  - {id: nature-biotech, name: Nature Biotechnology, url: 'https://www.nature.com/nbt.rss', domains: [health], category: research}
+  - {id: chemeng, name: Chemical Engineering, url: 'https://www.chemengonline.com/feed/', domains: [chemicals], recommended: true}
+  - {id: auto-world, name: Automotive World, url: 'https://www.automotiveworld.com/feed/', domains: [auto], recommended: true}
+  - {id: insideevs, name: InsideEVs, url: 'https://insideevs.com/rss/news/all/', domains: [auto, energy]}
+  - {id: rcrwireless, name: RCR Wireless, url: 'https://www.rcrwireless.com/feed', domains: [digital], recommended: true}
+  - {id: retaildive, name: Retail Dive, url: 'https://www.retaildive.com/feeds/news/', domains: [consumer], recommended: true}
+  - {id: supplychaindive, name: Supply Chain Dive, url: 'https://www.supplychaindive.com/feeds/news/', domains: [consumer], recommended: true}
+  - {id: fed-all, name: 美联储官方新闻, url: 'https://www.federalreserve.gov/feeds/press_all.xml', domains: [macro, finance], category: official, recommended: true}
+  - {id: ecb-news, name: 欧洲央行官方新闻, url: 'https://www.ecb.europa.eu/rss/press.html', domains: [macro, finance], category: official}
+  - {id: bbc-business, name: BBC·商业经济, url: 'https://feeds.bbci.co.uk/news/business/rss.xml', domains: ['*']}
+  - {id: marketwatch, name: MarketWatch·市场要闻, url: 'https://feeds.content.dowjones.io/public/rss/mw_topstories', domains: [finance, macro], recommended: true}
+  - {id: wsj-markets, name: WSJ·市场, url: 'https://feeds.a.dj.com/rss/RSSMarketsMain.xml', domains: [finance, macro]}
+  - {id: ft-home, name: Financial Times·头条, url: 'https://www.ft.com/rss/home', domains: ['*']}
+  - {id: investing-all, name: Investing·财经新闻, url: 'https://www.investing.com/rss/news.rss', domains: ['*']}
+  - {id: investing-stocks, name: Investing·股市, url: 'https://www.investing.com/rss/news_25.rss', domains: [finance]}
+  - {id: hub-cls-hot, name: 财联社·热门, route: /cls/hot, domains: ['*'], language: zh, kind: rsshub, recommended: true}
+  - {id: hub-cls-depth, name: 财联社·深度, route: /cls/depth/1000, domains: ['*'], language: zh, kind: rsshub}
+  - {id: hub-yicai, name: 第一财经·头条, route: /yicai/headline, domains: ['*'], language: zh, kind: rsshub, recommended: true}
+  - {id: hub-wscn-hot, name: 华尔街见闻·热门, route: /wallstreetcn/hot, domains: ['*'], language: zh, kind: rsshub}
+  - {id: hub-jin10, name: 金十数据·快讯, route: /jin10, domains: [macro, finance, metals, chemicals], language: zh, kind: rsshub}
+  - {id: hub-stcn, name: 证券时报·快讯, route: /stcn/article/list/kx, domains: ['*'], language: zh, kind: rsshub}
+  - {id: hub-cls-telegraph, name: 财联社·电报, route: /cls/telegraph, domains: ['*'], language: zh, kind: rsshub}
+  - {id: hub-36kr, name: 36氪·快讯, route: /36kr/newsflashes, domains: [ai, semiconductor, digital, consumer, auto, energy], language: zh, kind: rsshub}
+  - {id: hub-huxiu, name: 虎嗅, route: /huxiu/article, domains: ['*'], language: zh, kind: rsshub}
+  - {id: hub-qbitai, name: 量子位, route: /qbitai/category/资讯, domains: [ai, semiconductor], language: zh, kind: rsshub}
+  - {id: hub-cnbeta, name: cnBeta 科技资讯, route: /cnbeta, domains: [ai, semiconductor, digital, auto], language: zh, kind: rsshub}
+  - {id: hub-gelonghui, name: 格隆汇·热门, route: /gelonghui/hot-article, domains: [finance, macro], language: zh, kind: rsshub}
+  - {id: hub-21finance, name: 21财经·热点, route: /21caijing/channel/热点, domains: ['*'], language: zh, kind: rsshub}
+  - {id: hub-jiemian, name: 界面新闻·科技, route: /jiemian/lists/65, domains: [ai, semiconductor, digital], language: zh, kind: rsshub}

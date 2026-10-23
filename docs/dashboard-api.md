@@ -8,8 +8,13 @@
 
 ## 资讯接入
 
-默认五个领域：半导体、人工智能、新能源、钢铁、医药生物。领域列表由数据驱动，可直接增加。
-当前资讯与市场卡片全部为虚构演示。本地研究页单独读取 `data/g2.duckdb`，是实际数据。
+默认内置 102 个公开订阅通道、12 个领域、30 个细分行业。启动即读取真实资讯，
+界面「数据接入与设置」可按行业勾选来源，保存后立即采集并持久保存，默认每 15 分钟更新。
+无需模型 Key，也不需要用户寻找资讯 API。数量含栏目和主题搜索，不等于 102 家独立媒体。
+行情、资金流与价格趋势未接入时保持空值；不会用新闻或模型生成这些数值。
+本地研究页单独读取 `data/g2.duckdb`。完整说明见 [资讯源](news-sources.md)。
+
+以下 JSON / 远程统一接口是可选的高级接入方式，不是日常使用的前置条件：
 
 1. 页面「数据接入与设置」导出 JSON，得到完整模板。
 2. 将供应商数据映射到模板，将 `mode` 设为 `live`；缺失值用 `null`，无新闻用 `[]`。
@@ -23,7 +28,7 @@ $env:INDUSTRYPULSE_FEED_TOKEN = 'optional-bearer-token'
 
 远程接口返回与导出文件相同结构。远程优先；令牌只在服务端发送。
 失败时显示错误并保留浏览器上次成功数据，不自动降级成演示。
-刷新按钮重新拉取；不进行后台自动轮询。
+内置资讯模式在后台按配置自动更新，刷新按钮立即采集。
 
 ## 字段
 
@@ -36,6 +41,8 @@ $env:INDUSTRYPULSE_FEED_TOKEN = 'optional-bearer-token'
 
 接口：`GET /api/dashboard/feed`、`POST /api/dashboard/feed`、`GET /api/dashboard/schema`、
 `GET /api/dashboard/research`；可在 `/docs` 查看交互 API 文档。
+内置源：`GET /api/dashboard/sources`、`POST /api/dashboard/sources/settings`、
+`POST /api/dashboard/sources/refresh`。刷新立即返回采集进度，不阻塞界面。
 原 `/v1` 冻结合同保持不变。
 
 可选环境变量：`INDUSTRYPULSE_FEED_FILE` 指定 JSON 路径，
@@ -49,4 +56,4 @@ $env:INDUSTRYPULSE_FEED_TOKEN = 'optional-bearer-token'
 研究页为当前库版本浏览，不作为 STRICT PIT 结果。
 
 原系统的宏观、景气、预测、研究实验、回测、证据审查与运维也已接入此工作台，
-使用说明见 `operations.md`。未新增实际新闻供应商、交易下单接口或预测有效性声明。
+使用说明见 `operations.md`。公开订阅不提供付费全文权限；不包含交易下单功能。

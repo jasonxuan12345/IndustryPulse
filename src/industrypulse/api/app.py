@@ -16,6 +16,7 @@ from fastapi.staticfiles import StaticFiles
 
 from industrypulse.api.dashboard import ROOT, create_dashboard_router
 from industrypulse.api.model_settings import create_model_router
+from industrypulse.api.news_sources import create_sources_router
 from industrypulse.contracts import (
     ROUTES,
     TZ_SHANGHAI,
@@ -27,6 +28,7 @@ from industrypulse.contracts import (
     ResearchMode,
 )
 from industrypulse.core import Settings
+from industrypulse.intelligence.service import NewsService
 
 Handler = Callable[[Request, datetime, ResearchMode], Any]
 
@@ -42,7 +44,15 @@ def create_app(
     from industrypulse.api.workbench import create_workbench_router
 
     application = FastAPI(title="IndustryPulse", version="1.0.0")
-    application.include_router(create_dashboard_router())
+    news_service = NewsService()
+    application.state.news_service = news_service
+    application.include_router(create_dashboard_router(news_service))
+    application.include_router(create_sources_router(news_service))
+
+    @application.on_event("shutdown")
+    def close_news_sources() -> None:
+        news_service.close()
+
     application.include_router(create_model_router())
     application.include_router(create_workbench_router())
     web_root = ROOT / "apps/dashboard/web"

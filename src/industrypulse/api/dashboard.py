@@ -13,6 +13,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import AwareDatetime, BaseModel, Field, HttpUrl
 
 from industrypulse.contracts import TZ_SHANGHAI
+from industrypulse.intelligence.service import NewsService
 
 ROOT = Path(__file__).resolve().parents[3]
 SECTORS = {
@@ -50,6 +51,10 @@ class Story(BaseModel):
     url: HttpUrl | None = None
     company: str | None = None
     tags: list[str] = Field(default_factory=list)
+    industry_ids: list[str] = Field(default_factory=list)
+    source_id: str | None = None
+    source_ids: list[str] = Field(default_factory=list)
+    time_kind: Literal["published", "first_seen"] = "published"
 
 
 class Company(BaseModel):
@@ -72,6 +77,7 @@ class Feed(BaseModel):
     sectors: list[Sector]
     stories: list[Story]
     companies: list[Company]
+    collection: dict[str, object] | None = None
 
 
 def demo_feed() -> Feed:
@@ -171,7 +177,8 @@ def demo_feed() -> Feed:
     )
 
 
-def create_dashboard_router() -> APIRouter:
+def create_dashboard_router(service: NewsService | None = None) -> APIRouter:
+    service = service or NewsService()
     router = APIRouter(prefix="/api/dashboard", tags=["dashboard"])
     feed_path = Path(os.getenv("INDUSTRYPULSE_FEED_FILE", str(ROOT / "data/intelligence.json")))
 
@@ -186,9 +193,24 @@ def create_dashboard_router() -> APIRouter:
                     response = client.get(remote, headers=headers)
                     response.raise_for_status()
                 return Feed.model_validate(response.json())
-            if feed_path.exists():
+            if feed_path.exists() and (
+                service.settings.mode == "custom" or not service.settings_path.exists()
+            ):
                 return Feed.model_validate_json(feed_path.read_text(encoding="utf-8"))
-            return demo_feed()
+            if service.settings.mode == "demo":
+                return demo_feed()
+            if service.settings.mode == "custom":
+                return Feed(
+                    mode="live",
+                    updated_at=datetime.now(TZ_SHANGHAI),
+                    source="尚未导入自定义文件，请在设置切回内置公开源或导入 JSON",
+                    sectors=[
+                        Sector(id=domain.id, name=domain.name) for domain in service.catalog.domains
+                    ],
+                    stories=[],
+                    companies=[],
+                )
+            return Feed.model_validate(service.feed())
         except (httpx.HTTPError, ValueError, OSError) as exc:
             raise HTTPException(502, "资讯源读取失败，请检查接口配置或导入文件") from exc
 
@@ -200,6 +222,7 @@ def create_dashboard_router() -> APIRouter:
         temporary = feed_path.with_suffix(".tmp")
         temporary.write_text(payload.model_dump_json(indent=2), encoding="utf-8")
         temporary.replace(feed_path)
+        service.save(service.settings.model_copy(update={"mode": "custom"}))
         return payload
 
     @router.get("/schema")
