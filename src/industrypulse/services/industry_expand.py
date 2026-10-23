@@ -26,6 +26,15 @@ FINANCIAL_INDUSTRIES = (
     "electrical",
     "general-equipment",
     "special-equipment",
+    "oil-gas",
+    "agri-food",
+    "food",
+    "beverage",
+    "refining",
+    "building-materials",
+    "transport-equipment",
+    "instruments",
+    "power",
 )
 
 
@@ -47,7 +56,11 @@ def expand_industries(service: Workbench, options: dict[str, Any]) -> dict[str, 
         repository.register_taxonomy(registry.nodes, registry.indicators)
         items = []
         failures = []
-        code = registry.nodes[0].code
+        prefix = next(
+            spec.series_id.removesuffix(".profit_ytd")
+            for spec in registry.series
+            if spec.series_id.endswith(".profit_ytd")
+        )
         row_label = registry.nodes[0].names["zh"]
         specs = {spec.series_id: spec for spec in registry.series}
         for raw, period in originals:
@@ -71,7 +84,7 @@ def expand_industries(service: Workbench, options: dict[str, Any]) -> dict[str, 
                                 candidate.append(
                                     parse_table(
                                         html,
-                                        series_id=f"cn.nbs.industry_c{code}.{suffix}_ytd"
+                                        series_id=f"{prefix}.{suffix}_ytd"
                                         + ("_yoy" if sub == "同比增长" else ""),
                                         period=period.strftime("%Y-%m"),
                                         row=row_label,

@@ -73,7 +73,7 @@ def test_conflicting_bar_is_rejected(tmp_path: Path) -> None:
         symbol="sh515210", asset_id="ETF_515210", name_zh="钢铁ETF", fetch=lambda _s: PAYLOAD
     )
     altered = json.loads(PAYLOAD)
-    altered[0]["close"] = "9.999"
+    altered[0]["close"] = "1.005"
     with pytest.raises(EtfIngestError, match="不可改写"):
         service.ingest_symbol(
             symbol="sh515210",
@@ -82,6 +82,32 @@ def test_conflicting_bar_is_rejected(tmp_path: Path) -> None:
             fetch=lambda _s: json.dumps(altered),
         )
     assert market.bars("ETF_515210")[0].close == Decimal("1.010")
+
+
+def test_refetch_keeps_asset_master_and_appends_new_days(tmp_path: Path) -> None:
+    service, market = _service(tmp_path)
+    service.ingest_symbol(
+        symbol="sh515210", asset_id="ETF_515210", name_zh="钢铁ETF", fetch=lambda _s: PAYLOAD
+    )
+    original = market.asset("ETF_515210")
+    extended = json.loads(PAYLOAD) + [
+        {
+            "day": "2024-01-04",
+            "open": "1.020",
+            "high": "1.040",
+            "low": "1.010",
+            "close": "1.030",
+            "volume": "900",
+        }
+    ]
+    report = service.ingest_symbol(
+        symbol="sh515210",
+        asset_id="ETF_515210",
+        name_zh="钢铁ETF",
+        fetch=lambda _s: json.dumps(extended),
+    )
+    assert report.inserted == 1 and market.bar_count() == 3
+    assert market.asset("ETF_515210") == original
 
 
 def test_bad_payload_is_rejected(tmp_path: Path) -> None:

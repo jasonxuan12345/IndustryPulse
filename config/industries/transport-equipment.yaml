@@ -1,0 +1,188 @@
+{
+  "version": "transport-equipment-real-v1",
+  "synthetic": false,
+  "nodes": [
+    {
+      "industry_id": "CN_NBS_C37",
+      "standard": "GB/T 4754-2017",
+      "code": "37",
+      "names": {
+        "zh": "铁路、船舶、航空航天和其他运输设备制造业"
+      },
+      "valid_from": "2017-10-01",
+      "notes": "铁路、船舶、航空航天与摩托车等运输设备合计，不含汽车。"
+    }
+  ],
+  "series": [
+    {
+      "series_id": "cn.nbs.industry_c37.revenue_ytd",
+      "source_id": "cn.nbs",
+      "unit": "亿元",
+      "unit_scale": "1",
+      "frequency": "M",
+      "revision_policy": "revised_later",
+      "timestamp_precision": "minute",
+      "is_ytd": true,
+      "description": "铁路、船舶、航空航天和其他运输设备制造业 营业收入累计",
+      "tags": [],
+      "industry_standard_version": "GB/T 4754-2017"
+    },
+    {
+      "series_id": "cn.nbs.industry_c37.revenue_ytd_yoy",
+      "source_id": "cn.nbs",
+      "unit": "%",
+      "unit_scale": "1",
+      "frequency": "M",
+      "revision_policy": "revised_later",
+      "timestamp_precision": "minute",
+      "is_ytd": true,
+      "description": "铁路、船舶、航空航天和其他运输设备制造业 营业收入累计同比",
+      "tags": [],
+      "industry_standard_version": "GB/T 4754-2017"
+    },
+    {
+      "series_id": "cn.nbs.industry_c37.cost_ytd",
+      "source_id": "cn.nbs",
+      "unit": "亿元",
+      "unit_scale": "1",
+      "frequency": "M",
+      "revision_policy": "revised_later",
+      "timestamp_precision": "minute",
+      "is_ytd": true,
+      "description": "铁路、船舶、航空航天和其他运输设备制造业 营业成本累计",
+      "tags": [],
+      "industry_standard_version": "GB/T 4754-2017"
+    },
+    {
+      "series_id": "cn.nbs.industry_c37.cost_ytd_yoy",
+      "source_id": "cn.nbs",
+      "unit": "%",
+      "unit_scale": "1",
+      "frequency": "M",
+      "revision_policy": "revised_later",
+      "timestamp_precision": "minute",
+      "is_ytd": true,
+      "description": "铁路、船舶、航空航天和其他运输设备制造业 营业成本累计同比",
+      "tags": [],
+      "industry_standard_version": "GB/T 4754-2017"
+    },
+    {
+      "series_id": "cn.nbs.industry_c37.profit_ytd",
+      "source_id": "cn.nbs",
+      "unit": "亿元",
+      "unit_scale": "1",
+      "frequency": "M",
+      "revision_policy": "revised_later",
+      "timestamp_precision": "minute",
+      "is_ytd": true,
+      "description": "铁路、船舶、航空航天和其他运输设备制造业 利润总额累计",
+      "tags": [],
+      "industry_standard_version": "GB/T 4754-2017"
+    },
+    {
+      "series_id": "cn.nbs.industry_c37.profit_ytd_yoy",
+      "source_id": "cn.nbs",
+      "unit": "%",
+      "unit_scale": "1",
+      "frequency": "M",
+      "revision_policy": "revised_later",
+      "timestamp_precision": "minute",
+      "is_ytd": true,
+      "description": "铁路、船舶、航空航天和其他运输设备制造业 利润总额累计同比",
+      "tags": [],
+      "industry_standard_version": "GB/T 4754-2017"
+    }
+  ],
+  "indicators": [
+    {
+      "indicator_id": "c37_revenue",
+      "series_ids": [
+        "cn.nbs.industry_c37.revenue_ytd"
+      ],
+      "dimension": "demand",
+      "economic_direction": "positive",
+      "level": "CORE",
+      "industry_ids": [
+        "CN_NBS_C37"
+      ],
+      "role": "feature",
+      "valid_from": "2017-10-01",
+      "description": "铁路、船舶、航空航天和其他运输设备制造业 营业收入累计"
+    },
+    {
+      "indicator_id": "c37_revenue_yoy",
+      "series_ids": [
+        "cn.nbs.industry_c37.revenue_ytd_yoy"
+      ],
+      "dimension": "demand",
+      "economic_direction": "positive",
+      "level": "CORE",
+      "industry_ids": [
+        "CN_NBS_C37"
+      ],
+      "role": "feature",
+      "valid_from": "2017-10-01",
+      "description": "铁路、船舶、航空航天和其他运输设备制造业 营业收入累计同比"
+    },
+    {
+      "indicator_id": "c37_cost",
+      "series_ids": [
+        "cn.nbs.industry_c37.cost_ytd"
+      ],
+      "dimension": "supply",
+      "economic_direction": "negative",
+      "level": "EXTENDED",
+      "industry_ids": [
+        "CN_NBS_C37"
+      ],
+      "role": "feature",
+      "valid_from": "2017-10-01",
+      "description": "铁路、船舶、航空航天和其他运输设备制造业 营业成本累计"
+    },
+    {
+      "indicator_id": "c37_cost_yoy",
+      "series_ids": [
+        "cn.nbs.industry_c37.cost_ytd_yoy"
+      ],
+      "dimension": "supply",
+      "economic_direction": "negative",
+      "level": "EXTENDED",
+      "industry_ids": [
+        "CN_NBS_C37"
+      ],
+      "role": "feature",
+      "valid_from": "2017-10-01",
+      "description": "铁路、船舶、航空航天和其他运输设备制造业 营业成本累计同比"
+    },
+    {
+      "indicator_id": "c37_profit",
+      "series_ids": [
+        "cn.nbs.industry_c37.profit_ytd"
+      ],
+      "dimension": "profitability",
+      "economic_direction": "positive",
+      "level": "CORE",
+      "industry_ids": [
+        "CN_NBS_C37"
+      ],
+      "role": "label",
+      "valid_from": "2017-10-01",
+      "description": "铁路、船舶、航空航天和其他运输设备制造业 利润总额累计"
+    },
+    {
+      "indicator_id": "c37_profit_yoy",
+      "series_ids": [
+        "cn.nbs.industry_c37.profit_ytd_yoy"
+      ],
+      "dimension": "profitability",
+      "economic_direction": "positive",
+      "level": "CORE",
+      "industry_ids": [
+        "CN_NBS_C37"
+      ],
+      "role": "feature",
+      "valid_from": "2017-10-01",
+      "description": "铁路、船舶、航空航天和其他运输设备制造业 利润总额累计同比"
+    }
+  ]
+}

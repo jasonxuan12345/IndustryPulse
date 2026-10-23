@@ -82,6 +82,15 @@ def test_new_industries_use_official_rows_and_not_the_semiconductor_name() -> No
         "electrical": "电气机械和器材制造业",
         "general-equipment": "通用设备制造业",
         "special-equipment": "专用设备制造业",
+        "oil-gas": "石油和天然气开采业",
+        "agri-food": "农副食品加工业",
+        "food": "食品制造业",
+        "beverage": "酒、饮料和精制茶制造业",
+        "refining": "石油、煤炭及其他燃料加工业",
+        "building-materials": "非金属矿物制品业",
+        "transport-equipment": "铁路、船舶、航空航天和其他运输设备制造业",
+        "instruments": "仪器仪表制造业",
+        "power": "电力、热力生产和供应业",
     }
     for stem, name in expected.items():
         assert stem in FINANCIAL_INDUSTRIES
@@ -90,8 +99,10 @@ def test_new_industries_use_official_rows_and_not_the_semiconductor_name() -> No
         assert name != "半导体"
         assert len(registry.series) == 6
         code = registry.nodes[0].code
+        section = registry.nodes[0].industry_id.removeprefix("CN_NBS_")[0].lower()
+        assert section == {"07": "b", "44": "d"}.get(code, "c")
         assert {item.series_id for item in registry.series} == {
-            f"cn.nbs.industry_c{code}.{suffix}"
+            f"cn.nbs.industry_{section}{code}.{suffix}"
             for suffix in (
                 "revenue_ytd",
                 "revenue_ytd_yoy",

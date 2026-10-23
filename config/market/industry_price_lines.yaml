@@ -1,0 +1,91 @@
+# 研究行业 -> 可交易价格线（场内 ETF，新浪日线，不复权 + 现金分红加回）。
+# ETF 跟踪的是按上市公司划分的指数，和统计局按企业主营划分的行业口径不同，全部只是代理。
+# fit：对口 = 指数成分基本落在该行业；近似 = 主体重合但混入相邻行业；弱 = 只覆盖其中一小块。
+# 名称于 2026-10-23 用 qt.gtimg.cn 实测核对。
+benchmark: { asset_id: ETF_510300, symbol: sh510300, name: 沪深300ETF华泰柏瑞 }
+industries:
+  CN_NBS_C06: { asset_id: ETF_515220, symbol: sh515220, name: 煤炭ETF国泰, fit: 对口 }
+  CN_NBS_B07:
+    asset_id: ETF_159697
+    symbol: sz159697
+    name: 石油ETF鹏华
+    fit: 近似
+    note: 混入炼化与油服公司
+  CN_NBS_C09:
+    asset_id: ETF_512400
+    symbol: sh512400
+    name: 有色金属ETF南方
+    fit: 近似
+    note: 采选与冶炼公司混在同一只 ETF
+  CN_NBS_C13:
+    asset_id: ETF_159865
+    symbol: sz159865
+    name: 养殖ETF国泰
+    fit: 弱
+    note: 以畜禽养殖为主，饲料与屠宰只占一部分
+  CN_NBS_C14:
+    asset_id: ETF_515170
+    symbol: sh515170
+    name: 食品饮料ETF华夏
+    fit: 近似
+    note: 混入酒和饮料
+  CN_NBS_C15:
+    asset_id: ETF_512690
+    symbol: sh512690
+    name: 酒ETF鹏华
+    fit: 近似
+    note: 只有酒，不含软饮料和茶
+  CN_NBS_C25:
+    asset_id: ETF_159731
+    symbol: sz159731
+    name: 石化ETF华夏
+    fit: 近似
+    note: 混入化工公司
+  CN_NBS_C26: { asset_id: ETF_159870, symbol: sz159870, name: 化工ETF鹏华, fit: 对口 }
+  CN_NBS_C27:
+    asset_id: ETF_512010
+    symbol: sh512010
+    name: 医药ETF易方达
+    fit: 近似
+    note: 混入医疗器械与医疗服务
+  CN_NBS_C30: { asset_id: ETF_159745, symbol: sz159745, name: 建材ETF国泰, fit: 对口 }
+  CN_NBS_C31: { asset_id: ETF_515210, symbol: sh515210, name: 钢铁ETF国泰, fit: 对口 }
+  CN_NBS_C32:
+    asset_id: ETF_512400
+    symbol: sh512400
+    name: 有色金属ETF南方
+    fit: 近似
+    note: 采选与冶炼公司混在同一只 ETF
+  CN_NBS_C34:
+    asset_id: ETF_159886
+    symbol: sz159886
+    name: 机械ETF富国
+    fit: 近似
+    note: 混入专用设备；日成交额只有数百万元
+  CN_NBS_C35:
+    asset_id: ETF_560280
+    symbol: sh560280
+    name: 工程机械ETF广发
+    fit: 弱
+    note: 只覆盖工程机械
+  CN_NBS_C36: { asset_id: ETF_516110, symbol: sh516110, name: 汽车ETF国泰, fit: 对口 }
+  CN_NBS_C37:
+    asset_id: ETF_512660
+    symbol: sh512660
+    name: 军工ETF国泰
+    fit: 弱
+    note: 以军工为主，混入军工电子，不含民用铁路与船舶主体
+  CN_NBS_C38:
+    asset_id: ETF_516160
+    symbol: sh516160
+    name: 新能源ETF南方
+    fit: 弱
+    note: 只覆盖光伏、电池、风电，不含电网设备与家电
+  CN_NBS_C39:
+    asset_id: ETF_159997
+    symbol: sz159997
+    name: 电子ETF天弘
+    fit: 近似
+    note: 混入半导体
+  CN_NBS_D44: { asset_id: ETF_159611, symbol: sz159611, name: 电力ETF广发, fit: 对口 }
+# 仪器仪表制造业（C40）没有找到对口 ETF，保持空缺。

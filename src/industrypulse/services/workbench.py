@@ -302,7 +302,14 @@ class Workbench:
                 snapshot_id=context.dataset_snapshot_id,
                 industry_id=context.industry_id,
                 feature_series=feature_series,
-                prefix=f"cn.nbs.industry_c{registry.nodes[0].code}",
+                prefix=next(
+                    (
+                        item.series_id.removesuffix(".profit_ytd")
+                        for item in registry.series
+                        if item.series_id.endswith(".profit_ytd")
+                    ),
+                    f"cn.nbs.industry_c{registry.nodes[0].code}",
+                ),
                 start=date.fromisoformat(options.get("start", "2021-10-01")),
                 end=context.as_of.date(),
                 research_mode=context.research_mode,

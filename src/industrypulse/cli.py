@@ -274,6 +274,68 @@ def etf_dividends(
     )
 
 
+@etf_app.command("price-lines")
+def etf_price_lines(
+    database: Annotated[Path, typer.Option("--database")],
+    config: Annotated[Path, typer.Option("--config")] = Path(
+        "config/market/industry_price_lines.yaml"
+    ),
+    interval: Annotated[float, typer.Option("--interval")] = 1.5,
+) -> None:
+    """按行业价格线配置采集全部 ETF 日线与现金分红（已登记的资产只追加新交易日）。"""
+    import yaml
+
+    document = yaml.safe_load(config.read_text(encoding="utf-8"))
+    lines = {
+        spec["asset_id"]: spec
+        for spec in [document["benchmark"], *document["industries"].values()]
+    }
+    market = DuckDBMarketRepository(database)
+    service = EtfIngestService(market, bronze_root=database.parent / "bronze-etf")
+    headers = {"User-Agent": "IndustryPulse/0.1 (research; contact=local)"}
+    results = []
+    with httpx.Client(timeout=40, follow_redirects=True, headers=headers) as client:
+        for asset_id, spec in lines.items():
+            symbol = spec["symbol"]
+            entry: dict[str, object] = {"asset_id": asset_id, "symbol": symbol}
+            try:
+                report = service.ingest_symbol(
+                    symbol=symbol,
+                    asset_id=asset_id,
+                    name_zh=spec["name"],
+                    exchange=Exchange.SSE if symbol.startswith("sh") else Exchange.SZSE,
+                    fetch=lambda code: fetch_sina_kline(code, client=client, interval=interval),
+                )
+                entry.update(
+                    bars=report.bars,
+                    inserted=report.inserted,
+                    first_day=report.first_day,
+                    last_day=report.last_day,
+                )
+            except (EtfIngestError, MarketDataError, ValueError, httpx.HTTPError) as exc:
+                entry["error"] = str(exc)
+                results.append(entry)
+                continue
+            url = f"https://fund.eastmoney.com/f10/FHSP_{symbol[2:]}.html"
+            try:
+                time.sleep(interval)
+                response = client.get(url)
+                response.raise_for_status()
+                records = parse_dividend_table(response.text)
+                actions = to_corporate_actions(
+                    records,
+                    asset_id=asset_id,
+                    source_note=f"来源 {url}（第三方聚合，C 级证据）",
+                )
+                for action in actions:
+                    market.register_action(action)
+                entry["dividends"] = len(actions)
+            except (httpx.HTTPError, DividendParseError, MarketDataError) as exc:
+                entry["dividend_error"] = str(exc)
+            results.append(entry)
+    _emit({"lines": results})
+
+
 @etf_app.command("list")
 def etf_list(database: Annotated[Path, typer.Option("--database")]) -> None:
     """列出行情仓储中的资产与 bar 数。"""

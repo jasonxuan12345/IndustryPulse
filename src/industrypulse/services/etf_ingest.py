@@ -98,7 +98,8 @@ class EtfIngestService:
             ),
         )
         try:
-            self.market.register_asset(asset)
+            if asset_id not in {item.asset_id for item in self.market.assets()}:
+                self.market.register_asset(asset)
             bars = to_market_bars(quotes, asset_id=asset_id)
             inserted = self.market.publish_bars(bars)
         except MarketDataError as exc:

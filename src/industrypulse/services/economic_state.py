@@ -6,7 +6,18 @@ from collections.abc import Sequence
 from datetime import datetime
 from typing import Any
 
+import yaml
+
 from industrypulse.contracts import ResearchMode
+from industrypulse.economy.price_check import (
+    HORIZONS,
+    PriceLine,
+    adjacent_periods,
+    benjamini_hochberg,
+    compare,
+    forward_excess,
+    signal_history,
+)
 from industrypulse.economy.state import (
     CYCLE_LABELS,
     MISSING_DIMENSIONS,
@@ -72,6 +83,74 @@ def _number(row: Any) -> float | None:
     return float(row.value)
 
 
+class _PriceLines:
+    def __init__(self, service: Workbench, database: Any, as_of: datetime) -> None:
+        from industrypulse.repositories import DuckDBMarketRepository
+
+        path = service.root / "config/market/industry_price_lines.yaml"
+        config = yaml.safe_load(path.read_text(encoding="utf-8")) if path.exists() else {}
+        self.benchmark = config.get("benchmark") or {}
+        self.mapping = config.get("industries") or {}
+        self.market = DuckDBMarketRepository(database)
+        self.day = as_of.date()
+        self.cache: dict[str, PriceLine | None] = {}
+
+    def line(self, asset_id: str) -> PriceLine | None:
+        if asset_id not in self.cache:
+            bars = self.market.bars(asset_id, end=self.day)
+            self.cache[asset_id] = (
+                PriceLine(
+                    tuple(bar.trade_date for bar in bars),
+                    tuple(float(bar.close) for bar in bars),
+                    tuple(
+                        (action.ex_date, float(action.distribution_per_unit))
+                        for action in self.market.actions(asset_id)
+                        if action.action_type == "cash_dividend" and action.ex_date <= self.day
+                    ),
+                )
+                if bars
+                else None
+            )
+        return self.cache[asset_id]
+
+    def check(self, industry_id: str, series_points: dict[str, list[Any]]) -> dict[str, Any]:
+        spec = self.mapping.get(industry_id)
+        if not spec:
+            return {"status": "NO_PRICE_LINE", "reason": "没有找到对口的场内 ETF"}
+        described = {
+            "asset_id": spec["asset_id"],
+            "name": spec["name"],
+            "fit": spec["fit"],
+            "note": spec.get("note", ""),
+            "benchmark": self.benchmark.get("name"),
+        }
+        asset = self.line(spec["asset_id"])
+        benchmark = self.line(self.benchmark.get("asset_id", ""))
+        if asset is None or benchmark is None:
+            return {**described, "status": "NO_BARS", "reason": "研究库里还没有这条价格线的日线"}
+        releases = signal_history(
+            [
+                (row.observation_start, row.available_at, _number(row))
+                for row in series_points["profit"]
+            ],
+            {row.observation_start: _number(row) for row in series_points["revenue"]},
+        )
+        horizons = []
+        for months, trading_days in HORIZONS:
+            outcomes, pending = forward_excess(releases, asset, benchmark, trading_days)
+            horizons.append(
+                {"months": months, "trading_days": trading_days, "pending": pending}
+                | compare(outcomes)
+            )
+        return {
+            **described,
+            "status": "NOT_VALIDATED",
+            "first_day": asset.days[0].isoformat(),
+            "last_day": asset.days[-1].isoformat(),
+            "horizons": horizons,
+        }
+
+
 def build_economic_state(
     service: Workbench,
     mode: ResearchMode,
@@ -113,6 +192,7 @@ def build_economic_state(
     industries = []
     hypotheses = []
     gaps = []
+    price_lines = _PriceLines(service, repository.database, as_of)
     for path in sorted((service.root / "config/industries").glob("*.yaml")):
         registry = service.taxonomy(path.stem)
         name = registry.nodes[0].names.get("zh", path.stem)
@@ -148,6 +228,22 @@ def build_economic_state(
         prior = {
             key: points[-2] if len(points) > 1 else None for key, points in series_points.items()
         }
+        note = "累计同比相对上一公布期的变动，不是当月同比。"
+        if (
+            latest["profit"] is not None
+            and latest["revenue"] is not None
+            and latest["profit"].observation_start < latest["revenue"].observation_start
+        ):
+            latest["profit"] = prior["profit"] = None
+            note = "最近公布期官方没有给利润累计同比（上年同期亏损时不计算），不判断改善。"
+        if (
+            latest["profit"] is not None
+            and prior["profit"] is not None
+            and not adjacent_periods(
+                prior["profit"].observation_start, latest["profit"].observation_start
+            )
+        ):
+            prior["profit"] = None
         profit = _number(latest["profit"])
         previous_profit = _number(prior["profit"])
         profit_change = (
@@ -158,7 +254,8 @@ def build_economic_state(
         urls = sorted(
             {str(row.source_url) for row in latest.values() if row is not None and row.source_url}
         )
-        period = latest["profit"].observation_start if latest["profit"] is not None else None
+        shown = latest["profit"] or latest["revenue"]
+        period = shown.observation_start if shown is not None else None
         state = cyclical_state(profit, profit_change)
         industries.append(
             {
@@ -173,7 +270,8 @@ def build_economic_state(
                 "cyclical_state": state,
                 "cyclical_label": CYCLE_LABELS[state],
                 "source_urls": urls,
-                "note": "累计同比相对上一公布期的变动，不是当月同比。",
+                "note": note,
+                "price_check": price_lines.check(industry_id, series_points),
             }
         )
         hypothesis = growth_hypothesis(
@@ -194,6 +292,16 @@ def build_economic_state(
         ),
         reverse=True,
     )
+    tested = [
+        horizon
+        for item in industries
+        for horizon in item["price_check"].get("horizons", [])
+        if horizon["status"] == "TESTED"
+    ]
+    for horizon, q_value in zip(
+        tested, benjamini_hochberg([h["p_value"] for h in tested]), strict=True
+    ):
+        horizon["q_value"] = q_value
     return {
         "as_of": as_of.isoformat(),
         "mode": mode.value,
@@ -243,4 +351,17 @@ def build_economic_state(
         "industries": industries,
         "hypotheses": hypotheses,
         "gaps": gaps,
+        "price_check": {
+            "status": "NOT_VALIDATED",
+            "tests": len(tested),
+            "method": (
+                "信号同增长假设规则。发布日后第一个交易日收盘入场，持有约 3 / 6 个月"
+                "（63 / 126 个交易日），比较 ETF 与沪深 300 的总收益差。"
+                "窗口重叠，用循环平移检验求单侧 p 值，再对全部检验做 BH 校正。"
+            ),
+            "disclaimer": (
+                "历史描述，不是收益预测，也不是投资建议。ETF 与统计局行业口径不同，"
+                "样本只有几十个月，q 值小也只说明值得继续研究。"
+            ),
+        },
     }
