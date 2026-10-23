@@ -15,6 +15,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from industrypulse.api.dashboard import ROOT, create_dashboard_router
+from industrypulse.api.events import create_events_router
 from industrypulse.api.model_settings import create_model_router
 from industrypulse.api.news_sources import create_sources_router
 from industrypulse.contracts import (
@@ -48,6 +49,7 @@ def create_app(
     application.state.news_service = news_service
     application.include_router(create_dashboard_router(news_service))
     application.include_router(create_sources_router(news_service))
+    application.include_router(create_events_router(news_service))
 
     @application.on_event("shutdown")
     def close_news_sources() -> None:
