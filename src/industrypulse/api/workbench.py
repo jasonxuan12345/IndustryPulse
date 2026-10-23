@@ -73,6 +73,15 @@ def create_workbench_router() -> APIRouter:
             snapshot_id=ctx.dataset_snapshot_id,
         ).model_dump(mode="json")
 
+    @router.post("/state")
+    def state(context: Context) -> dict[str, Any]:
+        from industrypulse.services.economic_state import build_economic_state
+
+        try:
+            return build_economic_state(workspace(), context.mode, context.as_of, context.snapshot)
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from exc
+
     @router.post("/macro")
     def macro(context: Context) -> dict[str, Any]:
         from types import SimpleNamespace

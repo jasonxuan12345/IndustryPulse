@@ -14,6 +14,21 @@ if TYPE_CHECKING:
     from industrypulse.services.workbench import Workbench
 
 
+# 同一张规模以上工业企业利润表里的行业。名称必须与公告行名一致。
+FINANCIAL_INDUSTRIES = (
+    "coal",
+    "chemical",
+    "nonferrous-mining",
+    "nonferrous-smelting",
+    "auto",
+    "pharma",
+    "electronics",
+    "electrical",
+    "general-equipment",
+    "special-equipment",
+)
+
+
 def expand_industries(service: Workbench, options: dict[str, Any]) -> dict[str, Any]:
     repository = service.repository()
     with repository.database.transaction() as connection:
@@ -24,7 +39,8 @@ def expand_industries(service: Workbench, options: dict[str, Any]) -> dict[str, 
             "WHERE o.series_id='cn.nbs.industry_c31.profit_ytd'"
         ).fetchall()
     reports = []
-    for industry in ("coal", "chemical", "nonferrous-mining", "nonferrous-smelting"):
+    requested = tuple(options.get("industries") or FINANCIAL_INDUSTRIES)
+    for industry in requested:
         registry = service.taxonomy(industry)
         for spec in registry.series:
             repository.register_series(spec)
