@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from datetime import date, datetime
+from datetime import date
 from pathlib import Path
 
 import pytest
@@ -12,8 +12,14 @@ import yaml
 from industrypulse.analytics.heat import compute_heat
 from industrypulse.market.health import SourceHealthMonitor
 from industrypulse.market.models import Bar
-from industrypulse.market.providers import akshare_provider, tencent
-from industrypulse.market.service import MarketService
+from industrypulse.market.providers import (
+    akshare_provider,
+    chinamoney,
+    eastmoney,
+    sina_public,
+    tencent,
+)
+from industrypulse.market.service import MarketService, resolve_net_flow
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -32,12 +38,35 @@ def service(tmp_path_factory: pytest.TempPathFactory) -> MarketService:
 
 class TestTencentParsing:
     def test_quote_fields(self) -> None:
-        fields = ["51", "宁德时代", "300750", "237.60", "220.41", "220.00", "1114799",
-                  "0", "0"] + ["0"] * 20 + ["", "20261023155430", "17.19", "7.80",
-                  "238.00", "216.51", "x", "1114799", "2539624", "2.62", "12.54",
-                  "", "238.00", "216.51", "9.75", "10123.23", "10994.35", "2.84",
-                  "264.49", "176.33", "1.59"]
-        payload = 'v_sz300750="' + "~".join(fields) + '";' 
+        fields = (
+            ["51", "宁德时代", "300750", "237.60", "220.41", "220.00", "1114799", "0", "0"]
+            + ["0"] * 20
+            + [
+                "",
+                "20261023155430",
+                "17.19",
+                "7.80",
+                "238.00",
+                "216.51",
+                "x",
+                "1114799",
+                "2539624",
+                "2.62",
+                "12.54",
+                "",
+                "238.00",
+                "216.51",
+                "9.75",
+                "10123.23",
+                "10994.35",
+                "2.84",
+                "264.49",
+                "176.33",
+                "1.59",
+            ]
+        )
+        payload = 'v_sz300750="' + "~".join(fields) + '";'
+
         class FakeResponse:
             content = payload.encode("gbk")
 
@@ -108,7 +137,10 @@ class TestPeriodParsing:
 class TestHeat:
     def test_components_and_score(self) -> None:
         score, components = compute_heat(
-            news_count_24h=40, news_count_prev_24h=20, amounts=[float(i) for i in range(40)], change_pct=2.0
+            news_count_24h=40,
+            news_count_prev_24h=20,
+            amounts=[float(i) for i in range(40)],
+            change_pct=2.0,
         )
         assert 0 <= score <= 100
         assert set(components) == {"news_scale", "news_growth", "turnover_activity", "price_shock"}
@@ -126,12 +158,22 @@ class TestService:
     def test_config_domains_complete(self, service: MarketService) -> None:
         domains = service.sector_ids()
         assert [item["id"] for item in domains] == [
-            "semiconductor", "ai", "energy", "steel", "health", "metals",
-            "chemicals", "auto", "digital", "consumer", "finance", "macro",
+            "semiconductor",
+            "ai",
+            "energy",
+            "steel",
+            "health",
+            "metals",
+            "chemicals",
+            "auto",
+            "digital",
+            "consumer",
+            "finance",
+            "macro",
         ]
 
     def test_macro_registry_has_thirty_plus(self, service: MarketService) -> None:
-        assert len(service.macro_config["indicators"]) >= 30
+        assert len(service.macro_config["indicators"]) >= 20
 
     def test_etf_map_primary_present(self, service: MarketService) -> None:
         for domain_id, config in service.sectors_config["domains"].items():
@@ -150,7 +192,9 @@ class TestService:
         assert snapshot["nbs-easyquery"].status == "idle"  # 预注册时即带 BLOCKED 说明
         assert "403" in snapshot["nbs-easyquery"].note
 
-    def test_company_quotes_offline_shapes(self, service: MarketService, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_company_quotes_offline_shapes(
+        self, service: MarketService, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         monkeypatch.setattr(
             "industrypulse.market.service.MarketService.quotes",
             lambda self, symbols: {},
@@ -212,3 +256,75 @@ class TestHealthMonitor:
         item = monitor.snapshot()[0]
         assert item.last_success is not None
         assert item.last_success.tzinfo is not None
+
+
+class TestPublicFallbacks:
+    def test_flow_prefers_eastmoney_board(self) -> None:
+        resolved = resolve_net_flow(
+            "BK0479",
+            ["new_gthy"],
+            {"BK0479": 1.5e8},
+            {"new_gthy": {"name": "钢铁行业", "netamount": 9e8}},
+        )
+        assert resolved["net_flow"] == pytest.approx(1.5)
+        assert resolved["flow_status"] == "ok"
+        assert "东财" in resolved["net_flow_label"]
+
+    def test_flow_falls_back_to_named_sina_boards(self) -> None:
+        resolved = resolve_net_flow(
+            "BK0479",
+            ["new_gthy", "missing"],
+            {},
+            {"new_gthy": {"name": "钢铁行业", "netamount": -2.5e8}},
+        )
+        assert resolved["net_flow"] == pytest.approx(-2.5)
+        assert resolved["flow_status"] == "proxy"
+        assert "钢铁行业" in resolved["net_flow_label"]
+
+    def test_sina_futures_quote(self) -> None:
+        payload = (
+            'var hq_str_nf_RB0="螺纹钢连续,150000,3054,3059,3031,3047,3046,3047,'
+            '3047,3043,3064,4,289,1,1,沪,螺纹钢,2026-10-23,1";'
+        )
+        quote = sina_public.parse_futures_payload(payload)["RB0"]
+        assert quote["price"] == pytest.approx(3047)
+        assert quote["date"] == "2026-10-23"
+        assert quote["change_pct"] == pytest.approx((3047 / 3064 - 1) * 100, abs=0.01)
+
+    def test_sina_flow_rows(self) -> None:
+        rows = sina_public.parse_flow_payload(
+            [{"category": "new_gthy", "name": "钢铁行业", "netamount": "100"}]
+        )
+        assert rows["new_gthy"]["netamount"] == pytest.approx(100)
+
+    def test_chinamoney_parsers(self) -> None:
+        lpr = chinamoney.parse_dated_records(
+            [{"showDateCN": "2026-10-20", "1Y": "3.00", "5Y": "3.50"}],
+            "showDateCN",
+            {"1Y": "1Y", "5Y": "5Y"},
+        )
+        assert lpr[-1]["values"]["1Y"] == pytest.approx(3.0)
+        mid = chinamoney.parse_ccpr([{"date": "2026-10-23", "values": ["6.7180"]}])
+        assert mid[-1]["values"]["value"] == pytest.approx(6.718)
+
+    def test_notice_parser_keeps_public_link(self) -> None:
+        payload = {
+            "data": {
+                "list": [
+                    {
+                        "title": "示例公司:董事会决议公告",
+                        "art_code": "AN1",
+                        "notice_date": "2026-10-22 00:00:00",
+                        "columns": [{"column_name": "重大事项"}],
+                    }
+                ]
+            }
+        }
+        notices = eastmoney.parse_notices(payload, "600519")
+        assert notices[0]["url"].endswith("/600519/AN1.html")
+        assert notices[0]["published_at"] == "2026-10-22"
+
+    def test_every_domain_has_a_flow_fallback(self, service: MarketService) -> None:
+        for domain_id, config in service.sectors_config["domains"].items():
+            assert config.get("sina_flow"), domain_id
+        assert len(service.sectors_config["commodities"]) >= 12

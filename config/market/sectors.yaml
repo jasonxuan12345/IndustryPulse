@@ -7,6 +7,7 @@ domains:
     name: 半导体
     board: BK1036
     etfs: { primary: sh512480, alternatives: [sz159995] }
+    sina_flow: [new_dzqj]
     companies:
       - { symbol: sh688981, name: 中芯国际 }
       - { symbol: sz002371, name: 北方华创 }
@@ -16,6 +17,7 @@ domains:
     name: 人工智能
     board: BK0800
     etfs: { primary: sz159819, alternatives: [sh515070] }
+    sina_flow: [gn_znjq]
     companies:
       - { symbol: sz300308, name: 中际旭创 }
       - { symbol: sz002230, name: 科大讯飞 }
@@ -25,6 +27,7 @@ domains:
     name: 新能源
     board: BK0493
     etfs: { primary: sh516160, alternatives: [sz159875, sz159857] }
+    sina_flow: [gn_xny]
     companies:
       - { symbol: sz300750, name: 宁德时代 }
       - { symbol: sh601012, name: 隆基绿能 }
@@ -34,6 +37,7 @@ domains:
     name: 钢铁
     board: BK0479
     etfs: { primary: sh515210, alternatives: [] }
+    sina_flow: [new_gthy]
     companies:
       - { symbol: sh600019, name: 宝钢股份 }
       - { symbol: sz000708, name: 中信特钢 }
@@ -42,6 +46,7 @@ domains:
     name: 医药生物
     board: BK1216
     etfs: { primary: sh512010, alternatives: [sh512170] }
+    sina_flow: [new_swzz, new_ylqx]
     companies:
       - { symbol: sh600276, name: 恒瑞医药 }
       - { symbol: sz300760, name: 迈瑞医疗 }
@@ -51,6 +56,7 @@ domains:
     name: 有色金属
     board: BK0478
     etfs: { primary: sh512400, alternatives: [] }
+    sina_flow: [new_ysjs]
     companies:
       - { symbol: sh601899, name: 紫金矿业 }
       - { symbol: sh603993, name: 洛阳钼业 }
@@ -59,6 +65,7 @@ domains:
     name: 化工与能源
     board: BK0538
     etfs: { primary: sz159870, alternatives: [sh516020, sh515220] }
+    sina_flow: [new_hghy, new_mthy, new_syhy]
     companies:
       - { symbol: sh600309, name: 万华化学 }
       - { symbol: sh600486, name: 扬农化工 }
@@ -68,6 +75,7 @@ domains:
     name: 汽车与出行
     board: BK1211
     etfs: { primary: sh516110, alternatives: [sz159872] }
+    sina_flow: [new_qczz]
     companies:
       - { symbol: sz002594, name: 比亚迪 }
       - { symbol: sh600104, name: 上汽集团 }
@@ -76,6 +84,7 @@ domains:
     name: 通信与软件
     board: BK0448
     etfs: { primary: sh515880, alternatives: [sz159852] }
+    sina_flow: [hangye_ZI65, hangye_ZG81]
     companies:
       - { symbol: sh600522, name: 中天科技 }
       - { symbol: sz002396, name: 星网锐捷 }
@@ -85,6 +94,7 @@ domains:
     name: 消费与供应链
     board: BK1037
     etfs: { primary: sz159928, alternatives: [sh515170, sh512690] }
+    sina_flow: [new_ljhy, new_sphy, new_jdhy]
     companies:
       - { symbol: sh600519, name: 贵州茅台 }
       - { symbol: sz000858, name: 五粮液 }
@@ -94,6 +104,7 @@ domains:
     name: 金融与资本市场
     board: BK0473
     etfs: { primary: sh510230, alternatives: [sh512000] }
+    sina_flow: [hangye_ZI21]
     companies:
       - { symbol: sh600030, name: 中信证券 }
       - { symbol: sh601318, name: 中国平安 }
@@ -102,9 +113,25 @@ domains:
     name: 宏观与政策
     board: BK0475
     etfs: { primary: sh510300, alternatives: [] }
+    sina_flow: [hangye_ZI01]
     companies:
       - { symbol: sh601988, name: 中国银行 }
       - { symbol: sh601398, name: 工商银行 }
+
+# 国内期货主力连续。sectors 只用于界面高亮，面板始终展示全部报价。
+commodities:
+  - { id: rb, name: 螺纹钢, symbol: RB0, unit: 元/吨, sectors: [steel] }
+  - { id: hc, name: 热轧卷板, symbol: HC0, unit: 元/吨, sectors: [steel] }
+  - { id: i, name: 铁矿石, symbol: I0, unit: 元/吨, sectors: [steel, metals] }
+  - { id: jm, name: 焦煤, symbol: JM0, unit: 元/吨, sectors: [chemicals, steel] }
+  - { id: cu, name: 沪铜, symbol: CU0, unit: 元/吨, sectors: [metals] }
+  - { id: al, name: 沪铝, symbol: AL0, unit: 元/吨, sectors: [metals] }
+  - { id: lc, name: 碳酸锂, symbol: LC0, unit: 元/吨, sectors: [energy, metals] }
+  - { id: au, name: 沪金, symbol: AU0, unit: 元/克, sectors: [finance, macro] }
+  - { id: sc, name: 原油, symbol: SC0, unit: 元/桶, sectors: [chemicals] }
+  - { id: ma, name: 甲醇, symbol: MA0, unit: 元/吨, sectors: [chemicals] }
+  - { id: ta, name: PTA, symbol: TA0, unit: 元/吨, sectors: [chemicals] }
+  - { id: si, name: 工业硅, symbol: SI0, unit: 元/吨, sectors: [semiconductor, energy] }
 
 # 市场基准（§6 中国市场基准；历史与快照同源）
 benchmarks:

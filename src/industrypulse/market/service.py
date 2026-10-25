@@ -9,20 +9,21 @@ from __future__ import annotations
 import hashlib
 import os
 import threading
-from concurrent.futures import ThreadPoolExecutor
 import time
+from collections.abc import Callable
+from concurrent.futures import ThreadPoolExecutor
 from datetime import date, datetime, timedelta
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any, cast
 
 import yaml
 
+from industrypulse.analytics.heat import compute_heat
 from industrypulse.contracts import TZ_SHANGHAI
 
-from industrypulse.analytics.heat import compute_heat
 from .health import SourceHealthMonitor
 from .models import Bar, QuoteSnapshot
-from .providers import akshare_provider, eastmoney, tencent
+from .providers import akshare_provider, chinamoney, eastmoney, sina_public, tencent
 
 ROOT = Path(__file__).resolve().parents[3]
 SECTORS_CONFIG = ROOT / "config/market/sectors.yaml"
@@ -36,6 +37,32 @@ _TREND_BARS = 180
 
 def _load_yaml(path: Path) -> dict[str, Any]:
     return yaml.safe_load(path.read_text(encoding="utf-8"))
+
+
+def resolve_net_flow(
+    board: str,
+    categories: list[str],
+    eastmoney_flows: dict[str, float],
+    sina_flows: dict[str, dict[str, Any]],
+) -> dict[str, Any]:
+    """东财板块净流入优先；缺失时用配置好的新浪行业/概念净流入，并写明名称。"""
+    amount = eastmoney_flows.get(board)
+    if amount is not None:
+        return {
+            "net_flow": round(amount / 1e8, 2),
+            "net_flow_label": "板块主力净流入（东财）",
+            "flow_status": "ok",
+        }
+    parts = [sina_flows[code] for code in categories if code in sina_flows]
+    if parts:
+        names = "、".join(str(part["name"]) for part in parts)
+        total = sum(float(part["netamount"]) for part in parts)
+        return {
+            "net_flow": round(total / 1e8, 2),
+            "net_flow_label": f"行业净流入（新浪：{names}）",
+            "flow_status": "proxy",
+        }
+    return {"net_flow": None, "net_flow_label": None, "flow_status": "unavailable"}
 
 
 class MarketService:
@@ -52,17 +79,26 @@ class MarketService:
         self._macro_sync_started = False
         self._refreshing = threading.Event()
         self._overview_path = base / "data/market/overview.json"
-        self._config_fingerprint = str(
-            hashlib.sha256(SECTORS_CONFIG.read_bytes()).hexdigest()[:16]
-        ) if SECTORS_CONFIG.exists() else "dev"
+        self._config_fingerprint = (
+            str(hashlib.sha256(SECTORS_CONFIG.read_bytes()).hexdigest()[:16])
+            if SECTORS_CONFIG.exists()
+            else "dev"
+        )
         self._overview_memory: tuple[float, dict[str, Any]] | None = None
         self._pending_bars: list[tuple[str, list[Bar]]] = []
         self._pending_lock = threading.Lock()
         self._db_lock = threading.Lock()
         self.health.ensure(
             [
-                "tencent:quotes", "tencent:kline",
-                "eastmoney:kline", "eastmoney:moneyflow", "eastmoney:macro",
+                "tencent:quotes",
+                "tencent:kline",
+                "eastmoney:kline",
+                "eastmoney:moneyflow",
+                "eastmoney:macro",
+                "eastmoney:announcements",
+                "sina:moneyflow",
+                "sina:futures",
+                "chinamoney:macro",
                 "nbs-easyquery",
             ]
             + [f"sector:{domain_id}" for domain_id in self.sectors_config["domains"]]
@@ -147,20 +183,81 @@ class MarketService:
         except Exception as exc:  # noqa: BLE001 - 持久化失败不影响展示
             self.health.record_failure("market:persist", str(exc)[:120])
 
-    def _moneyflow(self, board: str) -> list[dict[str, Any]]:
-        def load() -> list[dict[str, Any]]:
-            points = eastmoney.fetch_board_moneyflow(f"90.{board}")
-            self.health.record_success("eastmoney:moneyflow", 0)
-            return [
-                {"date": point.date, "main_net_inflow": point.main_net_inflow}
-                for point in points
-            ]
+    def _eastmoney_flows(self) -> dict[str, float]:
+        """当日板块净流入。空结果不进缓存，避免一次断连挡住后续恢复。"""
+        cached = self._cache.get("flow:eastmoney")
+        if cached and time.monotonic() - cached[0] < _TTL_FLOW and cached[1]:
+            return cast(dict[str, float], cached[1])
+        try:
+            flows = eastmoney.fetch_industry_flows()
+        except Exception as exc:  # noqa: BLE001 - 断连时改走新浪
+            self.health.record_failure("eastmoney:moneyflow", str(exc)[:160])
+            return {}
+        self.health.record_success("eastmoney:moneyflow", 0)
+        with self._cache_lock:
+            self._cache["flow:eastmoney"] = (time.monotonic(), flows)
+        return flows
+
+    def _sina_flows(self) -> dict[str, dict[str, Any]]:
+        def load() -> dict[str, dict[str, Any]]:
+            rows = sina_public.fetch_board_flows()
+            self.health.record_success("sina:moneyflow", 0)
+            return rows
 
         try:
-            return self._cached(f"flow:{board}", _TTL_FLOW, load)
-        except Exception as exc:  # noqa: BLE001 - 资金流失败降级为空
-            self.health.record_failure("eastmoney:moneyflow", str(exc)[:160])
+            return cast(dict[str, dict[str, Any]], self._cached("flow:sina", _TTL_FLOW, load))
+        except Exception as exc:  # noqa: BLE001
+            self.health.record_failure("sina:moneyflow", str(exc)[:160])
+            return {}
+
+    def _commodity_view(self) -> list[dict[str, Any]]:
+        specs = list(self.sectors_config.get("commodities") or [])
+        if not specs:
             return []
+        try:
+            quotes = sina_public.fetch_futures([str(item["symbol"]) for item in specs])
+            self.health.record_success("sina:futures", 0)
+        except Exception as exc:  # noqa: BLE001
+            self.health.record_failure("sina:futures", str(exc)[:160])
+            quotes = {}
+        view: list[dict[str, Any]] = []
+        for spec in specs:
+            quote = quotes.get(str(spec["symbol"]))
+            if not quote:
+                continue
+            view.append(
+                {
+                    "id": spec["id"],
+                    "name": spec["name"],
+                    "symbol": spec["symbol"],
+                    "unit": spec.get("unit") or "",
+                    "sectors": list(spec.get("sectors") or []),
+                    "price": quote["price"],
+                    "change_pct": quote["change_pct"],
+                    "date": quote["date"],
+                    "source": "新浪财经期货主力连续",
+                }
+            )
+        return view
+
+    def _load_announcements(self, symbols: list[str]) -> dict[str, list[dict[str, str]]]:
+        if not symbols:
+            return {}
+
+        def one(symbol: str) -> tuple[str, list[dict[str, str]]]:
+            try:
+                return symbol, eastmoney.fetch_notices(symbol)
+            except Exception:  # noqa: BLE001 - 单只失败不影响其余公司
+                return symbol, []
+
+        with ThreadPoolExecutor(max_workers=8, thread_name_prefix="notice") as pool:
+            pairs = list(pool.map(one, symbols))
+        found = {symbol: items for symbol, items in pairs if items}
+        if found:
+            self.health.record_success("eastmoney:announcements", 0)
+        else:
+            self.health.record_failure("eastmoney:announcements", "公告列表为空或接口失败")
+        return found
 
     # ------------------------------------------------------------ sector views
     def sector_ids(self) -> list[dict[str, str]]:
@@ -170,7 +267,10 @@ class MarketService:
         ]
 
     def sector_snapshot(
-        self, domain_id: str, stories: list[dict[str, Any]] | None = None
+        self,
+        domain_id: str,
+        stories: list[dict[str, Any]] | None = None,
+        flows: tuple[dict[str, float], dict[str, dict[str, Any]]] | None = None,
     ) -> dict[str, Any]:
         config = self.sectors_config["domains"].get(domain_id)
         if config is None:
@@ -214,7 +314,9 @@ class MarketService:
         etf = self.quotes([etf_symbol]).get(etf_symbol)
         if etf:
             snapshot["etf"] = {
-                "symbol": etf.symbol, "name": etf.name, "price": etf.price,
+                "symbol": etf.symbol,
+                "name": etf.name,
+                "price": etf.price,
                 "change_pct": etf.change_pct,
                 "amount": round(etf.amount / 1e8, 2) if etf.amount else None,
             }
@@ -222,17 +324,16 @@ class MarketService:
                 snapshot["change"] = etf.change_pct
                 snapshot["change_source"] = "etf"
 
-        try:
-            flow = self._moneyflow(board)
-            snapshot["net_flow"] = (
-                round(flow[-1]["main_net_inflow"] / 1e8, 2) if flow else None
+        if flows is None:
+            eastmoney_flows = self._eastmoney_flows()
+            sina_flows = {} if board in eastmoney_flows else self._sina_flows()
+        else:
+            eastmoney_flows, sina_flows = flows
+        snapshot.update(
+            resolve_net_flow(
+                board, list(config.get("sina_flow") or []), eastmoney_flows, sina_flows
             )
-            snapshot["net_flow_label"] = "板块主力净流入（东财）" if flow else None
-            if not flow:
-                snapshot["flow_status"] = "unavailable"
-        except Exception:  # noqa: BLE001
-            snapshot["net_flow"] = None
-            snapshot["flow_status"] = "unavailable"
+        )
 
         news = stories or []
         now = datetime.now(TZ_SHANGHAI)
@@ -262,7 +363,7 @@ class MarketService:
         return until - timedelta(hours=hours) < published <= until
 
     def _trend(self, bars: list[Bar]) -> list[dict[str, Any]]:
-        window = bars[-(_TREND_BARS + 1):]
+        window = bars[-(_TREND_BARS + 1) :]
         if not window:
             return []
         base = window[0].close or 1.0
@@ -282,12 +383,14 @@ class MarketService:
     ) -> dict[str, Any]:
         """市场总览：优先返回快照缓存；过期时后台刷新，绝不阻塞 API。"""
         snapshot, age = self._overview_snapshot()
-        if age is not None and age < _TTL_QUOTES:
+        if snapshot is not None and age is not None and age < _TTL_QUOTES:
             return {**snapshot, "status": "ok"}
         if wait:
             return self._build_overview(stories)
         if self._refreshing.is_set():
-            return {**snapshot, "status": "ok" if age is not None and age < _TTL_FLOW else "refreshing"}
+            current = snapshot or {}
+            fresh = snapshot is not None and age is not None and age < _TTL_FLOW
+            return {**current, "status": "ok" if fresh else "refreshing"}
         self._refreshing.set()
         threading.Thread(
             target=self._refresh_overview,
@@ -324,8 +427,11 @@ class MarketService:
                 if payload.get("_config") != self._config_fingerprint:
                     return None, None  # 配置已变更，旧快照作废
                 age = time.time() - payload.get("_built_at", 0)
-                data = {key: value for key, value in payload.items()
-                        if key not in ("_built_at", "_config")}
+                data = {
+                    key: value
+                    for key, value in payload.items()
+                    if key not in ("_built_at", "_config")
+                }
                 self._overview_memory = (payload["_built_at"], data)
                 return data, age
             except (OSError, ValueError, KeyError):
@@ -360,14 +466,35 @@ class MarketService:
                 }
             )
 
+        eastmoney_flows = self._eastmoney_flows()
+        missing_board = any(
+            config["board"] not in eastmoney_flows
+            for config in self.sectors_config["domains"].values()
+        )
+        sina_flows = self._sina_flows() if missing_board else {}
+        flow_maps = (eastmoney_flows, sina_flows)
         domain_ids = list(self.sectors_config["domains"])
+        symbols = [
+            company["symbol"]
+            for config in self.sectors_config["domains"].values()
+            for company in config.get("companies", [])
+        ]
+        announcement_box: dict[str, dict[str, list[dict[str, str]]]] = {}
+
+        def _announcements() -> None:
+            announcement_box["value"] = self._load_announcements(symbols)
+
+        announcement_thread = threading.Thread(target=_announcements, daemon=True, name="notices")
+        announcement_thread.start()
         with ThreadPoolExecutor(max_workers=6, thread_name_prefix="sector") as pool:
             sectors = list(
                 pool.map(
-                    lambda domain_id: self._safe_sector(domain_id, stories),
+                    lambda domain_id: self._safe_sector(domain_id, stories, flow_maps),
                     domain_ids,
                 )
             )
+        announcement_thread.join()
+        announcements = announcement_box.get("value") or {}
         self._flush_bars()
         csi300 = benchmarks["csi300"]["symbol"]
         try:
@@ -388,15 +515,21 @@ class MarketService:
             "source_label": "东方财富行业板块 + 腾讯行情（公开接口）",
             "benchmark_label": "沪深300",
             "trend_label": "行业板块指数（起点 100）",
-            "flow_label": "板块主力净流入",
+            "flow_label": (
+                "板块主力净流入（东财）"
+                if eastmoney_flows and not missing_board
+                else "行业净流入（东财板块，缺失项用新浪行业/概念）"
+            ),
             "benchmarks": benchmark_view,
             "sectors": sectors,
+            "commodities": self._commodity_view(),
+            "announcements": announcements,
             "status": "ok",
         }
-        self._overview_memory = (overview["_built_at"], {
-            key: value for key, value in overview.items()
-            if key not in ("_built_at", "_config")
-        })
+        self._overview_memory = (
+            overview["_built_at"],
+            {key: value for key, value in overview.items() if key not in ("_built_at", "_config")},
+        )
         self._overview_path.parent.mkdir(parents=True, exist_ok=True)
         import json as jsonlib
 
@@ -404,13 +537,17 @@ class MarketService:
             jsonlib.dumps(overview, ensure_ascii=False, default=str), encoding="utf-8"
         )
         return {
-            key: value for key, value in overview.items()
-            if key not in ("_built_at", "_config")
+            key: value for key, value in overview.items() if key not in ("_built_at", "_config")
         }
 
-    def _safe_sector(self, domain_id: str, stories: list[dict[str, Any]]) -> dict[str, Any]:
+    def _safe_sector(
+        self,
+        domain_id: str,
+        stories: list[dict[str, Any]],
+        flows: tuple[dict[str, float], dict[str, dict[str, Any]]] | None = None,
+    ) -> dict[str, Any]:
         try:
-            return self.sector_snapshot(domain_id, stories)
+            return self.sector_snapshot(domain_id, stories, flows=flows)
         except Exception as exc:  # noqa: BLE001 - 单行业失败不拖垮总览
             self.health.record_failure(f"sector:{domain_id}", str(exc)[:160])
             return {
@@ -424,7 +561,9 @@ class MarketService:
         self, domain_id: str, stories: list[dict[str, Any]] | None = None
     ) -> dict[str, Any]:
         overview, _ = self._overview_snapshot()
-        cached = next((s for s in (overview or {}).get("sectors", []) if s.get("id") == domain_id), None)
+        cached = next(
+            (s for s in (overview or {}).get("sectors", []) if s.get("id") == domain_id), None
+        )
         if cached and cached.get("status") != "failed":
             self.overview(stories)  # 过期则顺带触发后台刷新
             return cached
@@ -446,8 +585,10 @@ class MarketService:
             if not history:
                 items.append(
                     {
-                        "id": indicator["id"], "name": indicator["name"],
-                        "unit": indicator["unit"], "status": "missing",
+                        "id": indicator["id"],
+                        "name": indicator["name"],
+                        "unit": indicator["unit"],
+                        "status": "missing",
                         "message": "尚未同步（运行 market sync --macro）",
                     }
                 )
@@ -469,7 +610,9 @@ class MarketService:
                     "unit": latest[3] or indicator["unit"],
                     "period": latest[1].isoformat() if latest[1] else None,
                     "previous_value": previous[2] if previous else None,
-                    "previous_period": previous[1].isoformat() if previous and previous[1] else None,
+                    "previous_period": previous[1].isoformat()
+                    if previous and previous[1]
+                    else None,
                     "source": latest[4],
                     "freq": indicator["freq"],
                     "fetched_at": fetched.isoformat() if fetched else None,
@@ -489,8 +632,11 @@ class MarketService:
             rows = self._indicator_rows(indicator, series)
             payloads = [
                 (
-                    indicator["id"], row["period"], row["value"],
-                    indicator["unit"], f"{indicator['provider']}:{indicator['source']}",
+                    indicator["id"],
+                    row["period"],
+                    row["value"],
+                    indicator["unit"],
+                    f"{indicator['provider']}:{indicator['source']}",
                     datetime.now(TZ_SHANGHAI),
                 )
                 for row in rows
@@ -513,17 +659,19 @@ class MarketService:
                 if indicator["source"] == "RPT_MUTUAL_DEAL_HISTORY":
                     series = eastmoney.fetch_northbound()
                 else:
-                    series = eastmoney.fetch_macro_report(indicator["source"])
+                    extra: dict[str, str] = {}
+                    if indicator.get("date_field") == "REPORT_DATE":
+                        extra["sortColumns"] = "REPORT_DATE"
+                        extra["sortTypes"] = "-1"
+                    if indicator.get("city") and indicator.get("city_field"):
+                        extra["filter"] = f'({indicator["city_field"]}="{indicator["city"]}")'
+                    series = eastmoney.fetch_macro_report(indicator["source"], extra=extra or None)
+            elif indicator["provider"] == "chinamoney":
+                series = chinamoney.fetch_series(str(indicator["source"]))
             else:
                 frame = akshare_provider.fetch_frame(indicator["source"])
-                columns = [
-                    column
-                    for column in frame.columns
-                    if column != indicator["date_field"]
-                ]
-                series = akshare_provider.normalize_frame(
-                    frame, indicator["date_field"], columns
-                )
+                columns = [column for column in frame.columns if column != indicator["date_field"]]
+                series = akshare_provider.normalize_frame(frame, indicator["date_field"], columns)
         except Exception as exc:  # noqa: BLE001
             self.health.record_failure(source_id, str(exc)[:160])
             return []
@@ -535,8 +683,17 @@ class MarketService:
     ) -> list[dict[str, Any]]:
         rows: list[dict[str, Any]] = []
         field = indicator["field"]
+        city = indicator.get("city")
+        city_field = indicator.get("city_field")
         for item in series:
-            if "values" in item:  # akshare 归一化形态
+            if (
+                city
+                and city_field
+                and "values" not in item
+                and str(item.get(city_field) or "") != str(city)
+            ):
+                continue
+            if "values" in item:  # akshare / 中国货币网归一化形态
                 period, value = item["period"], item["values"].get(field)
             else:  # eastmoney 原始行形态
                 period = self._row_period(indicator, item)
@@ -596,15 +753,15 @@ class MarketService:
         return [item.model_dump(mode="json") for item in self.health.snapshot()]
 
     def ensure_macro_sync(self) -> None:
-        """表为空时后台触发一次宏观同步（不阻塞 API）。"""
+        """任一注册指标还没有入库时，后台补同步（不阻塞 API）。"""
         if self._macro_sync_started:
             return
+        wanted = {str(item["id"]) for item in self.macro_config["indicators"]}
         with self._db_lock:
-            count = self._db.execute("SELECT COUNT(*) FROM macro_point").fetchone()[0]
-        if count == 0:
+            rows = self._db.execute("SELECT DISTINCT indicator_id FROM macro_point").fetchall()
+        if wanted - {row[0] for row in rows}:
             self._macro_sync_started = True
             threading.Thread(target=self.sync_macro, daemon=True, name="macro-sync").start()
-
 
 
 def enrich_sector_trends(feed: dict[str, Any], market: MarketService) -> dict[str, Any]:
@@ -625,6 +782,9 @@ def enrich_sector_trends(feed: dict[str, Any], market: MarketService) -> dict[st
             for point in snapshot.get("trend", [])
         ]
         sector["latest_date"] = snapshot.get("latest_date")
+        for key in ("net_flow_label", "flow_status", "index_source", "trend_label"):
+            if snapshot.get(key) is not None:
+                sector[key] = snapshot[key]
     leaders = market.company_quotes()
     quotes_by_name = {row["name"]: row for row in leaders}
     for company in feed.get("companies", []):
@@ -655,13 +815,20 @@ def enrich_sector_trends(feed: dict[str, Any], market: MarketService) -> dict[st
                 },
             }
         )
+    notes = overview.get("announcements") or {}
+    for company in feed.get("companies", []):
+        symbol = str(company.get("symbol") or "")
+        if symbol in notes:
+            company["announcements"] = notes[symbol]
     feed["market"] = {
         "updated_at": overview["updated_at"],
         "source_label": overview["source_label"],
-        "benchmark_label": overview["benchmark_label"],
-        "trend_label": overview["trend_label"],
-        "flow_label": overview["flow_label"],
-        "benchmarks": overview["benchmarks"],
-        "status": "ok",
+        "benchmark_label": overview.get("benchmark_label") or "沪深300",
+        "trend_label": overview.get("trend_label") or "行业板块指数（起点 100）",
+        "flow_label": overview.get("flow_label") or "板块主力净流入",
+        "benchmarks": overview.get("benchmarks") or [],
+        "commodities": overview.get("commodities") or [],
+        "status": overview.get("status") or "ok",
+        "message": overview.get("message"),
     }
     return feed

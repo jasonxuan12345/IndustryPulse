@@ -67,6 +67,13 @@ class Story(BaseModel):
     time_kind: Literal["published", "first_seen"] = "published"
 
 
+class Notice(BaseModel):
+    title: str
+    published_at: str = ""
+    url: str = ""
+    kind: str = ""
+
+
 class Company(BaseModel):
     id: str
     sector: str
@@ -75,6 +82,7 @@ class Company(BaseModel):
     focus: str
     change: float | None = None
     quote: dict[str, object] | None = None
+    announcements: list[Notice] = Field(default_factory=list)
 
 
 class Feed(BaseModel):

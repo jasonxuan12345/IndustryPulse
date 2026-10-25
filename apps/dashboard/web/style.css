@@ -3,6 +3,8 @@
 /* —— 真实数据层：宏观面板 / 缺值提示 —— */
 .dash{cursor:help;border-bottom:1px dotted currentColor;opacity:.7}
 .macro-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
+.macro-cell.on{outline:1px solid var(--green)}
+.notice-line{display:block;margin-top:8px;color:var(--muted);font-size:12px;line-height:1.5}
 .macro-cell{display:flex;flex-direction:column;gap:4px;padding:12px;border:1px solid rgba(255,255,255,.06);border-radius:10px;background:rgba(255,255,255,.02)}
 .macro-cell small{opacity:.65;font-size:11px}
 .macro-cell b{font-size:17px}

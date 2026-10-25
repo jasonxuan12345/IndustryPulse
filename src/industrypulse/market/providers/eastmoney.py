@@ -21,6 +21,13 @@ _FLOW_MIRRORS = [
     "https://push2delay.eastmoney.com/api/qt/stock/fflow/kline/get",
     "https://push2his.eastmoney.com/api/qt/stock/fflow/kline/get",
 ]
+# 板块列表（一次取全部行业/概念的主力净流入）。逐板块 fflow K 线在部分网络会直接断连。
+_CLIST_MIRRORS = [
+    "https://push2delay.eastmoney.com/api/qt/clist/get",
+    "https://82.push2.eastmoney.com/api/qt/clist/get",
+    "https://7.push2.eastmoney.com/api/qt/clist/get",
+]
+_ANN_URL = "https://np-anotice-stock.eastmoney.com/api/security/ann"
 _DATACENTER = "https://datacenter-web.eastmoney.com/api/data/v1/get"
 _NORTHBOUND_REPORT = "RPT_MUTUAL_DEAL_HISTORY"
 
@@ -108,21 +115,109 @@ def fetch_board_moneyflow(quote_id: str, days: int = 90) -> list[MoneyFlowPoint]
     return result
 
 
-def fetch_macro_report(report: str, max_rows: int = 600) -> list[dict[str, Any]]:
+def fetch_industry_flows() -> dict[str, float]:
+    """行业+概念板块当日主力净流入（元），键为 BKxxxx。
+
+    fflow 日 K 在本网络经常被对端直接断开；clist 一次返回全部板块，失败则由调用方改用新浪。
+    """
+    merged: dict[str, float] = {}
+    errors: list[str] = []
+    params_base = {
+        "pn": "1",
+        "pz": "500",
+        "po": "1",
+        "np": "1",
+        "fltt": "2",
+        "invt": "2",
+        "fid": "f62",
+        "fields": "f12,f14,f62",
+    }
+    with httpx.Client(timeout=6, headers=_HEADERS) as client:
+        for board_filter in ("m:90+t:2", "m:90+t:3"):
+            try:
+                payload = _get_json(client, _CLIST_MIRRORS, {**params_base, "fs": board_filter})
+            except (ConnectionError, httpx.HTTPError, ValueError) as exc:
+                errors.append(str(exc))
+                continue
+            for row in (payload.get("data") or {}).get("diff") or []:
+                code = row.get("f12")
+                amount = row.get("f62")
+                if code and amount is not None:
+                    try:
+                        merged[str(code)] = float(amount)
+                    except (TypeError, ValueError):
+                        continue
+    if not merged:
+        raise ConnectionError(errors[-1] if errors else "东财板块资金流为空")
+    return merged
+
+
+def parse_notices(payload: dict[str, Any], code: str, limit: int = 2) -> list[dict[str, str]]:
+    """东财公告列表。链接指向公开公告页，不抓正文。"""
+    items = ((payload.get("data") or {}).get("list")) or []
+    notices: list[dict[str, str]] = []
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        title = str(item.get("title") or "").strip()
+        art = str(item.get("art_code") or "")
+        if not title:
+            continue
+        columns = item.get("columns") or []
+        kind = ""
+        if columns and isinstance(columns[0], dict):
+            kind = str(columns[0].get("column_name") or "")
+        notices.append(
+            {
+                "title": title,
+                "published_at": str(item.get("notice_date") or "")[:10],
+                "url": (
+                    f"https://data.eastmoney.com/notices/detail/{code}/{art}.html" if art else ""
+                ),
+                "kind": kind,
+            }
+        )
+        if len(notices) >= limit:
+            break
+    return notices
+
+
+def fetch_notices(symbol: str, limit: int = 2) -> list[dict[str, str]]:
+    """单只 A 股最近公告。symbol 形如 sh600519 / sz300750。"""
+    code = symbol[-6:]
+    with httpx.Client(timeout=8, headers=_HEADERS) as client:
+        response = client.get(
+            _ANN_URL,
+            params={
+                "sr": "-1",
+                "page_size": str(limit),
+                "page_index": "1",
+                "ann_type": "A",
+                "client_source": "web",
+                "stock_list": code,
+            },
+        )
+        response.raise_for_status()
+        return parse_notices(response.json(), code, limit)
+
+
+def fetch_macro_report(
+    report: str, max_rows: int = 600, extra: dict[str, str] | None = None
+) -> list[dict[str, Any]]:
     """数据中心报表（列名 ALL；分页拉全量后由调用方归一化）。"""
     rows: list[dict[str, Any]] = []
     page = 1
     with httpx.Client(timeout=15, headers=_HEADERS) as client:
         while len(rows) < max_rows:
-            response = client.get(
-                _DATACENTER,
-                params={
-                    "reportName": report,
-                    "columns": "ALL",
-                    "pageSize": "500",
-                    "pageNumber": str(page),
-                },
-            )
+            params = {
+                "reportName": report,
+                "columns": "ALL",
+                "pageSize": "500",
+                "pageNumber": str(page),
+            }
+            if extra:
+                params.update(extra)
+            response = client.get(_DATACENTER, params=params)
             response.raise_for_status()
             payload = response.json()
             result = payload.get("result") or {}
@@ -142,9 +237,7 @@ def fetch_macro_report(report: str, max_rows: int = 600) -> list[dict[str, Any]]
 def fetch_northbound(days: int = 120) -> list[dict[str, Any]]:
     """沪深港通北向历史（RPT_MUTUAL_DEAL_HISTORY，全市场口径）。"""
     rows = fetch_macro_report(_NORTHBOUND_REPORT, max_rows=days)
-    date_key = next(
-        (key for key in rows[0] if "DATE" in key.upper()), None
-    ) if rows else None
+    date_key = next((key for key in rows[0] if "DATE" in key.upper()), None) if rows else None
     if date_key is None:
         raise ValueError("北向报表缺少日期列")
     normalized: list[dict[str, Any]] = []
