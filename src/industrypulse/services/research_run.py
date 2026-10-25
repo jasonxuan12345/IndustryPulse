@@ -173,6 +173,11 @@ def _add_months(day: date, months: int) -> date:
     return date(year, month + 1, 1)
 
 
+def _month_last_day(first_of_month: date) -> date:
+    nxt = _add_months(first_of_month, 1)
+    return nxt - timedelta(days=1)
+
+
 def _target_spec(industry_id: str, periods: list[str], horizon: int) -> TargetSpec:
     from industrypulse.features import target_specs
 
@@ -203,19 +208,16 @@ def make_experiment_spec(
         embargo_months=1,
     )
     inner_train_end = date(train_end.year - 1, train_end.month, 1)
-    inner_test_start = date(
-        inner_train_end.year + (1 if inner_train_end.month == 12 else 0),
-        1 if inner_train_end.month == 12 else inner_train_end.month + 1,
-        1,
-    )
+    # 内层折遵守 train_end < test_start 合同；内层 cutoff 由 run_experiment
+    # 推到 test_end + purge+2 个月（封顶外层 cutoff），让测试段决策的标签
+    # 有时间公布，同时不越过外层训练边界。
     inner = SplitSpec(
         split_id="inner-1",
         kind=SplitKind.EXPANDING,
         train_start=features.rows[0].decision_as_of.date(),
         train_end=inner_train_end,
-        test_start=inner_test_start,
-        # 内层测试必须严格早于 cutoff，否则超参搜索会看到 OOS
-        test_end=date(train_end.year, train_end.month, 1) - timedelta(days=1),
+        test_start=_add_months(inner_train_end, 1),
+        test_end=_month_last_day(_add_months(inner_train_end, targets.spec.horizon_months)),
         purge_months=targets.spec.horizon_months,
         embargo_months=1,
     )
@@ -232,7 +234,7 @@ def make_experiment_spec(
         feature_list=list(feature_list),
         model_grid={
             "M00_LAST": {},
-            "M01_SEASONAL": {"window": [36, 60]},
+            "M01_SEASONAL": {"window": [12, 36, 60]},
             "M02_AR": {"lag": [1, 2]},
             "M03_LOGIT": {"C": [0.1, 1.0]},
         },

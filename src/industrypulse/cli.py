@@ -19,7 +19,7 @@ import json
 import time
 from collections.abc import Callable
 from dataclasses import asdict
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from typing import Annotated, Any, NoReturn
 
@@ -1268,6 +1268,200 @@ def ai_hypothesize(
         max_events=max_events,
     )
     typer.echo(format_run(payload))
+    if out is not None:
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(
+            json.dumps(payload, ensure_ascii=False, indent=2, default=str) + "\n", encoding="utf-8"
+        )
+        typer.echo(f"\nJSON 报告已写入 {out}")
+
+
+@app.command("model-baseline")
+def model_baseline(
+    industry: Annotated[
+        list[str] | None,
+        typer.Option("--industry", help="只跑这些行业（config/industries 文件名），可重复"),
+    ] = None,
+    train_end: Annotated[
+        str, typer.Option("--train-end", help="训练截止（ISO 日期）")
+    ] = "2025-06-30",
+    test_end: Annotated[
+        str, typer.Option("--test-end", help="外折测试截止（ISO 日期）")
+    ] = "2026-06-30",
+    out: Annotated[Path | None, typer.Option("--out", help="可选：写出 JSON 验收报告")] = None,
+) -> None:
+    """三个冻结目标分开跑基线模型，只在未见时段比较（阶段 4）。"""
+    import re as _re
+
+    import yaml as _yaml
+
+    from industrypulse.contracts import TZ_SHANGHAI
+    from industrypulse.forecast.registry import create_model
+    from industrypulse.repositories import DuckDBMarketRepository
+    from industrypulse.research.validation import run_experiment
+    from industrypulse.services.model_targets import (
+        advanced_gate,
+        attach_market_features,
+        build_relative_return_frames,
+        experiment_spec_for,
+        format_baseline_report,
+        summarize_report,
+    )
+    from industrypulse.services.research_run import build_frames
+    from industrypulse.services.workbench import Workbench
+
+    try:
+        cutoff_train = date.fromisoformat(train_end)
+        cutoff_test = date.fromisoformat(test_end)
+    except ValueError as exc:
+        _fail(f"日期不合法：{exc}")
+    service = Workbench()
+    repository = service.repository()
+    snapshot = service.snapshot(repository)
+    market = DuckDBMarketRepository(repository.database)
+    mapping = _yaml.safe_load(
+        (service.root / "config/market/industry_price_lines.yaml").read_text(encoding="utf-8")
+    )
+    price_map = mapping.get("industries") or {}
+    ran_at = datetime.now(TZ_SHANGHAI).isoformat(timespec="seconds")
+    summaries: list[dict[str, Any]] = []
+    targets_meta = [
+        ("T1", "生产方向（工业增加值同比的方向）", "领先 3 个月"),
+        ("T2", "盈利改善（利润累计同比的方向）", "领先 1 个公布期"),
+        ("T3", "行业资产相对收益（63 个交易日）", "63 个交易日"),
+    ]
+    only = set(industry or [])
+    for path in sorted((service.root / "config/industries").glob("*.yaml")):
+        if only and path.stem not in only:
+            continue
+        registry = service.taxonomy(path.stem)
+        if registry.synthetic:
+            continue
+        industry_id = registry.nodes[0].industry_id
+        profit_id = next(
+            (s.series_id for s in registry.series if s.series_id.endswith("profit_ytd_yoy")), ""
+        )
+        if not profit_id:
+            continue
+        revenue_id = profit_id.replace("profit_ytd_yoy", "revenue_ytd_yoy")
+        cost_id = profit_id.replace("profit_ytd_yoy", "cost_ytd_yoy")
+        iva_id = next(
+            (
+                s.series_id
+                for s in registry.series
+                if _re.fullmatch(r"cn\.nbs\.industry\.[a-z]\d+", s.series_id)
+            ),
+            "",
+        )
+        price_spec = price_map.get(industry_id) or {}
+        asset_id = str(price_spec.get("asset_id") or "")
+        run_dir = service.root / "artifacts/reports/experiments" / (
+            "baseline-" + ran_at.replace(":", "").replace("-", "")
+        )
+        for target_id, question, horizon in targets_meta:
+            entry: dict[str, Any] = {
+                "industry": path.stem,
+                "industry_id": industry_id,
+                "target": target_id,
+                "name": question,
+            }
+            try:
+                if target_id == "T1":
+                    if not iva_id:
+                        raise ValueError("本行业没有工业增加值序列（只有 C31 官方单列）")
+                    built = build_frames(
+                        repository,
+                        snapshot_id=snapshot,
+                        industry_id=industry_id,
+                        feature_series=[iva_id],
+                        label_series=iva_id,
+                        start=date(2021, 12, 1),
+                        end=cutoff_test,
+                        horizon_months=3,
+                    )
+                    feature_list = [iva_id]
+                elif target_id == "T2":
+                    built = build_frames(
+                        repository,
+                        snapshot_id=snapshot,
+                        industry_id=industry_id,
+                        feature_series=[profit_id, revenue_id, cost_id],
+                        label_series=profit_id,
+                        start=date(2021, 12, 1),
+                        end=cutoff_test,
+                        horizon_months=1,
+                    )
+                    if asset_id:
+                        built = attach_market_features(built, market, asset_id)
+                    feature_list = [profit_id, revenue_id, cost_id]
+                    if asset_id:
+                        feature_list += ["etf_rel_ret_20d", "etf_rel_ret_60d", "etf_vol_20d"]
+                else:
+                    if not asset_id:
+                        raise ValueError("没有对口的场内 ETF 价格线")
+                    built = build_relative_return_frames(
+                        repository,
+                        market,
+                        snapshot_id=snapshot,
+                        industry_id=industry_id,
+                        asset_id=asset_id,
+                        profit_series=profit_id,
+                        revenue_series=revenue_id,
+                        start=date(2021, 12, 1),
+                        end=cutoff_test,
+                    )
+                    feature_list = [
+                        "etf_rel_ret_20d",
+                        "etf_rel_ret_60d",
+                        "etf_vol_20d",
+                        "profit_yoy",
+                        "revenue_yoy",
+                    ]
+                spec = experiment_spec_for(
+                    built,
+                    experiment_id=f"{target_id}-{path.stem}",
+                    feature_list=feature_list,
+                    train_end=cutoff_train,
+                    outer_start=cutoff_train + timedelta(days=1),
+                    outer_end=cutoff_test,
+                )
+                report = run_experiment(
+                    built.features, built.targets, spec, run_dir, model_factory=create_model
+                )
+                gate = advanced_gate(built)
+                entry = summarize_report(target_id, question, horizon, report, gate)
+                entry["industry"] = path.stem
+                entry["industry_id"] = industry_id
+                entry["name"] = question
+            except (ValueError, RuntimeError) as exc:
+                entry = {
+                    **entry,
+                    "status": "failed",
+                    "reason": str(exc)[:200],
+                    "question": question,
+                    "horizon": horizon,
+                    "advanced_gate": {
+                        "eligible": False,
+                        "scorable_rows": 0,
+                        "class_one": 0,
+                        "class_zero": 0,
+                        "threshold": "样本≥60 且每类≥10",
+                    },
+                    "probability_meaning": "未训练：先解决数据覆盖，再谈模型。",
+                }
+            summaries.append(entry)
+    payload = {
+        "ran_at": ran_at,
+        "snapshot_id": snapshot,
+        "feature_note": (
+            "基本面特征取决策日 as-of 可见版本；价格特征只用决策日已收盘 K 线"
+            "（相对强弱 20/60 日、20 日波动，分红加回口径）。"
+            "没有估值历史与一致预期数据，不设估值特征，不声称市场预期差；"
+            "资金流没有历史深度，暂不能作特征。"
+        ),
+        "targets": summaries,
+    }
+    typer.echo(format_baseline_report(payload))
     if out is not None:
         out.parent.mkdir(parents=True, exist_ok=True)
         out.write_text(

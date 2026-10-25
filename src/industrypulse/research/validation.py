@@ -229,6 +229,7 @@ def run_experiment(
             if not candidates:
                 candidates = [{}]
             scores = []
+            last_error = ""
             for params in candidates:
                 inner_y, inner_p = [], []
                 for inner in spec.inner_splits:
@@ -236,8 +237,19 @@ def run_experiment(
                         outer.train_start <= inner.train_start and inner.test_end < cutoff.date()
                     ):
                         raise ValueError("Inner search extends beyond outer training window")
-                    inner_cutoff = datetime.combine(
+                    # 内层有两个时点：训练/预测边界（train_end 当天，模型只能
+                    # 预测其后的决策）与标签可用性截止（test_end + purge+2 个
+                    # 月，测试段标签才有时间发布）。两者都封顶在外层 cutoff。
+                    inner_boundary = datetime.combine(
                         inner.train_end, time(23, 59, 59), tzinfo=cutoff.tzinfo
+                    )
+                    inner_label_cutoff = min(
+                        cutoff,
+                        datetime.combine(
+                            add_months(inner.test_end, inner.purge_months + 2),
+                            time(15, 0),
+                            tzinfo=cutoff.tzinfo,
+                        ),
                     )
                     try:
                         output, _ = _fit_predict(
@@ -247,10 +259,11 @@ def run_experiment(
                             targets,
                             inner,
                             spec,
-                            inner_cutoff,
+                            inner_boundary,
                             model_factory,
                         )
-                    except ValueError:
+                    except ValueError as exc:
+                        last_error = f"{model_id}: {exc}"
                         continue
                     truth = {r.decision_as_of: r for r in targets.rows}
                     for prediction in output:
@@ -258,7 +271,7 @@ def run_experiment(
                         if (
                             label.value is not None
                             and label.label_available_at is not None
-                            and label.label_available_at < cutoff
+                            and label.label_available_at < inner_label_cutoff
                         ):
                             inner_y.append(label.value)
                             inner_p.append(prediction.predicted_probability or 0.0)
@@ -269,7 +282,10 @@ def run_experiment(
                     dict(
                         split_id=outer.split_id,
                         model_id=model_id,
-                        reason="INSUFFICIENT_EVIDENCE: no released inner validation",
+                        reason=(
+                            f"INSUFFICIENT_EVIDENCE: inner validation failed — "
+                            f"{last_error or 'no released inner validation'}"
+                        ),
                     )
                 )
                 continue
