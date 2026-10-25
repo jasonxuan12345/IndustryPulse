@@ -1231,6 +1231,51 @@ def leading_scan(
         typer.echo(f"\nJSON 报告已写入 {out}")
 
 
+@app.command("ai-hypothesize")
+def ai_hypothesize(
+    max_events: Annotated[int, typer.Option("--max-events", help="本次最多处理几个排队事件")] = 2,
+    out: Annotated[Path | None, typer.Option("--out", help="可选：写出 JSON 报告")] = None,
+) -> None:
+    """对 AI 门槛通过的领先事件做两步假设研究：先立假设，再独立找反证（阶段 3）。"""
+    from industrypulse.ai_research.model_gateway import (
+        complete as model_complete,
+    )
+    from industrypulse.ai_research.model_gateway import (
+        load_connection,
+        public_connection,
+    )
+    from industrypulse.contracts.context import ResearchMode
+    from industrypulse.services.economic_state import build_economic_state
+    from industrypulse.services.hypothesis_research import (
+        format_run,
+        run_hypothesis_research,
+    )
+    from industrypulse.services.workbench import Workbench
+
+    connection = load_connection()
+    if connection is None or not connection.enabled:
+        _fail("尚未配置可用模型：先在设置页保存并启用。行情与统计不依赖模型，不受影响。")
+    model_id = str(public_connection(connection).get("model") or "")
+    service = Workbench()
+    state = build_economic_state(
+        service, ResearchMode.RECONSTRUCTED_PIT, datetime.now().astimezone()
+    )
+    payload = run_hypothesis_research(
+        model_complete,
+        connection,
+        state,
+        model_id=model_id,
+        max_events=max_events,
+    )
+    typer.echo(format_run(payload))
+    if out is not None:
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(
+            json.dumps(payload, ensure_ascii=False, indent=2, default=str) + "\n", encoding="utf-8"
+        )
+        typer.echo(f"\nJSON 报告已写入 {out}")
+
+
 @app.command("market-sync")
 def market_sync(
     macro: bool = typer.Option(
