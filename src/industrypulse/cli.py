@@ -1181,6 +1181,56 @@ def etf_audit(
         typer.echo(f"\nJSON 报告已写入 {out}")
 
 
+def _leading_stores() -> tuple[Any, Any, str | None]:
+    """扫描/核实共用的仓储：研究库 + 市场库 + 当前最大快照。"""
+    from industrypulse.services.workbench import Workbench
+
+    service = Workbench()
+    repository = service.repository()
+    try:
+        snapshot = service.snapshot(repository)
+    except ValueError:
+        snapshot = None
+    market = DuckDBMarketRepository(repository.database)
+    return repository, market, snapshot
+
+
+@app.command("leading-verify")
+def leading_verify(
+    out: Annotated[Path | None, typer.Option("--out", help="可选：写出 JSON 报告")] = None,
+) -> None:
+    """逐候选核实领先指标：发布时间、许可、历史深度、采集能力（阶段 2）。"""
+    from industrypulse.services.leading import format_verify, verify
+
+    repository, market, snapshot = _leading_stores()
+    payload = verify(repository, market, snapshot_id=snapshot)
+    typer.echo(format_verify(payload))
+    if out is not None:
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(
+            json.dumps(payload, ensure_ascii=False, indent=2, default=str) + "\n", encoding="utf-8"
+        )
+        typer.echo(f"\nJSON 报告已写入 {out}")
+
+
+@app.command("leading-scan")
+def leading_scan(
+    out: Annotated[Path | None, typer.Option("--out", help="可选：写出 JSON 报告")] = None,
+) -> None:
+    """采集领先候选 → 变化检测 → 追加事件账本（什么变了/相对哪期/影响谁/下次怎么验证）。"""
+    from industrypulse.services.leading import format_scan, scan
+
+    repository, market, snapshot = _leading_stores()
+    payload = scan(repository, market, snapshot_id=snapshot)
+    typer.echo(format_scan(payload))
+    if out is not None:
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(
+            json.dumps(payload, ensure_ascii=False, indent=2, default=str) + "\n", encoding="utf-8"
+        )
+        typer.echo(f"\nJSON 报告已写入 {out}")
+
+
 @app.command("market-sync")
 def market_sync(
     macro: bool = typer.Option(

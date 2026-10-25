@@ -1,0 +1,127 @@
+# 领先候选指标注册表（阶段 2 · 更早感知）。
+# 全部是待验证候选：在对应行业利润公布（约次月 27 日）之前捕捉需求、供给、
+# 价格与订单的变化。任何一条都不构成投资信号。
+#
+# kind 与取数方式：
+#   research      研究库 Vintage 序列（g2.duckdb，带发布时点，可进研究）
+#   sina_futures  新浪期货主力连续（公开接口，只做参考，不进研究库）
+#   etf_relative  场内 ETF 相对沪深300 的 20 日总收益差（g2 已有日线+分红）
+#   board_flow    东财板块当日主力净流入（公开接口，只做参考）
+#
+# material：数值变化触发 AI 门槛的幅度阈值；方向翻转始终视为重要。
+# verify：下一次怎样验证。{industry} 会被替换成映射行业的名字，
+# {next_profit} 替换成按「次月 27 日 09:30」推断的下一个统计局利润发布时点。
+chains:
+  nonferrous:
+    name: 有色金属
+    industries:
+      - { id: CN_NBS_C09, name: 有色金属矿采选业 }
+      - { id: CN_NBS_C32, name: 有色金属冶炼和压延加工业 }
+    candidates:
+      - id: pmi_new_orders
+        name: 制造业 PMI 新订单
+        kind: research
+        series: cn.nbs.pmi.new_orders
+        release: 每月 31 日 09:30 公布当月值，领先行业利润约一个月
+        material: 0.5
+        verify: "下月新订单是否延续同向变化；{next_profit} 核对 {industry} 利润累计同比是否印证"
+      - id: cu0_price
+        name: 沪铜主力连续
+        kind: sina_futures
+        symbol: CU0
+        release: 交易所日行情，收盘后可取
+        material: 3.0
+        verify: "铜价 5 日动量是否延续；{next_profit} 核对 {industry} 利润累计同比"
+      - id: al0_price
+        name: 沪铝主力连续
+        kind: sina_futures
+        symbol: AL0
+        release: 交易所日行情，收盘后可取
+        material: 3.0
+        verify: "铝价 5 日动量是否延续；{next_profit} 核对 {industry} 利润累计同比"
+      - id: nonferrous_etf_relative
+        name: 有色金属ETF 相对沪深300（20 日）
+        kind: etf_relative
+        asset_id: ETF_512400
+        release: 场内收盘后可取
+        material: 2.0
+        verify: "相对强弱翻正后能否保持一周；{next_profit} 核对 {industry} 利润累计同比"
+      - id: metals_board_flow
+        name: 有色板块主力净流入（东财）
+        kind: board_flow
+        board: BK0478
+        sina_flow: new_ysjs
+        release: 交易日盘中持续更新
+        material: 20.0
+        verify: "净流入转正能否持续五个扫描日；{next_profit} 核对 {industry} 利润累计同比"
+
+  auto:
+    name: 汽车与出行
+    industries:
+      - { id: CN_NBS_C36, name: 汽车制造业 }
+    candidates:
+      - id: pmi_new_orders
+        name: 制造业 PMI 新订单
+        kind: research
+        series: cn.nbs.pmi.new_orders
+        release: 每月 31 日 09:30 公布当月值，领先行业利润约一个月
+        material: 0.5
+        verify: "下月新订单是否延续同向变化；{next_profit} 核对 {industry} 利润累计同比"
+      - id: auto_etf_relative
+        name: 汽车ETF 相对沪深300（20 日）
+        kind: etf_relative
+        asset_id: ETF_516110
+        release: 场内收盘后可取
+        material: 2.0
+        verify: "相对强弱翻正后能否保持一周；{next_profit} 核对 {industry} 利润累计同比"
+      - id: auto_board_flow
+        name: 汽车板块主力净流入（东财）
+        kind: board_flow
+        board: BK1211
+        sina_flow: new_qczz
+        release: 交易日盘中持续更新
+        material: 20.0
+        verify: "净流入转正能否持续五个扫描日；{next_profit} 核对 {industry} 利润累计同比"
+      - id: rb0_price
+        name: 螺纹钢主力连续（成本端）
+        kind: sina_futures
+        symbol: RB0
+        release: 交易所日行情，收盘后可取
+        material: 3.0
+        verify: "钢价下行是否缓解成本压力；{next_profit} 核对 {industry} 利润累计同比"
+
+  power-electrical:
+    name: 电力及电气设备
+    industries:
+      - { id: CN_NBS_D44, name: 电力、热力生产和供应业 }
+      - { id: CN_NBS_C38, name: 电气机械和器材制造业 }
+    candidates:
+      - id: pmi_production
+        name: 制造业 PMI 生产
+        kind: research
+        series: cn.nbs.pmi.production
+        release: 每月 31 日 09:30 公布当月值，领先行业利润约一个月
+        material: 0.5
+        verify: "下月生产指数是否延续同向变化；{next_profit} 核对 {industry} 利润累计同比"
+      - id: lc0_price
+        name: 碳酸锂主力连续（电池链上游）
+        kind: sina_futures
+        symbol: LC0
+        release: 交易所日行情，收盘后可取
+        material: 3.0
+        verify: "锂价 5 日动量是否延续；{next_profit} 核对 {industry} 利润累计同比"
+      - id: power_etf_relative
+        name: 电力ETF 相对沪深300（20 日）
+        kind: etf_relative
+        asset_id: ETF_159611
+        release: 场内收盘后可取
+        material: 2.0
+        verify: "相对强弱翻正后能否保持一周；{next_profit} 核对 {industry} 利润累计同比"
+      - id: energy_board_flow
+        name: 新能源板块主力净流入（东财，电气设备的板块代理）
+        kind: board_flow
+        board: BK0493
+        sina_flow: gn_xny
+        release: 交易日盘中持续更新
+        material: 20.0
+        verify: "净流入转正能否持续五个扫描日；{next_profit} 核对 {industry} 利润累计同比"
