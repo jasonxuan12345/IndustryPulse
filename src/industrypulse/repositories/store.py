@@ -309,6 +309,23 @@ class DuckDBObservationRepository:
             ).fetchall()
         return tuple(ObservationVintage.model_validate_json(row[0]) for row in rows)
 
+    def all_vintages(self, series_ids: Sequence[str]) -> list[ObservationVintage]:
+        """这些序列的全部版本（不分所属期、不做 as-of 过滤）。
+
+        修订可见性重放需要原始版本全集：先取全量，再按模式在外面套
+        as-of 选择，避免按 (序列, 所属期) 逐对查询。
+        """
+        if not series_ids:
+            return []
+        with self.database.transaction() as conn:
+            marks = ",".join("?" for _ in series_ids)
+            rows = conn.execute(
+                f"SELECT payload FROM observation_vintage WHERE series_id IN ({marks}) "
+                "ORDER BY series_id,observation_start,vintage_id",
+                list(series_ids),
+            ).fetchall()
+        return [ObservationVintage.model_validate_json(row[0]) for row in rows]
+
     def next_vintage_id(self, series_id: str, observation_start: date) -> int:
         """下一个单调递增的 vintage_id（修订只新增、绝不改写旧行，§5.5）。"""
         existing = self.vintages_for(series_id, observation_start)

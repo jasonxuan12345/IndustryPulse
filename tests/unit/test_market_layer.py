@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import json
-from datetime import date
+from datetime import date, datetime, timedelta
 from pathlib import Path
+from typing import Any
 
 import pytest
 import yaml
@@ -208,6 +209,96 @@ class TestService:
         trend = service._trend(bars)
         assert trend[0]["value"] == pytest.approx(101.0)
         assert trend[-1]["value"] == pytest.approx(104.0)
+
+
+class TestMacroStatusSemantics:
+    """四态区分：ok / stale / not_published / source_failure，外加真实零值。"""
+
+    INDICATOR = "pmi_mfg"
+    SOURCE = ("eastmoney", "RPT_ECONOMY_PMI")
+
+    def _insert(
+        self,
+        service: MarketService,
+        period: date,
+        value: float,
+        fetched_at: datetime | None = None,
+    ) -> None:
+        with service._db_lock:
+            service._db.execute(
+                "INSERT OR REPLACE INTO macro_point VALUES (?,?,?,?,?,?)",
+                [
+                    self.INDICATOR,
+                    period,
+                    value,
+                    "",
+                    "test:source",
+                    fetched_at or datetime.now(),
+                ],
+            )
+
+    def _cleanup(self, service: MarketService) -> None:
+        with service._db_lock:
+            service._db.execute("DELETE FROM macro_point WHERE indicator_id=?", [self.INDICATOR])
+            service._db.execute(
+                "DELETE FROM macro_sync WHERE source_key=?", [":".join(self.SOURCE)]
+            )
+
+    def _status(self, service: MarketService) -> dict[str, Any]:
+        item = next(item for item in service.macro()["indicators"] if item["id"] == self.INDICATOR)
+        return item
+
+    def test_fresh_period_is_ok(self, service: MarketService) -> None:
+        self._cleanup(service)
+        expected = MarketService._expected_period("monthly", date.today())
+        self._insert(service, expected, 49.4)
+        item = self._status(service)
+        assert item["status"] == "ok"
+        assert item["zero_value"] is False
+
+    def test_zero_is_a_real_value_not_missing(self, service: MarketService) -> None:
+        self._cleanup(service)
+        expected = MarketService._expected_period("monthly", date.today())
+        self._insert(service, expected, 0.0)
+        item = self._status(service)
+        assert item["status"] == "ok"
+        assert item["zero_value"] is True
+
+    def test_behind_schedule_with_healthy_sync_is_not_published(
+        self, service: MarketService
+    ) -> None:
+        self._cleanup(service)
+        expected = MarketService._expected_period("monthly", date.today())
+        self._insert(service, expected - timedelta(days=70), 49.1)
+        service._record_sync_outcome(*self.SOURCE, ok=True)
+        assert self._status(service)["status"] == "not_published"
+
+    def test_failed_sync_beats_schedule_and_reports_source_failure(
+        self, service: MarketService
+    ) -> None:
+        self._cleanup(service)
+        expected = MarketService._expected_period("monthly", date.today())
+        self._insert(service, expected - timedelta(days=70), 49.1)
+        service._record_sync_outcome(*self.SOURCE, ok=True)
+        service._record_sync_outcome(*self.SOURCE, ok=False, error="连接被对端断开")
+        item = self._status(service)
+        assert item["status"] == "source_failure"
+        assert "对端断开" in item["message"]
+        # 恢复成功后回到 not_published：故障态只反映最近一次结果。
+        service._record_sync_outcome(*self.SOURCE, ok=True)
+        assert self._status(service)["status"] == "not_published"
+
+    def test_old_copy_without_sync_attempts_is_stale(self, service: MarketService) -> None:
+        self._cleanup(service)
+        expected = MarketService._expected_period("monthly", date.today())
+        self._insert(
+            service,
+            expected - timedelta(days=70),
+            49.1,
+            fetched_at=datetime.now() - timedelta(days=30),
+        )
+        assert self._status(service)["status"] == "stale"
+        self._cleanup(service)
 
 
 class TestConfigs:

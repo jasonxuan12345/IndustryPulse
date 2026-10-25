@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any
 
 import yaml
@@ -94,6 +94,7 @@ class _PriceLines:
         self.market = DuckDBMarketRepository(database)
         self.day = as_of.date()
         self.cache: dict[str, PriceLine | None] = {}
+        self.barriers: dict[str, tuple[date, ...]] = {}
 
     def line(self, asset_id: str) -> PriceLine | None:
         if asset_id not in self.cache:
@@ -113,6 +114,20 @@ class _PriceLines:
             )
         return self.cache[asset_id]
 
+    def barriers_for(self, asset_id: str) -> tuple[date, ...]:
+        """疑似份额拆并日：缺口超过阈值且已登记行动解释不了。回放时跨越即剔除。"""
+        if asset_id not in self.barriers:
+            from industrypulse.services.etf_audit import find_barriers
+
+            bars = self.market.bars(asset_id, end=self.day)
+            actions = [
+                action for action in self.market.actions(asset_id) if action.ex_date <= self.day
+            ]
+            self.barriers[asset_id] = tuple(
+                date.fromisoformat(event["day"]) for event in find_barriers(bars, actions)
+            )
+        return self.barriers[asset_id]
+
     def check(self, industry_id: str, series_points: dict[str, list[Any]]) -> dict[str, Any]:
         spec = self.mapping.get(industry_id)
         if not spec:
@@ -128,6 +143,8 @@ class _PriceLines:
         benchmark = self.line(self.benchmark.get("asset_id", ""))
         if asset is None or benchmark is None:
             return {**described, "status": "NO_BARS", "reason": "研究库里还没有这条价格线的日线"}
+        asset_barriers = self.barriers_for(str(spec["asset_id"]))
+        benchmark_barriers = self.barriers_for(str(self.benchmark.get("asset_id", "")))
         releases = signal_history(
             [
                 (row.observation_start, row.available_at, _number(row))
@@ -137,9 +154,20 @@ class _PriceLines:
         )
         horizons = []
         for months, trading_days in HORIZONS:
-            outcomes, pending = forward_excess(releases, asset, benchmark, trading_days)
+            outcomes, pending, blocked = forward_excess(
+                releases,
+                asset,
+                benchmark,
+                trading_days,
+                barriers=asset_barriers + benchmark_barriers,
+            )
             horizons.append(
-                {"months": months, "trading_days": trading_days, "pending": pending}
+                {
+                    "months": months,
+                    "trading_days": trading_days,
+                    "pending": pending,
+                    "excluded_corporate_event": blocked,
+                }
                 | compare(outcomes)
             )
         return {
@@ -147,6 +175,7 @@ class _PriceLines:
             "status": "NOT_VALIDATED",
             "first_day": asset.days[0].isoformat(),
             "last_day": asset.days[-1].isoformat(),
+            "suspected_splits": [day.isoformat() for day in asset_barriers],
             "horizons": horizons,
         }
 
@@ -357,7 +386,10 @@ def build_economic_state(
             "method": (
                 "信号同增长假设规则。发布日后第一个交易日收盘入场，持有约 3 / 6 个月"
                 "（63 / 126 个交易日），比较 ETF 与沪深 300 的总收益差。"
+                "收益为不复权收盘价加回期间现金分红（不再投资），零费用。"
                 "窗口重叠，用循环平移检验求单侧 p 值，再对全部检验做 BH 校正。"
+                "疑似份额拆并日（价格缺口且无已登记行动解释）跨越的窗口整段剔除，"
+                "计入 excluded_corporate_event。"
             ),
             "disclaimer": (
                 "历史描述，不是收益预测，也不是投资建议。ETF 与统计局行业口径不同，"

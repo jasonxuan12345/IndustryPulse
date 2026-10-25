@@ -47,9 +47,25 @@ def test_entry_is_the_day_after_release_and_dividends_are_added_back() -> None:
     asset = PriceLine(days, (1.0, 1.0, 1.1, 1.2, 1.3, 1.4), ((days[3], 0.1),))
     benchmark = PriceLine(days, (1.0,) * 6)
     release = Release(date(2024, 11, 1), _at(days[0]), True)
-    outcomes, pending = forward_excess([release], asset, benchmark, trading_days=2)
-    assert pending == 0
+    outcomes, pending, blocked = forward_excess([release], asset, benchmark, trading_days=2)
+    assert pending == 0 and blocked == 0
     assert outcomes == [(True, pytest.approx((1.2 + 0.1) / 1.0 - 1))]
+
+
+def test_windows_crossing_a_split_barrier_are_dropped() -> None:
+    days = tuple(date(2025, 1, 1) + timedelta(days=i) for i in range(6))
+    line = PriceLine(days, (1.0,) * 6)
+    release = Release(date(2024, 11, 1), _at(days[0]), True)
+    barriers = (days[2],)
+    outcomes, pending, blocked = forward_excess(
+        [release], line, line, trading_days=3, barriers=barriers
+    )
+    assert outcomes == [] and blocked == 1 and pending == 0
+    # 障碍日等于入场日：入场价已是拆并后价格，窗口保留。
+    outcomes, _pending, blocked = forward_excess(
+        [release], line, line, trading_days=3, barriers=(days[1],)
+    )
+    assert len(outcomes) == 1 and blocked == 0
 
 
 def test_releases_before_listing_or_without_a_full_window_are_not_scored() -> None:
@@ -57,7 +73,7 @@ def test_releases_before_listing_or_without_a_full_window_are_not_scored() -> No
     line = PriceLine(days, (1.0,) * 5)
     early = Release(date(2025, 3, 1), _at(date(2025, 4, 1)), True)
     late = Release(date(2025, 4, 1), _at(days[3]), False)
-    outcomes, pending = forward_excess([early, late], line, line, trading_days=3)
+    outcomes, pending, _blocked = forward_excess([early, late], line, line, trading_days=3)
     assert outcomes == [] and pending == 1
 
 

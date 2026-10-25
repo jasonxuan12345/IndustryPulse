@@ -287,8 +287,7 @@ def etf_price_lines(
 
     document = yaml.safe_load(config.read_text(encoding="utf-8"))
     lines = {
-        spec["asset_id"]: spec
-        for spec in [document["benchmark"], *document["industries"].values()]
+        spec["asset_id"]: spec for spec in [document["benchmark"], *document["industries"].values()]
     }
     market = DuckDBMarketRepository(database)
     service = EtfIngestService(market, bronze_root=database.parent / "bronze-etf")
@@ -1066,9 +1065,127 @@ def workbench_run(
     except (ValueError, KeyError) as exc:
         _fail(str(exc))
 
+
+def _growth_series_map(service: Any, only: list[str] | None = None) -> dict[str, dict[str, str]]:
+    """行业名 -> {profit, revenue} 序列映射；与 economic_state 的取数口径一致。"""
+    wanted: dict[str, dict[str, str]] = {}
+    for path in sorted((service.root / "config/industries").glob("*.yaml")):
+        registry = service.taxonomy(path.stem)
+        if registry.synthetic:
+            continue
+        profit_id = next(
+            (
+                item.series_id
+                for item in registry.series
+                if item.series_id.endswith("profit_ytd_yoy")
+            ),
+            "",
+        )
+        if not profit_id:
+            continue
+        if only and path.stem not in only:
+            continue
+        wanted[path.stem] = {
+            "profit": profit_id,
+            "revenue": profit_id.replace("profit_ytd_yoy", "revenue_ytd_yoy"),
+        }
+    return wanted
+
+
+@app.command("replay-signals")
+def replay_signals(
+    as_of: Annotated[str, typer.Option("--as-of", help="历史决策日（ISO 时间，含时区）")] = "",
+    mode: Annotated[
+        str, typer.Option("--mode", help="strict_pit / reconstructed_pit / exploratory")
+    ] = "reconstructed_pit",
+    snapshot_id: Annotated[
+        str, typer.Option("--snapshot-id", help="冻结快照 ID；缺省取最大快照")
+    ] = "",
+    industry: Annotated[
+        list[str] | None, typer.Option("--industry", help="只重放这些行业，可重复")
+    ] = None,
+    out: Annotated[Path | None, typer.Option("--out", help="可选：写出 JSON 报告")] = None,
+) -> None:
+    """利润/收入/旧期值的联合可见时间，并重放历史决策日上的候选（阶段 1 基线）。"""
+    from industrypulse.services.signal_replay import format_report, run_signal_replay
+    from industrypulse.services.workbench import Workbench
+
+    try:
+        moment = datetime.fromisoformat(as_of) if as_of else datetime.now().astimezone()
+    except ValueError as exc:
+        _fail(f"--as-of 不是合法 ISO 时间：{exc}")
+    if moment.tzinfo is None:
+        _fail("--as-of 必须带时区，例如 2026-09-27T10:00:00+08:00")
+    try:
+        research_mode = ResearchMode(mode)
+    except ValueError as exc:
+        _fail(f"--mode 非法：{exc}")
+    service = Workbench()
+    repository = service.repository()
+    try:
+        snapshot = service.snapshot(repository, snapshot_id)
+    except ValueError as exc:
+        _fail(str(exc))
+    industries = _growth_series_map(service, list(industry) if industry else None)
+    if not industries:
+        _fail("没有找到带利润/收入序列的行业")
+    payload = run_signal_replay(
+        repository,
+        snapshot_id=snapshot,
+        industries=industries,
+        as_of=moment,
+        mode=research_mode,
+    )
+    typer.echo(format_report(payload))
+    if out is not None:
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(
+            json.dumps(payload, ensure_ascii=False, indent=2, default=str) + "\n", encoding="utf-8"
+        )
+        typer.echo(f"\nJSON 报告已写入 {out}")
+
+
+@app.command("etf-audit")
+def etf_audit(
+    as_of: Annotated[
+        str, typer.Option("--as-of", help="回放时点（ISO 日期或时间）；缺省为今天")
+    ] = "",
+    threshold: Annotated[
+        float, typer.Option("--threshold", help="疑似拆并的缺口阈值（小数）")
+    ] = 0.20,
+    out: Annotated[Path | None, typer.Option("--out", help="可选：写出 JSON 报告")] = None,
+) -> None:
+    """核对 ETF 分红记录、疑似份额拆并与代理范围（阶段 1 基线）。"""
+    from industrypulse.services.etf_audit import audit_price_lines, format_audit
+    from industrypulse.services.workbench import Workbench
+
+    try:
+        moment = datetime.fromisoformat(as_of) if as_of else datetime.now().astimezone()
+    except ValueError as exc:
+        _fail(f"--as-of 不是合法日期：{exc}")
+    if moment.tzinfo is None:
+        moment = moment.replace(tzinfo=UTC)
+    service = Workbench()
+    repository = service.repository()
+    config_path = service.root / "config/market/industry_price_lines.yaml"
+    if not config_path.exists():
+        _fail(f"没有找到 {config_path}")
+    market = DuckDBMarketRepository(repository.database)
+    payload = audit_price_lines(config_path, market, as_of=moment, threshold=threshold)
+    typer.echo(format_audit(payload))
+    if out is not None:
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(
+            json.dumps(payload, ensure_ascii=False, indent=2, default=str) + "\n", encoding="utf-8"
+        )
+        typer.echo(f"\nJSON 报告已写入 {out}")
+
+
 @app.command("market-sync")
 def market_sync(
-    macro: bool = typer.Option(False, "--macro", help="同步宏观指标（东财数据中心 + akshare 适配层）"),
+    macro: bool = typer.Option(
+        False, "--macro", help="同步宏观指标（东财数据中心 + 中国货币网）"
+    ),
     history: bool = typer.Option(False, "--history", help="回填行业指数/ETF/基准日 K 历史"),
     bars: int = typer.Option(760, "--bars", help="历史回填棒数（约 3 年）"),
 ) -> None:
@@ -1084,9 +1201,7 @@ def market_sync(
         for config in service.sectors_config["domains"].values():
             symbols.append(config["board"])
             symbols.append(config["etfs"]["primary"])
-            symbols.extend(
-                alternative for alternative in config["etfs"].get("alternatives", [])
-            )
+            symbols.extend(alternative for alternative in config["etfs"].get("alternatives", []))
         symbols += [item["symbol"] for item in service.sectors_config["benchmarks"].values()]
         succeeded = failed = 0
         for symbol in dict.fromkeys(symbols):

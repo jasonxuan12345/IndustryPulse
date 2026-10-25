@@ -123,6 +123,11 @@ class MarketService:
             "PRIMARY KEY(indicator_id, period))"
         )
         self._db.execute(
+            "CREATE TABLE IF NOT EXISTS macro_sync("
+            "source_key VARCHAR PRIMARY KEY, last_ok_at TIMESTAMP, "
+            "last_fail_at TIMESTAMP, last_error TEXT)"
+        )
+        self._db.execute(
             "CREATE TABLE IF NOT EXISTS heat_point("
             "sector VARCHAR, day DATE, score DOUBLE, components JSON, "
             "PRIMARY KEY(sector, day))"
@@ -570,7 +575,18 @@ class MarketService:
         return self.sector_snapshot(domain_id, stories)
 
     # ------------------------------------------------------------------ macro
+    def _macro_sync_state(self, provider: str, source: str) -> tuple[Any, Any, str]:
+        with self._db_lock:
+            row = self._db.execute(
+                "SELECT last_ok_at, last_fail_at, last_error FROM macro_sync WHERE source_key=?",
+                [f"{provider}:{source}"],
+            ).fetchone()
+        return (row[0], row[1], row[2] or "") if row else (None, None, "")
+
     def macro(self) -> dict[str, Any]:
+        """指标级四态：ok / stale（本地副本陈旧）/ not_published（当期未公布）/
+        source_failure（来源故障）；missing 为从未同步。value 为 0 是真实零值，
+        照常展示并用 zero_value 标出，绝不按缺失处理。"""
         with self._db_lock:
             rows = self._db.execute(
                 "SELECT indicator_id, period, value, unit, source, fetched_at "
@@ -579,47 +595,77 @@ class MarketService:
         grouped: dict[str, list[tuple[Any, ...]]] = {}
         for row in rows:
             grouped.setdefault(row[0], []).append(row)
+        today = date.today()
         items: list[dict[str, Any]] = []
         for indicator in self.macro_config["indicators"]:
             history = grouped.get(indicator["id"], [])
+            provider, source = str(indicator["provider"]), str(indicator["source"])
+            base = {
+                "id": indicator["id"],
+                "name": indicator["name"],
+                "unit": indicator["unit"],
+                "freq": indicator["freq"],
+                "source": f"{provider}:{source}",
+            }
             if not history:
                 items.append(
-                    {
-                        "id": indicator["id"],
-                        "name": indicator["name"],
-                        "unit": indicator["unit"],
-                        "status": "missing",
-                        "message": "尚未同步（运行 market sync --macro）",
-                    }
+                    {**base, "status": "missing", "message": "尚未同步（运行 market sync --macro）"}
                 )
                 continue
             latest = history[-1]
             previous = history[-2] if len(history) > 1 else None
             fetched = latest[5]
             fetch_age = (datetime.now() - fetched).days if fetched else 999
-            period_age = (date.today() - latest[1]).days if latest[1] else 999
-            freq_limit = {"daily": 7, "monthly": 70, "quarterly": 220}.get(
-                str(indicator["freq"]), 70
-            )
-            stale_days = max(period_age, 0) if period_age > freq_limit else fetch_age
+            expected = self._expected_period(str(indicator["freq"]), today)
+            period_behind = latest[1] is None or latest[1] < expected
+            if period_behind:
+                last_ok, last_fail, last_error = self._macro_sync_state(provider, source)
+                if last_fail is not None and (last_ok is None or last_fail > last_ok):
+                    status, message = "source_failure", f"最近一次同步失败：{last_error}"
+                elif fetch_age > 7:
+                    status, message = "stale", f"本地副本已 {fetch_age} 天没有成功同步"
+                else:
+                    status = "not_published"
+                    latest_period = latest[1].isoformat() if latest[1] else "—"
+                    message = (
+                        f"来源最新期为 {latest_period}，"
+                        f"预期 {expected.isoformat()} 起的数据尚未公布"
+                    )
+            else:
+                status, message = "ok", ""
+            value = latest[2]
             items.append(
                 {
-                    "id": indicator["id"],
-                    "name": indicator["name"],
-                    "value": latest[2],
+                    **base,
+                    "value": value,
                     "unit": latest[3] or indicator["unit"],
                     "period": latest[1].isoformat() if latest[1] else None,
+                    "expected_period": expected.isoformat(),
                     "previous_value": previous[2] if previous else None,
                     "previous_period": previous[1].isoformat()
                     if previous and previous[1]
                     else None,
-                    "source": latest[4],
-                    "freq": indicator["freq"],
                     "fetched_at": fetched.isoformat() if fetched else None,
-                    "status": "stale" if stale_days > 45 else "fresh",
+                    "status": status,
+                    "message": message,
+                    "zero_value": value == 0,
                 }
             )
         return {"updated_at": datetime.now(TZ_SHANGHAI).isoformat(), "indicators": items}
+
+    @staticmethod
+    def _expected_period(freq: str, today: date) -> date:
+        """保守预期：官方应已公布的最晚所属期。月度数据在次月 27 日后才要求当月。"""
+        if freq == "daily":
+            return today
+        if freq == "quarterly":
+            quarter_start = date(today.year, (today.month - 1) // 3 * 3 + 1, 1)
+            return (quarter_start - timedelta(days=1)).replace(day=1)
+        first_of_month = today.replace(day=1)
+        previous_month = first_of_month - timedelta(days=1)
+        if today.day >= 27:
+            return previous_month.replace(day=1)
+        return (previous_month.replace(day=1) - timedelta(days=1)).replace(day=1)
 
     def sync_macro(self) -> dict[str, int]:
         counts = {"ok": 0, "fail": 0}
@@ -651,6 +697,23 @@ class MarketService:
             counts["ok" if rows else "fail"] = counts["ok" if rows else "fail"] + 1
         return counts
 
+    def _record_sync_outcome(self, provider: str, source: str, ok: bool, error: str = "") -> None:
+        """把每次宏观抓取结果落库，跨进程区分"来源故障"与"当期未公布"。"""
+        key = f"{provider}:{source}"
+        now = datetime.now(TZ_SHANGHAI)
+        with self._db_lock:
+            row = self._db.execute(
+                "SELECT last_ok_at, last_fail_at, last_error FROM macro_sync WHERE source_key=?",
+                [key],
+            ).fetchone()
+            last_ok = now if ok else (row[0] if row else None)
+            last_fail = now if not ok else (row[1] if row else None)
+            last_error = "" if ok else error[:160]
+            self._db.execute(
+                "INSERT OR REPLACE INTO macro_sync VALUES (?, ?, ?, ?)",
+                [key, last_ok, last_fail, last_error],
+            )
+
     def _fetch_macro_source(self, indicator: dict[str, Any]) -> list[dict[str, Any]]:
         source_id = f"{indicator['provider']}:macro:{indicator['source']}"
         start = time.perf_counter()
@@ -674,8 +737,12 @@ class MarketService:
                 series = akshare_provider.normalize_frame(frame, indicator["date_field"], columns)
         except Exception as exc:  # noqa: BLE001
             self.health.record_failure(source_id, str(exc)[:160])
+            self._record_sync_outcome(
+                str(indicator["provider"]), str(indicator["source"]), False, str(exc)
+            )
             return []
         self.health.record_success(source_id, int((time.perf_counter() - start) * 1000))
+        self._record_sync_outcome(str(indicator["provider"]), str(indicator["source"]), True)
         return series
 
     def _indicator_rows(

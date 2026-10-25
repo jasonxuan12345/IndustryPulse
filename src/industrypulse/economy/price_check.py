@@ -3,10 +3,15 @@
 只做历史描述和检验，结论固定为 NOT_VALIDATED：
 - 信号与 ``growth_hypothesis`` 同一条规则：利润累计同比较上一公布期上升，且营收累计同比为正。
 - 入场取发布日之后的第一个共同交易日收盘，避免用到发布当天盘中信息。
-- 超额收益 = ETF 总收益 - 基准总收益；总收益为不复权收盘价加回期间现金分红。
+- 超额收益 = ETF 总收益 - 基准总收益；总收益为不复权收盘价加回期间现金分红
+  （分红不再投资），零费用：不计佣金、冲击成本与跟踪误差。
 - 月度信号的持有窗口互相重叠，普通 t 检验会高估显著性。这里用循环平移检验：
   把信号序列整体平移再比较，保留两条序列各自的自相关。
 - 多个行业和周期一起检验，用 Benjamini-Hochberg 控制错误发现率。
+
+份额拆分/合并会机械地改写不复权价格。目前 corporate_action 里没有这类记录，
+调用方用价格缺口找出疑似拆并日，作为 ``barriers`` 传入；跨越障碍日的收益
+窗口整段剔除并计数，绝不用猜出来的比例去复权。
 """
 
 from __future__ import annotations
@@ -76,11 +81,17 @@ def forward_excess(
     asset: PriceLine,
     benchmark: PriceLine,
     trading_days: int,
-) -> tuple[list[tuple[bool, float]], int]:
-    """返回按时间排序的 (信号, 超额收益) 与尚未走完窗口的发布数。"""
+    barriers: Sequence[date] = (),
+) -> tuple[list[tuple[bool, float]], int, int]:
+    """返回按时间排序的 (信号, 超额收益)、尚未走完窗口的发布数、跨越障碍日的窗口数。
+
+    障碍日是疑似份额拆并日：入场后、退出前（含退出日）碰到即整段作废——
+    拆并会把不复权价格机械地放大或缩小，不做复权就不得分。
+    """
     common = sorted(set(asset.days) & set(benchmark.days))
     outcomes: list[tuple[bool, float]] = []
     pending = 0
+    blocked = 0
     for release in releases:
         if release.signal is None:
             continue
@@ -97,9 +108,12 @@ def forward_excess(
             pending += 1
             continue
         exit_day = common[exit_index]
+        if any(entry < barrier <= exit_day for barrier in barriers):
+            blocked += 1
+            continue
         excess = asset.total_return(entry, exit_day) - benchmark.total_return(entry, exit_day)
         outcomes.append((release.signal, excess))
-    return outcomes, pending
+    return outcomes, pending, blocked
 
 
 def _difference(signals: Sequence[bool], returns: Sequence[float]) -> float | None:
