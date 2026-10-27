@@ -1,0 +1,23 @@
+# 回顾性工程示范，2026-10-27 固定；未作历史事前注册，不作有效性证明。
+version: chain-demo-v1
+chain: power-electrical
+name: 电力及电气设备
+leading_series: cn.nbs.pmi.production
+leading_name: PMI 生产
+leading_floor: 50.0
+leading_delta: 0.5
+leading_max_age_days: 75
+fundamental_max_age_days: 120
+min_history_days: 20
+max_weight: 0.5
+commission_bps: 3.0
+slippage_bps: 5.0
+cash_rate_annual: 0.0
+event_windows: [21, 63, 126]
+industries:
+  CN_NBS_D44:
+    name: 电力、热力生产和供应业
+    prefix: cn.nbs.industry_d44
+  CN_NBS_C38:
+    name: 电气机械和器材制造业
+    prefix: cn.nbs.industry_c38

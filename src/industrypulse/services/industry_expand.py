@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Any
 from industrypulse.contracts import ObservationVintage, RawArtifact
 from industrypulse.core.html_tables import tables
 from industrypulse.datahub.adapters import parse_table, resolve_table_column
+from industrypulse.services.as_published import evaluate_claim, parse_claim
 from industrypulse.services.ingest import BatchItem, IngestService
 
 if TYPE_CHECKING:
@@ -63,8 +64,30 @@ def expand_industries(service: Workbench, options: dict[str, Any]) -> dict[str, 
         )
         row_label = registry.nodes[0].names["zh"]
         specs = {spec.series_id: spec for spec in registry.series}
+        financial_series = [sid for sid in specs if sid.startswith(prefix + ".")]
+        existing = repository.all_vintages(financial_series)
+        already = {(r.artifact_id, r.series_id) for r in existing}
+        reused = 0
         for raw, period in originals:
             artifact = RawArtifact.model_validate_json(raw)
+            matched = [r for r in existing if r.artifact_id == artifact.artifact_id]
+            eligible = (
+                bool(matched)
+                and evaluate_claim(
+                    parse_claim("auto"),
+                    publication_at=matched[0].publication_at,
+                    fallback_captured_at=artifact.retrieved_at,
+                ).ok
+            )
+            upgraded = all(
+                any(r.series_id == sid and r.value_evidence.value == "A" for r in matched)
+                for sid in financial_series
+            )
+            if all((artifact.artifact_id, sid) in already for sid in financial_series) and (
+                not eligible or upgraded
+            ):
+                reused += 1
+                continue
             content = Path(artifact.uri).read_bytes()
             html = content.decode("utf-8")
             parsed = []
@@ -108,18 +131,36 @@ def expand_industries(service: Workbench, options: dict[str, Any]) -> dict[str, 
             except ValueError as exc:
                 failures.append({"period": str(period), "reason": str(exc)})
         if items:
-            report = IngestService(repository, parser_version="industry-expand-v1").ingest_batch(
-                items, snapshot_id="expand-" + industry + "-" + str(len(items))
+            # Equal document counts may contain revised official originals.
+            # Content identity prevents a count-only snapshot collision.
+            from hashlib import sha256
+
+            material = "|".join(sorted(item.artifact.sha256 for item in items))
+            report = IngestService(repository, parser_version="industry-expand-v2").ingest_batch(
+                items,
+                snapshot_id="expand-v2-"
+                + industry
+                + "-"
+                + sha256(material.encode()).hexdigest()[:16],
+                as_published=parse_claim("auto"),
             )
             reports.append(
                 {
                     "industry": industry,
                     "report": report.model_dump(mode="json"),
                     "skipped": failures,
+                    "unchanged_documents": reused,
                 }
             )
         else:
-            reports.append({"industry": industry, "status": "NO_DATA", "skipped": failures})
+            reports.append(
+                {
+                    "industry": industry,
+                    "status": "UP_TO_DATE" if reused else "NO_DATA",
+                    "skipped": failures,
+                    "unchanged_documents": reused,
+                }
+            )
     with repository.database.transaction() as connection:
         rows = [
             ObservationVintage.model_validate_json(row[0])

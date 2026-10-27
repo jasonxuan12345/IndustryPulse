@@ -1,0 +1,28 @@
+version: opportunity-policy-v1
+# These are prospective research controls, frozen before collecting outcomes.
+# They are not fitted to the chain demo's returns.
+models: [M00_LAST, M01_SEASONAL, M02_AR, M03_LOGIT, M04_ELASTIC]
+minimum_training_rows: 24
+minimum_oos_rows: 12
+commission_bps: 3.0
+slippage_bps: 5.0
+stress_commission_bps: 10.0
+stress_slippage_bps: 10.0
+fundamental_max_age_days: 120
+price_max_age_days: 5
+minimum_common_bars: 61
+minimum_average_volume: 1000000
+max_annualized_volatility: 0.40
+max_recent_drawdown: 0.15
+single_asset_weight: 0.10
+industry_weight: 0.15
+total_weight: 0.30
+max_turnover: 0.20
+portfolio_drawdown_pause: 0.10
+asset_loss_revoke: 0.08
+asset_drawdown_revoke: 0.10
+risk_cooldown_days: 30
+require_exact_proxy: true
+require_independent_dividend_check: true
+require_model_edge: true
+benchmark_id: ETF_510300

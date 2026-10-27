@@ -1355,8 +1355,10 @@ def model_baseline(
         )
         price_spec = price_map.get(industry_id) or {}
         asset_id = str(price_spec.get("asset_id") or "")
-        run_dir = service.root / "artifacts/reports/experiments" / (
-            "baseline-" + ran_at.replace(":", "").replace("-", "")
+        run_dir = (
+            service.root
+            / "artifacts/reports/experiments"
+            / ("baseline-" + ran_at.replace(":", "").replace("-", ""))
         )
         for target_id, question, horizon in targets_meta:
             entry: dict[str, Any] = {
@@ -1470,11 +1472,205 @@ def model_baseline(
         typer.echo(f"\nJSON 报告已写入 {out}")
 
 
+@app.command("chain-demo")
+def chain_demo(
+    database: Annotated[Path, typer.Option("--database")] = Path("data/g2.duckdb"),
+    snapshot: Annotated[str, typer.Option("--snapshot")] = "",
+    config: Annotated[Path | None, typer.Option("--config", help="可选产业链规则配置")] = None,
+    as_of: Annotated[str, typer.Option("--as-of", help="带时区的 ISO 截止时间")] = "",
+    start: Annotated[str, typer.Option("--start")] = "2022-01-01",
+    inputs: Annotated[Path | None, typer.Option("--inputs", help="使用冻结输入离线重放")] = None,
+    out: Annotated[Path, typer.Option("--out", help="输出目录")] = Path(
+        "artifacts/reports/chain-demo"
+    ),
+) -> None:
+    """电力及电气设备链：领先事件、经济验证、资产筛选和费后回测。"""
+    from industrypulse.contracts import TZ_SHANGHAI
+    from industrypulse.services.chain_demo import (
+        digest,
+        format_report,
+        freeze_inputs,
+        run_chain_demo,
+    )
+    from industrypulse.services.workbench import Workbench, write_json
+
+    if inputs is not None:
+        bundle = json.loads(inputs.read_text(encoding="utf-8"))
+    else:
+        service = Workbench()
+        service.path = database.resolve()
+        repository = service.repository()
+        moment = datetime.fromisoformat(as_of) if as_of else datetime.now(TZ_SHANGHAI)
+        bundle = freeze_inputs(
+            repository,
+            DuckDBMarketRepository(repository.database),
+            root=service.root,
+            snapshot_id=service.snapshot(repository, snapshot),
+            as_of=moment,
+            start=date.fromisoformat(start),
+            config_path=config,
+        )
+    payload = run_chain_demo(bundle)
+    folder = out / digest(bundle)[:16]
+    write_json(folder / "inputs.json", bundle)
+    write_json(folder / "report.json", payload)
+    report_text = format_report(payload)
+    (folder / "report.md").write_text(report_text, encoding="utf-8")
+    from industrypulse.services.chain_demo_report import render_html
+
+    (folder / "report.html").write_text(render_html(payload), encoding="utf-8")
+    typer.echo(report_text)
+    typer.echo(f"\n完整报告、逐日证据、逐笔成交与冻结输入：{folder.resolve()}")
+
+
+@app.command("ledger-seed")
+def ledger_seed() -> None:
+    """按真实登记时间补记经济假设与领先事件（不会当成买入推荐）。"""
+    from industrypulse.services.ledger import seed
+
+    payload = seed()
+    _emit(payload)
+
+
+@app.command("ledger-update")
+def ledger_update() -> None:
+    """追加费后收益、最大回撤与到期评价；缺行情继续等待。"""
+    from industrypulse.repositories import DuckDBMarketRepository
+    from industrypulse.services.ledger import update
+    from industrypulse.services.workbench import Workbench
+
+    service = Workbench()
+    repository = service.repository()
+    market = DuckDBMarketRepository(repository.database)
+    _emit(update(market))
+
+
+@app.command("ledger-daily")
+def ledger_daily() -> None:
+    """推荐账本日报：今日记录、未关闭推荐与风险提示。"""
+    from industrypulse.services.ledger import daily_report, format_daily
+
+    typer.echo(format_daily(daily_report()))
+
+
+@app.command("ledger-weekly")
+def ledger_weekly() -> None:
+    """成熟窗口误报、撤销与工具耗时，未成熟不评分。"""
+    from industrypulse.services.ledger import format_weekly, weekly_report
+
+    typer.echo(format_weekly(weekly_report()))
+
+
+@app.command("ledger-run")
+def ledger_run(
+    refresh_prices: Annotated[bool, typer.Option("--refresh-prices")] = False,
+) -> None:
+    """补记来源、当前筛选、跟踪窗口并保存日报周报。"""
+    from industrypulse.services.ledger_runtime import run
+    from industrypulse.services.workbench import Workbench
+
+    _emit(run(Workbench(), refresh=refresh_prices))
+
+
+@app.command("ledger-start")
+def ledger_start() -> None:
+    """开启持久监控配置并立刻开账；应用运行时每15分钟更新。"""
+    from industrypulse.services.ledger_runtime import configure, run
+    from industrypulse.services.workbench import Workbench
+
+    service = Workbench()
+    _emit({"settings": configure(service, True), "run": run(service)})
+
+
+@app.command("ledger-mark")
+def ledger_mark(
+    identifier: str,
+    action: str,
+    reason: Annotated[str, typer.Option("--reason")],
+    evidence: Annotated[str, typer.Option("--evidence")] = "",
+    event_at: Annotated[str, typer.Option("--event-at")] = "",
+) -> None:
+    """追加撤销，或带验证事件时间、证据的经济假设确认/证伪。"""
+    from industrypulse.services.ledger import mark
+
+    _emit(mark(identifier, action, reason=reason, evidence=evidence, event_at=event_at))
+
+
+@app.command("research-run")
+def research_run(
+    refresh_sources: Annotated[bool, typer.Option("--refresh-sources")] = False,
+    no_ai: Annotated[bool, typer.Option("--no-ai")] = False,
+) -> None:
+    """逐行业检查新数据、预测、AI反证、风险门槛并写入前瞻账本。"""
+    from industrypulse.services.research_loop import run
+    from industrypulse.services.workbench import Workbench
+
+    result = run(Workbench(), refresh=refresh_sources, use_ai=not no_ai)
+    _emit(
+        {
+            k: result[k]
+            for k in (
+                "status",
+                "universe_size",
+                "checked",
+                "events_created",
+                "ai_pending",
+                "errors",
+                "allocation",
+            )
+        }
+    )
+
+
+@app.command("research-start")
+def research_start() -> None:
+    """启用应用内自动研究，保存设置并立即运行一次。"""
+    from industrypulse.services.research_loop import configure, run
+    from industrypulse.services.workbench import Workbench
+
+    service = Workbench()
+    _emit(configure(service, True))
+    result = run(service)
+    _emit({k: result[k] for k in ("status", "checked", "events_created", "ai_pending", "errors")})
+
+
+@app.command("research-revalidate")
+def research_revalidate(event_id: str) -> None:
+    """对完全相同的已缓存AI响应重新校验，不调用模型。"""
+    from industrypulse.services.research_loop import revalidate
+    from industrypulse.services.workbench import Workbench
+
+    result = revalidate(Workbench(), event_id)
+    _emit({key: result[key] for key in ("appended", "cache_hits", "failures", "budget")})
+
+
+@app.command("research-replay")
+def research_replay(event_id: str) -> None:
+    """不联网、不写账本，按冻结输入与代码版本复算原事件预测。"""
+    from industrypulse.services.research_loop import replay
+    from industrypulse.services.workbench import Workbench
+
+    result = replay(Workbench(), event_id)
+    _emit({k: result[k] for k in ("event_id", "identical", "original_sha256", "replay_sha256")})
+
+
+@app.command("baseline-check")
+def baseline_check(
+    refresh_sources: Annotated[bool, typer.Option("--refresh-sources")] = False,
+) -> None:
+    """归档独立来源，核对分红及异常公司行动，列出未解决证据。"""
+    from industrypulse.services.trusted_baseline import run
+    from industrypulse.services.workbench import Workbench
+
+    result = run(Workbench(), refresh=refresh_sources)
+    _emit(
+        {k: result[k] for k in ("unclassified_gaps", "dividend_unresolved", "corporate_documents")}
+    )
+
+
 @app.command("market-sync")
 def market_sync(
-    macro: bool = typer.Option(
-        False, "--macro", help="同步宏观指标（东财数据中心 + 中国货币网）"
-    ),
+    macro: bool = typer.Option(False, "--macro", help="同步宏观指标（东财数据中心 + 中国货币网）"),
     history: bool = typer.Option(False, "--history", help="回填行业指数/ETF/基准日 K 历史"),
     bars: int = typer.Option(760, "--bars", help="历史回填棒数（约 3 年）"),
 ) -> None:

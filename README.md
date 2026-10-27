@@ -1,5 +1,8 @@
 # IndustryPulse
 
+主动研究与条件机会页面：`http://127.0.0.1:8765/research`。20行业的新数据、现有模型、
+独立AI反证与前瞻账本已接通；使用和验收见 [详细验收](docs/v3/event-research-acceptance.md)。
+
 本地优先的行业经济监测、预测与投资研究工作台：从官方公告与公开资讯采集行业数据，
 计算景气指标、运行预测模型、回测 ETF 策略——所有数据与计算都在你自己的电脑上完成。
 
@@ -95,6 +98,8 @@ uv sync --all-extras
 | `compare-modes` | 三种证据模式对照 |
 | `etf` / `backtest` | ETF 数据管道与回测 |
 | `workbench-run` | 预测/实验/回测/备份等后台作业 |
+| `chain-demo` | 完整产业链示范：领先事件、经济验证、ETF筛选与费后回测，含冻结输入及离线报告 |
+| `ledger-start / ledger-run / ledger-daily / ledger-weekly / ledger-mark` | 开启前瞻账本、持续采集、费后窗口评估、日报周报及追加撤销/验证 |
 | `serve` | 启动 API 服务 |
 
 ## 数据与隐私

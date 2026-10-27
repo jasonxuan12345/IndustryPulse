@@ -1,5 +1,20 @@
 # 本地运行与故障处置
 
+## 主动研究与条件机会
+
+页面 `/research` 自动扫描20行业，连接现有模型、独立AI反证和前瞻账本。
+运行应用 `uvicorn industrypulse.api.runtime:app --host 127.0.0.1 --port 8765` 后，
+已启用的监控会恢复；关闭应用会停止监控。
+
+`industrypulse research-start` 启用并立即运行；`research-run --no-ai`仅计算与留档；
+`research-run --refresh-sources`同时尝试采集最新数据；`research-replay EVENT_ID`离线复算预测；
+`research-revalidate EVENT_ID`只重验同输入缓存，不发起模型请求。
+每日12次模型请求预算包含失败尝试；未处理事件保留等待原因，不能通过改日或清空预算伪造研究。
+
+完整风险规则、收益口径及验收见 `docs/v3/event-research-acceptance.md`。
+备份应同时保存 `data/ledger` 的账本与链头、`data/research-loop` 冻结输入/事件/状态、
+`data/research` 响应缓存及假设、`data/baseline` 原件和清单；不要仅复制DuckDB。
+
 ## 启动
 
 双击项目根目录的 `启动IndustryPulse.cmd` 即可。启动后自动打开独立 Edge / Chrome
@@ -102,6 +117,18 @@ PATH 上的 `python` / `py`（通过版本探测才采用，Microsoft Store 占�
 最终 holdout 只能封存未来窗口。封存后从训练与选参排除；评估时导入 `{"id":"封存标识"}`，窗口未结束会拒绝提前查看。30 文档审计包来自真实原件，需要独立填写 expected_value 和 reviewer 后导入；未标注不能声称金样本审计通过。
 
 ## 常见故障
+
+### 前瞻账本
+
+工作台侧栏「前瞻账本」打开 `/ledger`。首次可用 `industrypulse ledger-start` 开启并立即开账，
+之后应用运行时每15分钟采集来源、行业假设和当前筛选；每日18点后首次轮询同步必要ETF价格和分红。
+也可在账本页手动同步、登记自己的资产研究候选、追加撤销或引用验证事件。
+关闭账本监控只停采集，不删除记录，也不影响原有公告/预测调度。
+
+三／六个月窗口从真实入场日计算日历月，成熟前不评分。缺行情与未核实公司行动继续等待，
+不会算作误报。经济假设和领先事件单独留档，不当成买入推荐；没有合格候选时记录拒绝理由。
+数据在 `data/ledger/`，备份时应将整个目录（JSONL、链头及配置）一起复制；不要只复制JSONL或手工编辑其中的行。
+完整口径、复现和限制见 `docs/v3/ledger-acceptance.md`。
 
 - 没有预测：先看失败模型、行业序列和模式。STRICT 历史原件不足时结果为空，重建模式可用；不修改证据等级来补覆盖。
 - 无最新输入：查看输入所属期和 age_days；公告尚未发布时，旧报告与其原时点仍保留。

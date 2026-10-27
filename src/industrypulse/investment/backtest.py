@@ -201,7 +201,7 @@ class BacktestEngine:
             if scheduled is not None:
                 weights = scheduled
                 equity = cash + sum(
-                    (quantity * self._close(asset, day) for asset, quantity in positions.items()),
+                    (quantity * self._open(asset, day) for asset, quantity in positions.items()),
                     Decimal(0),
                 )
                 clamped = self._clamp(weights, result_warnings, day)
@@ -209,7 +209,7 @@ class BacktestEngine:
                     asset: equity * Decimal(str(weight)) for asset, weight in clamped.items()
                 }
                 current_values = {
-                    asset: quantity * self._close(asset, day)
+                    asset: quantity * self._open(asset, day)
                     for asset, quantity in positions.items()
                 }
                 deltas = {

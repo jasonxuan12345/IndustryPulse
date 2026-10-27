@@ -1,0 +1,25 @@
+version: news-routing-v1
+# Explicit lexical routing is a research lead, not a verified industrial fact.
+max_age_days: 7
+max_items_per_industry: 12
+keywords:
+  CN_NBS_C06: [煤炭, 焦煤, 动力煤, coal]
+  CN_NBS_B07: [原油, 石油开采, crude oil]
+  CN_NBS_C09: [铜矿, 铝土矿, 金属采矿, copper mining]
+  CN_NBS_C13: [饲料, 屠宰, 养殖, 生猪]
+  CN_NBS_C14: [食品制造, 乳制品, 乳业]
+  CN_NBS_C15: [白酒, 啤酒, 饮料]
+  CN_NBS_C25: [炼油, 炼化, 石油加工]
+  CN_NBS_C26: [化工, 化肥, chemical]
+  CN_NBS_C27: [医药, 制药, 药品, pharmaceutical]
+  CN_NBS_C30: [水泥, 玻璃, 建材]
+  CN_NBS_C31: [钢铁, 钢材, 钢厂, steel]
+  CN_NBS_C32: [冶炼, 电解铝, 有色金属, smelting]
+  CN_NBS_C34: [通用设备, 工业机器人, 自动化设备]
+  CN_NBS_C35: [专用设备, 工程机械, 半导体设备]
+  CN_NBS_C36: [汽车, 整车, 比亚迪, 特斯拉, automotive]
+  CN_NBS_C37: [船舶, 航空, 轨道交通, 军工]
+  CN_NBS_C38: [电网设备, 电气设备, 光伏, 风电, 电池, 储能]
+  CN_NBS_C39: [电子, 半导体, 芯片, 集成电路, semiconductor]
+  CN_NBS_C40: [仪器仪表, 测量仪器, 检测仪器]
+  CN_NBS_D44: [电力, 发电, 电价, 火电, 水电, 电网, electricity]

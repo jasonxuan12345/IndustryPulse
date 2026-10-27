@@ -309,7 +309,9 @@ class DuckDBObservationRepository:
             ).fetchall()
         return tuple(ObservationVintage.model_validate_json(row[0]) for row in rows)
 
-    def all_vintages(self, series_ids: Sequence[str]) -> list[ObservationVintage]:
+    def all_vintages(
+        self, series_ids: Sequence[str], *, snapshot_id: str | None = None
+    ) -> list[ObservationVintage]:
         """这些序列的全部版本（不分所属期、不做 as-of 过滤）。
 
         修订可见性重放需要原始版本全集：先取全量，再按模式在外面套
@@ -319,10 +321,24 @@ class DuckDBObservationRepository:
             return []
         with self.database.transaction() as conn:
             marks = ",".join("?" for _ in series_ids)
+            params: list[Any] = list(series_ids)
+            snapshot_filter = ""
+            if snapshot_id is not None:
+                if not conn.execute(
+                    "SELECT 1 FROM publication WHERE snapshot_id=?", [snapshot_id]
+                ).fetchone():
+                    raise PublicationError("unregistered frozen dataset snapshot")
+                snapshot_filter = (
+                    "AND (series_id,observation_start,vintage_id) IN "
+                    "(SELECT series_id,observation_start,vintage_id FROM publication_row "
+                    "WHERE snapshot_id=?) "
+                )
+                params.append(snapshot_id)
             rows = conn.execute(
                 f"SELECT payload FROM observation_vintage WHERE series_id IN ({marks}) "
-                "ORDER BY series_id,observation_start,vintage_id",
-                list(series_ids),
+                + snapshot_filter
+                + "ORDER BY series_id,observation_start,vintage_id",
+                params,
             ).fetchall()
         return [ObservationVintage.model_validate_json(row[0]) for row in rows]
 

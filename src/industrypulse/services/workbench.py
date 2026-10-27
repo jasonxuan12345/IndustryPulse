@@ -60,6 +60,9 @@ class Workbench:
         self.runner = JobRunner(self.output / "jobs.sqlite")
         self.pool = ThreadPoolExecutor(max_workers=1, thread_name_prefix="research")
         self.scheduler: Any = None
+        self.ledger_monitor: Any = None
+        self.research_monitor: Any = None
+        self.news_service: Any = None
 
     def repository(self, lag: int = 5) -> DuckDBObservationRepository:
         if not self.path.exists():

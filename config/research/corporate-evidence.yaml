@@ -1,0 +1,39 @@
+version: corporate-evidence-v1
+# Dates below distinguish the legal action day from the first changed quote.
+# Issuer-authored notices on a mirror are not contemporary captures.
+events:
+  - asset_id: ETF_515220
+    action_day: '2024-04-11'
+    price_day: '2024-04-12'
+    type: share_split
+    ratio: '2'
+    source_url: https://www.sse.com.cn/disclosure/fund/announcement/c/new/2024-04-12/515220_20240412_5CZN.pdf
+    required_text: ['515220', '2024', '3,049,176,918.00']
+  - asset_id: ETF_512690
+    action_day: '2021-05-14'
+    price_day: '2021-05-17'
+    type: share_split
+    ratio: '2'
+    source_url: https://pdf.dfcfw.com/pdf/H2_AN202104301488754965_1.pdf
+    required_text: ['512690', '2021', '拆分']
+  - asset_id: ETF_512010
+    action_day: '2021-06-25'
+    price_day: '2021-06-28'
+    type: share_split
+    ratio: '4'
+    source_url: https://pdf.dfcfw.com/pdf/H2_AN202106221499256598_1.pdf
+    required_text: ['512010', '2021', '拆分']
+  - asset_id: ETF_516160
+    action_day: '2024-09-13'
+    price_day: '2024-09-18'
+    type: share_merge
+    ratio: '0.30912005'
+    source_url: https://www.sse.com.cn/disclosure/fund/announcement/c/new/2024-09-18/516160_20240918_SUF6.pdf
+    required_text: ['516160', '0.30912005', '2,853,642,001.00']
+  - asset_id: ETF_512690
+    action_day: '2021-12-31'
+    price_day: '2021-12-31'
+    type: cash_dividend
+    per_unit: '0.35'
+    source_url: https://pdf.dfcfw.com/pdf/H2_AN202112291537271726_1.pdf
+    required_text: ['512690', '3.50', '2021']

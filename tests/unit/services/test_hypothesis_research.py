@@ -91,7 +91,7 @@ def _state_counter() -> dict:
     return {
         "counter_evidence": [
             {
-                "fact_ref": "F3",
+                "fact_ref": "F4",
                 "observation": "利润环比变动 +0.4 在改善",
                 "weight": "contradicts",
                 "note": "环比改善则假设削弱",
@@ -279,6 +279,19 @@ class TestRun:
         )
         assert counter == 2  # 没有新的模型调用
         assert second["cache_hits"] == 1
+        (tmp_path / "budget.json").write_text(
+            json.dumps({"date": NOW.date().isoformat(), "used": 12, "limit": 12}), encoding="utf-8"
+        )
+        third = hr.run_hypothesis_research(
+            fake_complete,
+            _FakeConnection(),
+            self._state(),
+            events=self._events(),
+            cached_only=True,
+            **kwargs,
+        )
+        assert counter == 2 and third["cache_hits"] == 1 and third["budget"]["used"] == 12
+        assert third["appended"] == 0
         assert second["budget"]["used"] == 2  # 缓存命中不消耗预算
 
     def test_model_failure_is_isolated(self, tmp_path: Path) -> None:

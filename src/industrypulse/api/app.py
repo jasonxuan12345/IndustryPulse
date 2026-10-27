@@ -57,6 +57,12 @@ def create_app(
 
     application.include_router(create_model_router())
     application.include_router(create_workbench_router())
+    from industrypulse.api.ledger import create_ledger_router
+
+    application.include_router(create_ledger_router())
+    from industrypulse.api.research_loop import create_research_router
+
+    application.include_router(create_research_router())
     web_root = ROOT / "apps/dashboard/web"
     if web_root.is_dir():
         application.mount(
@@ -80,7 +86,9 @@ def create_app(
 
     @application.exception_handler(RequestValidationError)
     async def invalid_input(request: Request, exc: RequestValidationError) -> JSONResponse:
-        if request.url.path.startswith(("/api/dashboard/", "/api/workbench/")):
+        if request.url.path.startswith(
+            ("/api/dashboard/", "/api/workbench/", "/api/ledger/", "/api/research/")
+        ):
             return await request_validation_exception_handler(request, exc)
         _ = exc
         return await failure(request, ApiFailure(ErrorCode.CONTRACT_MISMATCH, "请求参数与合同不符"))

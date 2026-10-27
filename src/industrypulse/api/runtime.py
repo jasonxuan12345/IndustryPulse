@@ -139,14 +139,27 @@ def start_schedule() -> None:
     from industrypulse.services.workbench_ops import configure_schedule
 
     service = workspace()
+    service.news_service = app.state.news_service
     path = service.output / "schedule.json"
     if path.exists() and json.loads(path.read_text(encoding="utf-8")).get("enabled"):
         configure_schedule(service, True)
+    from industrypulse.services.ledger_runtime import LedgerMonitor
+
+    service.ledger_monitor = LedgerMonitor(service)
+    service.ledger_monitor.start()
+    from industrypulse.services.research_loop import ResearchMonitor
+
+    service.research_monitor = ResearchMonitor(service)
+    service.research_monitor.start()
 
 
 @app.on_event("shutdown")
 def stop_schedule() -> None:
     service = workspace()
+    if service.ledger_monitor is not None:
+        service.ledger_monitor.stop()
+    if service.research_monitor is not None:
+        service.research_monitor.stop()
     if service.scheduler is not None:
         service.scheduler.shutdown(wait=False)
     service.pool.shutdown(wait=False)
