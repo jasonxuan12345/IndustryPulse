@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import enum
 import hashlib
+import inspect
 import json
 from pathlib import Path
 from typing import Any
@@ -77,7 +78,7 @@ def collect_schemas() -> dict[str, str]:
                     "title": obj.__name__,
                     "type": "string",
                     "enum": [member.value for member in obj],
-                    "description": (obj.__doc__ or "").strip(),
+                    "description": inspect.cleandoc(obj.__doc__ or ""),
                 }
             else:
                 continue

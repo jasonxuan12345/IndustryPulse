@@ -20,7 +20,7 @@ def check(base: str) -> None:
                 report = json.load(response)
             assert report["status"] in {"not_run", "completed", "degraded"}
             break
-        except (URLError, TimeoutError):
+        except (URLError, TimeoutError, ConnectionError):
             time.sleep(0.5)
     else:
         raise RuntimeError("Dashboard did not become ready")
