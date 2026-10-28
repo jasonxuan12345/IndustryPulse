@@ -45,3 +45,5 @@ Windows、macOS、Linux 使用同一个 Python/FastAPI 服务和静态浏览器�
 - 未生成研究：等待首次资讯采集，检查订阅、统计数据与搜索配置。没有证据时不会强行生成建议。
 - 日历未知：自动研究跳过并告警，需要更新交易日历；手动运行仍可执行只读研究。
 - 停止：命令行Ctrl+C；Windows独立窗口使用原启动器的关闭机制；容器使用Compose停止命令。
+
+可选 LightGBM 在macOS需先执行 `brew install libomp`，Linux需系统OpenMP运行库（如libgomp1）。这属于可选高级模型依赖，默认资讯与AI研究不需要它。命令行入口显式使用UTF-8，支持Windows非中文系统的重定向日志。

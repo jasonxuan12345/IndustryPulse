@@ -10,11 +10,13 @@ import sys
 from pathlib import Path
 
 from industrypulse.contracts import export
+from industrypulse.core.console import configure_utf8
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
 
 def main(argv: list[str] | None = None) -> int:
+    configure_utf8()
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--check", action="store_true", help="只比对不写出；漂移退出码 1")
     args = parser.parse_args(argv)

@@ -6,6 +6,8 @@
 
 ## 快速开始
 
+macOS/Linux 如果没有 `python` 命令，可将创建环境时的 `python` 换成 `python3`。
+
 需要 **Python 3.12 或 3.13**、Git，以及可访问所配置模型和公开数据源的网络。运行前端不需要 Node.js。以下命令均在项目根目录执行；推荐从源码检出后安装，不将未包含配置/静态资源的单独 wheel 当成完整发行包。
 
 ```sh
@@ -107,7 +109,7 @@ python -m pytest --basetemp=artifacts/pytest-local --disable-warnings
 node scripts/check_dashboard_states.cjs
 ```
 
-Node.js 22+ 仅用于前端开发校验。LightGBM、AKShare 是可选项，分别通过 `.[advanced]`、`.[market]` 安装；Linux 的 LightGBM 可能需要系统 OpenMP 运行库。默认核心安装不依赖它们。
+Node.js 22+ 仅用于前端开发校验。LightGBM、AKShare 是可选项，分别通过 `.[advanced]`、`.[market]` 安装；Linux 的 LightGBM 可能需要系统 OpenMP 运行库；macOS 使用前执行 `brew install libomp`。默认核心安装不依赖它们。
 
 CI 覆盖 Windows / macOS / Ubuntu × Python 3.12 / 3.13，执行静态检查、合同同步、回归和前端状态校验。实际结果以 [GitHub Actions](https://github.com/jasonxuan12345/IndustryPulse/actions) 为准，不将配置了矩阵等同于已经验证所有环境。
 

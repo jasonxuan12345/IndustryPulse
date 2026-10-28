@@ -18,6 +18,10 @@ def main() -> None:
     sys.path.insert(0, str(root / "src"))
     import uvicorn
 
+    from industrypulse.core.console import configure_utf8
+
+    configure_utf8()
+
     env = root / ".env"
     uvicorn.run(
         "industrypulse.api.runtime:app",

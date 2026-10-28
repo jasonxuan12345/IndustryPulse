@@ -96,6 +96,13 @@ DEFAULT_TAXONOMY = Path("config/industries/steel.yaml")
 DEFAULT_AUDIT = Path("data/registry-audit.jsonl")
 
 
+@app.callback()
+def initialize_console() -> None:
+    from industrypulse.core.console import configure_utf8
+
+    configure_utf8()
+
+
 def _emit(payload: Any) -> None:
     typer.echo(json.dumps(payload, ensure_ascii=False, indent=2, default=str))
 
