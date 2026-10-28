@@ -411,9 +411,7 @@ def format_baseline_report(payload: dict[str, Any]) -> str:
             continue
         lines.append(f"  问题：{item['question']}")
         lines.append(f"  预测期：{item['horizon']} · 基准 {item['benchmark']} · {item['oos_only']}")
-        gate_note = (
-            "满足，已加入对照" if gate["eligible"] else "不满足，未加入"
-        )
+        gate_note = "满足，已加入对照" if gate["eligible"] else "不满足，未加入"
         lines.append(
             f"  高级模型门槛：{gate_note}"
             f"（可评分 {gate['scorable_rows']}，正类 {gate['class_one']}，"

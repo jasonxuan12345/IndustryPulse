@@ -46,9 +46,35 @@ def config_path() -> Path:
 
 def load_connection() -> ModelConnection | None:
     path = config_path()
-    if not path.exists():
-        return None
-    return ModelConnection.model_validate_json(path.read_text(encoding="utf-8"))
+    saved = (
+        ModelConnection.model_validate_json(path.read_text(encoding="utf-8"))
+        if path.exists()
+        else None
+    )
+    prefix = "INDUSTRYPULSE_MODEL_"
+    if not any(os.getenv(prefix + k) for k in ("BASE_URL", "API_KEY", "NAME", "PROTOCOL")):
+        return saved
+    base = os.getenv(prefix + "BASE_URL") or (saved.base_url if saved else "")
+    model = os.getenv(prefix + "NAME") or (saved.model if saved else "")
+    if not base or not model:
+        raise ValueError("环境变量需配置 INDUSTRYPULSE_MODEL_BASE_URL 和 INDUSTRYPULSE_MODEL_NAME")
+    key = os.getenv(prefix + "API_KEY")
+    if key is None:
+        key = (
+            saved.api_key.get_secret_value()
+            if saved and normalize_url(base) == normalize_url(saved.base_url)
+            else ""
+        )
+    return ModelConnection.model_validate(
+        {
+            "base_url": normalize_url(base),
+            "model": model,
+            "api_key": key,
+            "protocol": os.getenv(prefix + "PROTOCOL")
+            or (saved.protocol if saved else "chat_completions"),
+            "enabled": saved.enabled if saved else True,
+        }
+    )
 
 
 def resolve_connection(connection: ModelConnection) -> ModelConnection:

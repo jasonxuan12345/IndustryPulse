@@ -8,15 +8,15 @@ from __future__ import annotations
 
 import re
 from datetime import date
-from typing import Any
+from typing import Any, cast
 
 import pandas as pd
 
 _PERIOD_PATTERNS = [
-    (re.compile(r"^(\d{4})年(\d{2})月份?$"), lambda m: (int(m.group(1)), int(m.group(2)))),
-    (re.compile(r"^(\d{4})年(\d{1,2})月"), lambda m: (int(m.group(1)), int(m.group(2)))),
-    (re.compile(r"^(\d{4})(\d{2})$"), lambda m: (int(m.group(1)), int(m.group(2)))),
-    (re.compile(r"^(\d{4})\.(\d{1,2})$"), lambda m: (int(m.group(1)), int(m.group(2)))),
+    re.compile(r"^(\d{4})年(\d{2})月份?$"),
+    re.compile(r"^(\d{4})年(\d{1,2})月"),
+    re.compile(r"^(\d{4})(\d{2})$"),
+    re.compile(r"^(\d{4})\.(\d{1,2})$"),
 ]
 
 
@@ -28,10 +28,10 @@ def parse_period(raw: Any) -> date:
     match = re.match(r"^(\d{4})-(\d{2})-(\d{2})", text)
     if match:
         return date(int(match.group(1)), int(match.group(2)), int(match.group(3)))
-    for pattern, extractor in _PERIOD_PATTERNS:
+    for pattern in _PERIOD_PATTERNS:
         matched = pattern.match(text)
         if matched:
-            year, month = extractor(matched)
+            year, month = int(matched.group(1)), int(matched.group(2))
             return date(year, month, 1)
     quarter = re.match(r"^(\d{4})年第(\d)(?:-(\d))?季度", text)
     if quarter:
@@ -50,7 +50,7 @@ def fetch_frame(function_name: str) -> pd.DataFrame:
     frame = function()
     if frame is None or len(frame) == 0:
         raise ValueError(f"akshare {function_name} 返回空表")
-    return frame
+    return cast(pd.DataFrame, frame)
 
 
 def normalize_frame(

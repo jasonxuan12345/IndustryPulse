@@ -667,9 +667,11 @@ class Workbench:
 
     def launch(self, action: str, options: dict[str, Any]) -> dict[str, str]:
         from industrypulse.services.industry_expand import expand_industries
+        from industrypulse.services.research_mvp import run as run_mvp
         from industrypulse.services.workbench_ops import backfill
 
         operations: dict[str, Callable[[dict[str, Any]], dict[str, Any]]] = {
+            "research_mvp": lambda options: run_mvp(self, run_id=options["run_id"]),
             "forecast": self.forecast,
             "experiment": self.experiment,
             "backtest": self.backtest,

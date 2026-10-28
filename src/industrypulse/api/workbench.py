@@ -103,9 +103,7 @@ def create_workbench_router() -> APIRouter:
         if connection is None or not connection.enabled or not connection.model:
             raise HTTPException(422, "请先在设置中启用并保存模型")
         try:
-            state = build_economic_state(
-                workspace(), body.mode, body.as_of, body.snapshot
-            )
+            state = build_economic_state(workspace(), body.mode, body.as_of, body.snapshot)
         except ValueError as exc:
             raise HTTPException(422, str(exc)) from exc
         brief = None

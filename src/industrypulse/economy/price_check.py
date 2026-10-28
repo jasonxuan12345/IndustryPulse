@@ -143,6 +143,7 @@ def compare(outcomes: Sequence[tuple[bool, float]]) -> dict[str, object]:
     if len(on) < MIN_EVENTS or len(off) < MIN_EVENTS:
         return result
     observed = _difference(signals, returns)
+    assert observed is not None  # Both groups meet MIN_EVENTS above.
     count = len(signals)
     shifted = [
         _difference([signals[(i + shift) % count] for i in range(count)], returns)

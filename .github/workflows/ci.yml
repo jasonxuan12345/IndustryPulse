@@ -9,15 +9,22 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        os: [ubuntu-latest, macos-latest, windows-latest]
         python-version: ["3.12", "3.13"]
     runs-on: ${{ matrix.os }}
+    env:
+      INDUSTRYPULSE_NEWS_AUTO_FETCH: "0"
+      INDUSTRYPULSE_MARKET_DATA: "0"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
           cache: pip
+          cache-dependency-path: pyproject.toml
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
       - name: Install
         run: python -m pip install -e ".[dev,advanced]"
       - name: Ruff lint
@@ -30,3 +37,26 @@ jobs:
         run: python scripts/export_contracts.py --check
       - name: Pytest
         run: pytest --cov=industrypulse --cov-report=term-missing
+      - name: Frontend checks
+        run: |
+          node --check apps/dashboard/web/app.js
+          node --check apps/dashboard/web/research-mvp.js
+          node scripts/check_dashboard_states.cjs
+      - name: Portable launcher
+        run: python scripts/start_dashboard.py --help
+      - name: Browser server smoke test
+        run: python scripts/smoke_dashboard.py
+
+  container:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build image
+        run: docker build -t industrypulse:ci .
+      - name: Start container
+        run: docker run -d --name industrypulse-ci -e INDUSTRYPULSE_NEWS_AUTO_FETCH=0 -e INDUSTRYPULSE_MARKET_DATA=0 -p 127.0.0.1:8765:8765 industrypulse:ci
+      - name: Verify container
+        run: python scripts/smoke_dashboard.py --url http://127.0.0.1:8765
+      - name: Show logs on failure
+        if: failure()
+        run: docker logs industrypulse-ci

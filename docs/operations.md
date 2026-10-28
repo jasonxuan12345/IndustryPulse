@@ -1,5 +1,11 @@
 # 本地运行与故障处置
 
+当前跨平台安装、环境变量和容器入口以 [部署与配置](deployment.md) 为准。
+Windows / macOS / Linux 均可使用 `python scripts/start_dashboard.py`；
+下文的独立窗口和 PowerShell 启动机制仅适用于 Windows。
+`/research` 现在展示 AI 基本面研究，原量化页面为 `/research/quant`。
+历史数据仍需导入，API配置不会自动补齐过去的PIT资料。
+
 ## 主动研究与条件机会
 
 页面 `/research` 自动扫描20行业，连接现有模型、独立AI反证和前瞻账本。

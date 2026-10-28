@@ -2,7 +2,7 @@
 
 ## 启动
 
-在项目根目录执行 `powershell -ExecutionPolicy Bypass -File scripts/start-dashboard.ps1`，
+在项目根目录执行 `python scripts/start_dashboard.py`（三大桌面系统通用），
 打开 http://127.0.0.1:8765 。旧 Streamlit 页面保留，新界面为默认 HTTP 首页。
 使用当前 Python 虚拟环境，无 Node 或前端构建步骤。
 
@@ -62,3 +62,16 @@ companies[].quote、market 元数据）、`POST /api/dashboard/feed`、`GET /api
 
 原系统的宏观、景气、预测、研究实验、回测、证据审查与运维也已接入此工作台，
 使用说明见 `operations.md`。公开订阅不提供付费全文权限；不包含交易下单功能。
+
+
+## 跨行业 AI 研究接口
+
+- `GET /research`：AI基本面门户；原量化页面是 `/research/quant`。
+- `GET /api/research/mvp/report?run_id=...`：精简归档投影，无归档为 `not_run`；损坏hash为409；未知运行为404。不输出密钥或巨量原始行情。
+- `POST /api/research/mvp/run`：以202返回既有任务队列ID；重复点击复用正在排队/运行的任务。
+- `GET /api/workbench/jobs/{id}`：后台任务状态与已保存结果。
+- `GET /api/research/mvp/download/{run_id}/{name}`：下载白名单内的队列、证据、审查、memo或简报。
+
+前端会区分未运行、无触发、筛选无匹配、部分补证失败、归档损坏和请求失败。缺行情时隐藏纯空图卡片，保留其他有效资讯与恢复入口；不能把null当成真实零值。
+
+模型配置支持保存到本机或通过环境变量提供。进程环境变量与 `.env` 的说明见 [部署文档](deployment.md)。模型和检索的凭据来源分别校验。

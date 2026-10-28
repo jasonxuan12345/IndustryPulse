@@ -21,7 +21,15 @@ _HEADERS = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) IndustryPul
 # 3 最新价 31 涨跌 32 涨跌% 37 成交额(万) 38 换手率 39 PE(TTM)
 # 44 流通市值(亿) 45 总市值(亿) 46 PB 47/48 涨停/跌停；指数与 ETF 无 PE/PB/市值。
 _PRICE, _CHANGE, _CHANGE_PCT, _AMOUNT_WAN, _TURNOVER, _PE, _FLOW_CAP, _TOTAL_CAP, _PB = (
-    3, 31, 32, 37, 38, 39, 44, 45, 46,
+    3,
+    31,
+    32,
+    37,
+    38,
+    39,
+    44,
+    45,
+    46,
 )
 
 
@@ -41,8 +49,8 @@ def fetch_quotes(symbols: list[str]) -> dict[str, QuoteSnapshot]:
         if len(fields) <= _PB:
             continue
 
-        def number_at(index: int) -> float | None:
-            raw = fields[index].strip() if index < len(fields) else ""
+        def number_at(index: int, values: list[str] = fields) -> float | None:
+            raw = values[index].strip() if index < len(values) else ""
             try:
                 return float(raw) if raw else None
             except ValueError:

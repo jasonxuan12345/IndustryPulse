@@ -54,7 +54,11 @@ def compute_heat(
         activity = _squash((z + 2) / 4)
         components["turnover_activity"] = {
             "value": round(activity, 3),
-            "input": {"recent_mean": round(latest, 2), "window_mean": round(mean, 2), "z": round(z, 2)},
+            "input": {
+                "recent_mean": round(latest, 2),
+                "window_mean": round(mean, 2),
+                "z": round(z, 2),
+            },
             "weight": 0.3,
         }
     else:
@@ -72,15 +76,11 @@ def compute_heat(
         "weight": 0.1,
     }
 
-    score = (
-        40 * news_scale + 20 * news_growth + 30 * activity + 10 * shock
-    )
+    score = 40 * news_scale + 20 * news_growth + 30 * activity + 10 * shock
     return round(score, 1), components
 
 
-def heat_change_series(
-    history: dict[date, float], today: date | None = None
-) -> float | None:
+def heat_change_series(history: dict[date, float], today: date | None = None) -> float | None:
     """与前一日热度差（用于 heat_change）。"""
     today = today or date.today()
     current = history.get(today) or history.get(today - timedelta(days=3))

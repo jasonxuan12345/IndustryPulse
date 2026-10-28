@@ -1,0 +1,385 @@
+{
+  "run_id": "delivery-cases",
+  "as_of": "2026-10-28T19:00:00+08:00",
+  "created_at": "2026-10-28T19:19:53.175082+08:00",
+  "source_ids": [],
+  "data_quality": {
+    "mode": "RECONSTRUCTED",
+    "gaps": []
+  },
+  "model_version": "deepseek-flash",
+  "status": "completed",
+  "reviews": [
+    {
+      "run_id": "delivery-cases",
+      "as_of": "2026-10-28T19:00:00+08:00",
+      "created_at": "2026-10-28T19:19:53.175082+08:00",
+      "source_ids": [
+        "https://www.stats.gov.cn/sj/zxfbhjd/202609/t20260928_1965425.html#1"
+      ],
+      "data_quality": {
+        "mode": "RECONSTRUCTED",
+        "gaps": [
+          "refutes"
+        ]
+      },
+      "model_version": "deepseek-flash",
+      "status": "unverified",
+      "opportunity_id": "bb35db3b754aafe3ca4a1fff",
+      "rounds": [
+        {
+          "round": 0,
+          "stance": "supports",
+          "verdict": "supported",
+          "evidence_ids": [
+            "5e9ba33f0d1c155e717f7ff8",
+            "da22f3eebec32c1558983cf8"
+          ],
+          "model_interpretation": "2026年1—8月煤炭开采和洗选业营业收入同比增10.4%、营业成本仅增4.1%，收入增长快于成本，行业利润总额2943.8亿元、同比增长51.6%，明显高于采矿业整体35.1%的利润增速，显示收入端变化已传导至盈利端，盈利改善幅度大于营收增幅。但该证据为规上企业累计口径、按可比口径计算，尚不能回答估值是否已反映，也缺少价格、产量及个股层面的独立反证。",
+          "gaps": [
+            "缺少煤炭价格、产量等驱动营收变化的实物量证据",
+            "缺少行业及上市公司估值（PE/PB）数据以判断估值是否已反映",
+            "缺少独立第三方或行业协会的反证数据",
+            "缺少单月及更长历史序列以判断盈利改善的持续性"
+          ],
+          "next_query": "煤炭开采和洗选业 2026年 煤炭价格 动力煤 焦煤 产量 同比 行业利润 估值 市盈率 反证"
+        },
+        {
+          "round": 0,
+          "stance": "refutes",
+          "verdict": "unverified",
+          "evidence_ids": [],
+          "model_interpretation": "仅有一条2015年2月河南省的区域性PPI解读，其中煤炭开采和洗选业出厂价格同比大幅下降、环比小幅下降，处于价格低迷状态，与触发点所指的价格上行方向相悖，构成价格层面的反证线索；但该材料既未涉及盈利传导，也未涉及估值，且属于十年前的省级单月数据，无法据此断言本轮变化的持续性与盈利影响，因此判定为证据不足。",
+          "gaps": [
+            "缺少煤炭开采和洗选业近期（而非2015年）的价格与利润数据",
+            "缺少行业盈利指标（利润总额、毛利率）以验证价格到盈利的传导",
+            "缺少估值数据（市盈率、市净率）以判断是否已反映",
+            "缺少全国口径数据，仅有河南省级样本",
+            "缺少可反驳“估值已反映”或“传导中断”的独立证据"
+          ],
+          "next_query": "煤炭开采和洗选业 行业利润总额 同比 最新月份 国家统计局"
+        }
+      ],
+      "tool_log": [
+        {
+          "tool": "plan",
+          "argument": "supports",
+          "status": "ok"
+        },
+        {
+          "tool": "search",
+          "argument": "煤炭开采和洗选业 2026年10月 煤价变化 盈利传导 持续性 估值反映 独立反证 数据 site:stats.gov.cn before:2026-10-29",
+          "status": "ok"
+        },
+        {
+          "tool": "read",
+          "argument": "https://www.stats.gov.cn/sj/zxfbhjd/202609/t20260928_1965425.html#1",
+          "status": "ok"
+        },
+        {
+          "tool": "extract_review",
+          "argument": "supports",
+          "status": "ok"
+        },
+        {
+          "tool": "plan",
+          "argument": "refutes",
+          "status": "ok"
+        },
+        {
+          "tool": "search",
+          "argument": "煤炭开采和洗选业 反证 独立证据 煤价变化未传导至盈利 盈利不及预期 估值已透支 估值未反映 2026年10月 site:stats.gov.cn before:2026-10-29",
+          "status": "ok"
+        },
+        {
+          "tool": "read",
+          "argument": "http://hazd.stats.gov.cn/zxfbyjd/0/2090.html",
+          "status": "ok"
+        },
+        {
+          "tool": "extract_review",
+          "argument": "refutes",
+          "status": "ok"
+        }
+      ],
+      "calls_used": 8,
+      "requires_human_review": true,
+      "return_validated": false
+    },
+    {
+      "run_id": "delivery-cases",
+      "as_of": "2026-10-28T19:00:00+08:00",
+      "created_at": "2026-10-28T19:19:53.175082+08:00",
+      "source_ids": [
+        "https://www.stats.gov.cn/sj/zxfbhjd/202609/t20260928_1965425.html#1"
+      ],
+      "data_quality": {
+        "mode": "RECONSTRUCTED",
+        "gaps": [
+          "refutes"
+        ]
+      },
+      "model_version": "deepseek-flash",
+      "status": "unverified",
+      "opportunity_id": "517d945a4da4c2452e71c4fc",
+      "rounds": [
+        {
+          "round": 0,
+          "stance": "supports",
+          "verdict": "weakened",
+          "evidence_ids": [
+            "5d15b79b93914e4b5c6a7fee",
+            "f23e92addab4ea1af3bf85b7",
+            "71780798244256ff1b498fd8"
+          ],
+          "model_interpretation": "官方规模以上工业数据显示，农副食品加工业的利润总额同比明显下滑，降幅与触发问题中暗示的下行幅度处于同一量级，说明行业盈利端的收缩已被行业层面统计数据直接记录，并且利润下滑幅度大于该行业营业收入和营业成本的增速，收入增长未能带动利润改善。但该证据只覆盖行业合计至某一累计月份，尚不能证明该降幅在后续月份持续、也不能说明单家企业持续性；同时没有任何估值或市场定价证据，因此传导至盈利这一点获得统计支持，而估值是否已反映无法从该证据判断，整体结论偏弱支持而非充分证实。",
+          "gaps": [
+            "缺少触发时点之前的利润增速序列，无法判断降幅是首次出现还是延续",
+            "缺少后续月份（如9月及之后）的行业利润数据，无法验证持续性",
+            "缺少该行业上市公司盈利、毛利率与费用率的独立数据",
+            "缺少行业估值（PE/PB、股价）与盈利预期修正的证据，无法回答估值是否已反映",
+            "缺少成本端（原料价格）与需求端的独立反证"
+          ],
+          "next_query": "农副食品加工业 2026年 利润总额 同比 分月 累计增速 国家统计局"
+        },
+        {
+          "round": 0,
+          "stance": "refutes",
+          "verdict": "unverified",
+          "error": "HTTPStatusError"
+        }
+      ],
+      "tool_log": [
+        {
+          "tool": "plan",
+          "argument": "supports",
+          "status": "ok"
+        },
+        {
+          "tool": "search",
+          "argument": "农副食品加工业 截至2026-10-28 成本价格变化 盈利传导 毛利率 估值反映 独立反证 证据 site:stats.gov.cn before:2026-10-29",
+          "status": "ok"
+        },
+        {
+          "tool": "read",
+          "argument": "https://www.stats.gov.cn/sj/zxfbhjd/202609/t20260928_1965425.html#1",
+          "status": "ok"
+        },
+        {
+          "tool": "extract_review",
+          "argument": "supports",
+          "status": "ok"
+        },
+        {
+          "tool": "plan",
+          "argument": "refutes",
+          "status": "ok"
+        },
+        {
+          "tool": "search",
+          "argument": "农副食品加工业 2026年 反证 证伪 独立反例：原料成本上涨未传导至毛利率、提价受阻与价格战、盈利不及预期与 site:stats.gov.cn before:2026-10-29",
+          "status": "ok"
+        },
+        {
+          "tool": "read",
+          "argument": "https://zjzd.stats.gov.cn/gjtjjnbdcd/zwgk/xxgkml/dcsj/jdsj/gysczjgzs/art/2026/art_a14197268030407584bf45434a030e7b.html",
+          "status": "failed",
+          "error": "HTTPStatusError"
+        }
+      ],
+      "calls_used": 7,
+      "requires_human_review": true,
+      "return_validated": false
+    },
+    {
+      "run_id": "delivery-cases",
+      "as_of": "2026-10-28T19:00:00+08:00",
+      "created_at": "2026-10-28T19:19:53.175082+08:00",
+      "source_ids": [
+        "https://www.stats.gov.cn/sj/zxfbhjd/202609/t20260928_1965425.html#1"
+      ],
+      "data_quality": {
+        "mode": "RECONSTRUCTED",
+        "gaps": [
+          "supports"
+        ]
+      },
+      "model_version": "deepseek-flash",
+      "status": "unverified",
+      "opportunity_id": "5636a0e38e3f1e8c12577043",
+      "rounds": [
+        {
+          "round": 0,
+          "stance": "supports",
+          "verdict": "unverified",
+          "evidence_ids": [],
+          "model_interpretation": "从所提供的唯一一份统计局数据看，专用设备制造业1—8月的营业收入同比仍为正增长，但利润总额同比为负增长，说明收入端的量（可能还有价格）并没有转化为盈利改善；因此，关于“变化已经持续传导到盈利”这一说法在这一统计口径下不成立。该数据仅覆盖规模以上工业企业，不是全行业口径，也无法直接说明二级市场估值是否已反映这一变化。",
+          "gaps": [
+            "缺少专用设备制造业的单月利润增速，无法判断近期是否出现拐点",
+            "缺少该行业上市公司的收入、利润率与估值（市盈率、市净率）数据，无法回答“估值是否已反映”",
+            "缺少价格指数、订单或出口等领先指标，无法判断收入端变化的来源",
+            "规模以上口径与上市公司口径存在差异，且存在口径调整，无法直接外推"
+          ],
+          "next_query": "专用设备制造业 上市公司 2026年三季报 营业收入 净利润 毛利率 同比；专用设备 市盈率 历史分位 2026年9月"
+        },
+        {
+          "round": 0,
+          "stance": "refutes",
+          "verdict": "weakened",
+          "evidence_ids": [
+            "80c9045de69e66b33b03e81b"
+          ],
+          "model_interpretation": "在“变化是否持续传到到盈利”这一问题上，现有唯一证据来自统计局的行业利润数据（1—8月口径）：专用设备制造业营业收入同比增长6.9%，但利润总额同比下降2.1%，呈现“增收不增利”，与“变化持续传导至盈利”的假设方向相反。该证据只能说明今年累计口径下的背离，不能说明单月或更短周期的变化，也无法判断该趋势是否会延续，因此该假设受到削弱，但还不能直接否定。估值问题（是否已反映）和独立反证（供应链、订单、价格、成本等）在本轮输入中均无任何证据。",
+          "gaps": [
+            "缺少9月及更近的单月行业利润、收入数据，无法判断背离是否持续",
+            "缺少行业内上市公司盈利能力、毛利率与费用率的分项证据",
+            "缺少估值倍数（PE、PB）及其历史分位的证据，无法回答“是否已反映”",
+            "缺少专用设备制造业的下游资本开支、订单或产能利用率等领先指标",
+            "缺少针对该假设的独立第三方或企业财报反证"
+          ],
+          "next_query": "专用设备制造业 2026年9月 单月利润同比 行业利润总额 统计局；专用设备制造业 2026 三季度 上市公司 毛利率 净利润 同比"
+        }
+      ],
+      "tool_log": [
+        {
+          "tool": "plan",
+          "argument": "supports",
+          "status": "ok"
+        },
+        {
+          "tool": "search",
+          "argument": "专用设备制造业 2026 盈利传导 毛利率 净利率 订单 产能利用率 估值分位 机构预期 反证 需求不及预期  site:stats.gov.cn before:2026-10-29",
+          "status": "ok"
+        },
+        {
+          "tool": "read",
+          "argument": "https://www.stats.gov.cn/sj/zxfbhjd/202609/t20260928_1965425.html#1",
+          "status": "ok"
+        },
+        {
+          "tool": "extract_review",
+          "argument": "supports",
+          "status": "ok"
+        },
+        {
+          "tool": "plan",
+          "argument": "refutes",
+          "status": "ok"
+        },
+        {
+          "tool": "search",
+          "argument": "专用设备制造业 独立反证 盈利传导是否持续 估值是否已反映 负面证据 订单 毛利率 现金流 2026年10月 site:stats.gov.cn before:2026-10-29",
+          "status": "ok"
+        },
+        {
+          "tool": "read",
+          "argument": "https://www.stats.gov.cn/sj/zxfbhjd/202609/t20260928_1965425.html#1",
+          "status": "ok"
+        },
+        {
+          "tool": "extract_review",
+          "argument": "refutes",
+          "status": "ok"
+        }
+      ],
+      "calls_used": 8,
+      "requires_human_review": true,
+      "return_validated": false
+    },
+    {
+      "run_id": "delivery-cases",
+      "as_of": "2026-10-28T19:00:00+08:00",
+      "created_at": "2026-10-28T19:19:53.175082+08:00",
+      "source_ids": [
+        "https://www.stats.gov.cn/sj/zxfb/202610/t20261027_1965697.html"
+      ],
+      "data_quality": {
+        "mode": "RECONSTRUCTED",
+        "gaps": [
+          "supports"
+        ]
+      },
+      "model_version": "deepseek-flash",
+      "status": "unverified",
+      "opportunity_id": "f1f2b3da5917d61b7c55f9f5",
+      "rounds": [
+        {
+          "round": 0,
+          "stance": "supports",
+          "verdict": "unverified",
+          "evidence_ids": [],
+          "model_interpretation": "仅有一条省级PPI证据显示，石油和天然气开采业出厂价格同比由降转涨，说明价格端已出现向上拐点；但这只是价格信号，既不能证明该变化已持续传导至行业盈利，也缺少估值与独立反证材料，因此不足以支持该研究问题。",
+          "gaps": [
+            "缺少石油和天然气开采业利润总额、利润率或单位成本等盈利端数据，无法核验价格传导至盈利",
+            "缺少该行业估值（市盈率、市净率等）与历史分位，无法判断估值是否已反映",
+            "缺少证伪性或反向证据，如产量、资本开支、油价回落风险及企业财报数据",
+            "仅有广东一省数据，缺少全国口径的产量与价格数据，代表性不足"
+          ],
+          "next_query": "国家统计局 石油和天然气开采业 利润总额 同比 2026年1-3月 行业盈利数据"
+        },
+        {
+          "round": 0,
+          "stance": "refutes",
+          "verdict": "weakened",
+          "evidence_ids": [
+            "99ace3063e42821643d001dc"
+          ],
+          "model_interpretation": "行业层面存在与触发值同量级的利润同比增长口径，但这是规模以上口径的累计同比，且官方明确与上年公布数据不可直接比较；该口径不能直接证明利润改善的持续传导，也不涉及估值；利润率、营业成本增速低于收入增速只能作方向性参考，不足以支撑触发阈值成立。",
+          "gaps": [
+            "月度分行业利润序列缺失，无法验证变化是否持续",
+            "石油天然气开采业利润率与单位成本明细缺失",
+            "行业估值（市盈率、市净率）数据缺失，无法判断估值是否反映",
+            "价格（油价、气价）与产量等驱动因素数据缺失",
+            "反证样本仅一条官方统计，缺少第三方或企业层面反证"
+          ],
+          "next_query": "石油和天然气开采业 月度 利润总额 同比 2026年 分月 序列"
+        }
+      ],
+      "tool_log": [
+        {
+          "tool": "plan",
+          "argument": "supports",
+          "status": "ok"
+        },
+        {
+          "tool": "search",
+          "argument": "石油和天然气开采业 2026年 行业变化 盈利传导 油价 产量 资本开支 毛利率 估值 分位 反证 数据 site:stats.gov.cn before:2026-10-29",
+          "status": "ok"
+        },
+        {
+          "tool": "read",
+          "argument": "https://gdzd.stats.gov.cn/sjfb/sjfbz/202604/t20260421_182704_mo.html",
+          "status": "ok"
+        },
+        {
+          "tool": "extract_review",
+          "argument": "supports",
+          "status": "ok"
+        },
+        {
+          "tool": "plan",
+          "argument": "refutes",
+          "status": "ok"
+        },
+        {
+          "tool": "search",
+          "argument": "石油和天然气开采业 截至2026年10月 盈利传导 持续性 估值是否已反映 独立反证 证伪 负面证据 油价下行 site:stats.gov.cn before:2026-10-29",
+          "status": "ok"
+        },
+        {
+          "tool": "read",
+          "argument": "https://www.stats.gov.cn/sj/zxfb/202610/t20261027_1965697.html",
+          "status": "ok"
+        },
+        {
+          "tool": "extract_review",
+          "argument": "refutes",
+          "status": "ok"
+        }
+      ],
+      "calls_used": 8,
+      "requires_human_review": true,
+      "return_validated": false
+    }
+  ]
+}

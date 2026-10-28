@@ -1,0 +1,298 @@
+{
+  "run_id": "delivery-cases",
+  "as_of": "2026-10-28T19:00:00+08:00",
+  "created_at": "2026-10-28T19:19:53.175082+08:00",
+  "source_ids": [],
+  "data_quality": {
+    "mode": "RECONSTRUCTED",
+    "gaps": []
+  },
+  "model_version": "deepseek-flash",
+  "status": "completed",
+  "coverage": [
+    {
+      "sector": "CN_NBS_C13",
+      "name": "农副食品加工业",
+      "error": null
+    },
+    {
+      "sector": "CN_NBS_C36",
+      "name": "汽车制造业",
+      "error": null
+    },
+    {
+      "sector": "CN_NBS_C15",
+      "name": "酒、饮料和精制茶制造业",
+      "error": null
+    },
+    {
+      "sector": "CN_NBS_C30",
+      "name": "非金属矿物制品业",
+      "error": null
+    },
+    {
+      "sector": "CN_NBS_C26",
+      "name": "化学原料和化学制品制造业",
+      "error": null
+    },
+    {
+      "sector": "CN_NBS_C06",
+      "name": "煤炭开采和洗选业",
+      "error": null
+    },
+    {
+      "sector": "CN_NBS_C38",
+      "name": "电气机械和器材制造业",
+      "error": null
+    },
+    {
+      "sector": "CN_NBS_C39",
+      "name": "计算机、通信和其他电子设备制造业",
+      "error": null
+    },
+    {
+      "sector": "CN_NBS_C14",
+      "name": "食品制造业",
+      "error": null
+    },
+    {
+      "sector": "CN_NBS_C34",
+      "name": "通用设备制造业",
+      "error": null
+    },
+    {
+      "sector": "CN_NBS_C40",
+      "name": "仪器仪表制造业",
+      "error": null
+    },
+    {
+      "sector": "CN_NBS_C09",
+      "name": "有色金属矿采选业",
+      "error": null
+    },
+    {
+      "sector": "CN_NBS_C32",
+      "name": "有色金属冶炼和压延加工业",
+      "error": null
+    },
+    {
+      "sector": "CN_NBS_B07",
+      "name": "石油和天然气开采业",
+      "error": null
+    },
+    {
+      "sector": "CN_NBS_C27",
+      "name": "医药制造业",
+      "error": null
+    },
+    {
+      "sector": "CN_NBS_D44",
+      "name": "电力、热力生产和供应业",
+      "error": null
+    },
+    {
+      "sector": "CN_NBS_C25",
+      "name": "石油、煤炭及其他燃料加工业",
+      "error": null
+    },
+    {
+      "sector": "CN_NBS_C35",
+      "name": "专用设备制造业",
+      "error": null
+    },
+    {
+      "sector": "CN_NBS_C31",
+      "name": "黑色金属冶炼和压延加工业",
+      "error": null
+    },
+    {
+      "sector": "CN_NBS_C37",
+      "name": "铁路、船舶、航空航天和其他运输设备制造业",
+      "error": null
+    }
+  ],
+  "scanned_sectors": 20,
+  "candidate_count": 76,
+  "opportunities": [
+    {
+      "run_id": "delivery-cases",
+      "as_of": "2026-10-28T19:00:00+08:00",
+      "created_at": "2026-10-28T19:19:53.175082+08:00",
+      "source_ids": [
+        "https://www.stats.gov.cn/sj/zxfb/202610/t20261027_1965697.html"
+      ],
+      "data_quality": {
+        "mode": "RECONSTRUCTED",
+        "gaps": []
+      },
+      "model_version": "deepseek-flash",
+      "status": "completed",
+      "opportunity_id": "bb35db3b754aafe3ca4a1fff",
+      "sector": "CN_NBS_C06",
+      "sector_name": "煤炭开采和洗选业",
+      "trigger_type": "STAT_RELEASE",
+      "trigger_value": 57.0,
+      "event_time": "2026-10-27T09:30:00+08:00",
+      "publish_time": "2026-10-27T09:30:00+08:00",
+      "inputs": {
+        "series_id": "cn.nbs.industry_c06.profit_ytd_yoy",
+        "period": "2026-09-01",
+        "vintage_id": 2,
+        "value": 57.0,
+        "available_at": "2026-10-27T09:30:00+08:00",
+        "source_url": "https://www.stats.gov.cn/sj/zxfb/202610/t20261027_1965697.html",
+        "artifact_id": "23484a3b31b9dca6fc045635270e5b52fbc7e66d813d74e2512ae10893d2714c",
+        "release_evidence": "A",
+        "value_evidence": "A"
+      },
+      "rank_score": 113.41739130434783,
+      "rank_reason": {
+        "official_source": 1,
+        "explicit_case_priority": true,
+        "mapping_fit": "对口",
+        "novelty_days": 1.3958333333333333,
+        "formula": "case_priority*100 + official*10 + exact_fit*3 + 1/(1+age_days)"
+      },
+      "research_questions": [
+        "变化是否持续传导到盈利？",
+        "估值是否已反映？",
+        "有哪些独立反证？"
+      ]
+    },
+    {
+      "run_id": "delivery-cases",
+      "as_of": "2026-10-28T19:00:00+08:00",
+      "created_at": "2026-10-28T19:19:53.175082+08:00",
+      "source_ids": [
+        "https://www.stats.gov.cn/sj/zxfb/202610/t20261027_1965697.html"
+      ],
+      "data_quality": {
+        "mode": "RECONSTRUCTED",
+        "gaps": []
+      },
+      "model_version": "deepseek-flash",
+      "status": "completed",
+      "opportunity_id": "517d945a4da4c2452e71c4fc",
+      "sector": "CN_NBS_C13",
+      "sector_name": "农副食品加工业",
+      "trigger_type": "STAT_RELEASE",
+      "trigger_value": -17.3,
+      "event_time": "2026-10-27T09:30:00+08:00",
+      "publish_time": "2026-10-27T09:30:00+08:00",
+      "inputs": {
+        "series_id": "cn.nbs.industry_c13.profit_ytd_yoy",
+        "period": "2026-09-01",
+        "vintage_id": 2,
+        "value": -17.3,
+        "available_at": "2026-10-27T09:30:00+08:00",
+        "source_url": "https://www.stats.gov.cn/sj/zxfb/202610/t20261027_1965697.html",
+        "artifact_id": "23484a3b31b9dca6fc045635270e5b52fbc7e66d813d74e2512ae10893d2714c",
+        "release_evidence": "A",
+        "value_evidence": "A"
+      },
+      "rank_score": 110.41739130434783,
+      "rank_reason": {
+        "official_source": 1,
+        "explicit_case_priority": true,
+        "mapping_fit": "弱",
+        "novelty_days": 1.3958333333333333,
+        "formula": "case_priority*100 + official*10 + exact_fit*3 + 1/(1+age_days)"
+      },
+      "research_questions": [
+        "变化是否持续传导到盈利？",
+        "估值是否已反映？",
+        "有哪些独立反证？"
+      ]
+    },
+    {
+      "run_id": "delivery-cases",
+      "as_of": "2026-10-28T19:00:00+08:00",
+      "created_at": "2026-10-28T19:19:53.175082+08:00",
+      "source_ids": [
+        "https://www.stats.gov.cn/sj/zxfb/202610/t20261027_1965697.html"
+      ],
+      "data_quality": {
+        "mode": "RECONSTRUCTED",
+        "gaps": []
+      },
+      "model_version": "deepseek-flash",
+      "status": "completed",
+      "opportunity_id": "5636a0e38e3f1e8c12577043",
+      "sector": "CN_NBS_C35",
+      "sector_name": "专用设备制造业",
+      "trigger_type": "STAT_RELEASE",
+      "trigger_value": -1.3,
+      "event_time": "2026-10-27T09:30:00+08:00",
+      "publish_time": "2026-10-27T09:30:00+08:00",
+      "inputs": {
+        "series_id": "cn.nbs.industry_c35.profit_ytd_yoy",
+        "period": "2026-09-01",
+        "vintage_id": 2,
+        "value": -1.3,
+        "available_at": "2026-10-27T09:30:00+08:00",
+        "source_url": "https://www.stats.gov.cn/sj/zxfb/202610/t20261027_1965697.html",
+        "artifact_id": "23484a3b31b9dca6fc045635270e5b52fbc7e66d813d74e2512ae10893d2714c",
+        "release_evidence": "A",
+        "value_evidence": "A"
+      },
+      "rank_score": 110.41739130434783,
+      "rank_reason": {
+        "official_source": 1,
+        "explicit_case_priority": true,
+        "mapping_fit": "弱",
+        "novelty_days": 1.3958333333333333,
+        "formula": "case_priority*100 + official*10 + exact_fit*3 + 1/(1+age_days)"
+      },
+      "research_questions": [
+        "变化是否持续传导到盈利？",
+        "估值是否已反映？",
+        "有哪些独立反证？"
+      ]
+    },
+    {
+      "run_id": "delivery-cases",
+      "as_of": "2026-10-28T19:00:00+08:00",
+      "created_at": "2026-10-28T19:19:53.175082+08:00",
+      "source_ids": [
+        "https://www.stats.gov.cn/sj/zxfb/202610/t20261027_1965697.html"
+      ],
+      "data_quality": {
+        "mode": "RECONSTRUCTED",
+        "gaps": []
+      },
+      "model_version": "deepseek-flash",
+      "status": "completed",
+      "opportunity_id": "f1f2b3da5917d61b7c55f9f5",
+      "sector": "CN_NBS_B07",
+      "sector_name": "石油和天然气开采业",
+      "trigger_type": "STAT_RELEASE",
+      "trigger_value": 21.3,
+      "event_time": "2026-10-27T09:30:00+08:00",
+      "publish_time": "2026-10-27T09:30:00+08:00",
+      "inputs": {
+        "series_id": "cn.nbs.industry_b07.profit_ytd_yoy",
+        "period": "2026-09-01",
+        "vintage_id": 2,
+        "value": 21.3,
+        "available_at": "2026-10-27T09:30:00+08:00",
+        "source_url": "https://www.stats.gov.cn/sj/zxfb/202610/t20261027_1965697.html",
+        "artifact_id": "23484a3b31b9dca6fc045635270e5b52fbc7e66d813d74e2512ae10893d2714c",
+        "release_evidence": "A",
+        "value_evidence": "A"
+      },
+      "rank_score": 110.41739130434783,
+      "rank_reason": {
+        "official_source": 1,
+        "explicit_case_priority": true,
+        "mapping_fit": "近似",
+        "novelty_days": 1.3958333333333333,
+        "formula": "case_priority*100 + official*10 + exact_fit*3 + 1/(1+age_days)"
+      },
+      "research_questions": [
+        "变化是否持续传导到盈利？",
+        "估值是否已反映？",
+        "有哪些独立反证？"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,8 @@
+# 验收专用：扫描仍为20行业；显式优先研究任务书指定四行业。
+model: deepseek-flash
+priority_sectors: [CN_NBS_C06, CN_NBS_B07, CN_NBS_C13, CN_NBS_C35]
+max_opportunities: 4
+max_rounds: 1
+pages_per_search: 1
+timeout_seconds: 25
+opportunity_timeout_seconds: 180

@@ -10,6 +10,7 @@ import json
 import threading
 from datetime import datetime
 from pathlib import Path
+from typing import Any
 
 from industrypulse.contracts import TZ_SHANGHAI
 
@@ -20,7 +21,10 @@ _BLOCKED_NOTES = {
 }
 
 _DEFAULT_KIND = {
-    "quotes": "quotes", "kline": "kline", "moneyflow": "moneyflow", "macro": "macro",
+    "quotes": "quotes",
+    "kline": "kline",
+    "moneyflow": "moneyflow",
+    "macro": "macro",
 }
 
 
@@ -30,10 +34,10 @@ class SourceHealthMonitor:
     def __init__(self, path: Path) -> None:
         self._path = path
         self._lock = threading.Lock()
-        self._states: dict[str, dict] = {}
+        self._states: dict[str, dict[str, Any]] = {}
         self._load()
 
-    def _default(self, source_id: str) -> dict:
+    def _default(self, source_id: str) -> dict[str, Any]:
         provider, _, kind = source_id.partition(":")
         if kind not in _DEFAULT_KIND.values():
             kind = "sector" if provider == "sector" else "quotes"
@@ -67,9 +71,7 @@ class SourceHealthMonitor:
 
     def persist(self) -> None:
         with self._lock:
-            payload = {
-                key: dict(item) for key, item in self._states.items()
-            }
+            payload = {key: dict(item) for key, item in self._states.items()}
         self._path.parent.mkdir(parents=True, exist_ok=True)
         self._path.write_text(
             json.dumps(payload, ensure_ascii=False, indent=1, default=str), encoding="utf-8"

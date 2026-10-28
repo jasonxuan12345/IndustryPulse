@@ -12,6 +12,8 @@ venv/
 
 # 测试 / 静态检查缓存
 .pytest_cache/
+.pytest-tmp/
+.pytest-cache/
 .mypy_cache/
 .ruff_cache/
 .coverage

@@ -1,0 +1,771 @@
+{
+  "run_id": "delivery-cases",
+  "as_of": "2026-10-28T19:00:00+08:00",
+  "created_at": "2026-10-28T19:19:53.175082+08:00",
+  "source_ids": [],
+  "data_quality": {
+    "mode": "RECONSTRUCTED",
+    "gaps": []
+  },
+  "model_version": "deepseek-flash",
+  "status": "completed",
+  "memos": [
+    {
+      "run_id": "delivery-cases",
+      "as_of": "2026-10-28T19:00:00+08:00",
+      "created_at": "2026-10-28T19:19:53.175082+08:00",
+      "source_ids": [
+        "https://www.stats.gov.cn/sj/zxfbhjd/202609/t20260928_1965425.html#1",
+        "https://www.stats.gov.cn/sj/zxfb/202610/t20261027_1965697.html"
+      ],
+      "data_quality": {
+        "mode": "RECONSTRUCTED",
+        "gaps": [
+          "缺少经核验的资产估值与情景输入",
+          "分红独立核对",
+          "模型样本外准入",
+          "独立补证不完整",
+          "模型数值解释被硬校验拦截"
+        ]
+      },
+      "model_version": "deepseek-flash",
+      "status": "watching",
+      "opportunity_id": "bb35db3b754aafe3ca4a1fff",
+      "sector": "CN_NBS_C06",
+      "sector_name": "煤炭开采和洗选业",
+      "asset_id": "ETF_515220",
+      "asset_market": "CN_ETF",
+      "asset_name": "煤炭ETF国泰",
+      "business_exposure": {
+        "fit": "对口",
+        "description": "煤炭开采和洗选业"
+      },
+      "thesis": "原文已归档；模型解释中的数值缺少计算校验，盈利传导待核验",
+      "research_track": "AI_RESEARCH",
+      "return_validated": false,
+      "quant_track": {
+        "label": "QUANT_UNVALIDATED",
+        "status": "NOT_VALIDATED"
+      },
+      "valuation_method": "ETF穿透估值；缺少同期成分权重与可核验PE/PB，估值未知",
+      "valuation_inputs": [],
+      "calculation_rules": [],
+      "scenario_assumptions": {
+        "bear": {
+          "assumption": "需求回落或成本挤压，盈利传导失败",
+          "target_price": null,
+          "expected_return": null,
+          "input_ids": []
+        },
+        "base": {
+          "assumption": "等待下一期利润、营收及资产披露验证",
+          "target_price": null,
+          "expected_return": null,
+          "input_ids": []
+        },
+        "bull": {
+          "assumption": "需求改善持续且估值未充分反映；尚待补证",
+          "target_price": null,
+          "expected_return": null,
+          "input_ids": []
+        }
+      },
+      "entry_condition": "完成原始披露及独立反证、估值情景、流动性和回撤检查，并经人工审核",
+      "invalidation_condition": [
+        "新披露推翻盈利传导",
+        "资产行业暴露不足",
+        "证据失效或来源撤回"
+      ],
+      "exit_condition": "假设失效或观察期届满由人工复核，数据不足暂停",
+      "risk_flags": [
+        "缺少经核验的资产估值与情景输入",
+        "分红独立核对",
+        "模型样本外准入",
+        "独立补证不完整",
+        "模型数值解释被硬校验拦截"
+      ],
+      "recommendation_status": "WATCH",
+      "requires_human_review": true,
+      "execution_allowed": false,
+      "horizon_months": [
+        1,
+        3,
+        6
+      ],
+      "evidence_ids": [
+        "5e9ba33f0d1c155e717f7ff8",
+        "da22f3eebec32c1558983cf8"
+      ],
+      "risk_checks": [
+        {
+          "check": "相邻公布期利润改善",
+          "passed": true,
+          "observed": 5.4,
+          "required": ">0且期次相邻",
+          "kind": "economic"
+        },
+        {
+          "check": "同期营收增长",
+          "passed": true,
+          "observed": 11.9,
+          "required": ">0",
+          "kind": "economic"
+        },
+        {
+          "check": "基本面所属期新鲜度",
+          "passed": true,
+          "observed": 28,
+          "required": 120,
+          "kind": "admission"
+        },
+        {
+          "check": "资产映射",
+          "passed": true,
+          "observed": "对口",
+          "required": "对口ETF",
+          "kind": "admission"
+        },
+        {
+          "check": "报价新鲜度",
+          "passed": true,
+          "observed": "2026-10-28",
+          "required": "<=5自然日",
+          "kind": "admission"
+        },
+        {
+          "check": "共同交易日覆盖",
+          "passed": true,
+          "observed": 1615,
+          "required": 61,
+          "kind": "admission"
+        },
+        {
+          "check": "可交易原始行情",
+          "passed": true,
+          "observed": 20,
+          "required": "20个正成交量、未复权交易日",
+          "kind": "admission"
+        },
+        {
+          "check": "流动性",
+          "passed": true,
+          "observed": 531314750.95,
+          "required": "20日平均成交份数>=1000000；未提供委托规模，不能证明实际冲击成本",
+          "kind": "admission"
+        },
+        {
+          "check": "波动风险",
+          "passed": true,
+          "observed": 0.254313106249968,
+          "required": 0.4,
+          "kind": "admission"
+        },
+        {
+          "check": "价格确认",
+          "passed": true,
+          "observed": 0.035693480331194904,
+          "required": "20交易日含现金分红超额收益>0",
+          "kind": "admission"
+        },
+        {
+          "check": "分红独立核对",
+          "passed": false,
+          "observed": "未独立核验分红",
+          "required": "两来源记录一致、原件完整、核对未过期",
+          "kind": "admission"
+        },
+        {
+          "check": "近期公司行动",
+          "passed": true,
+          "observed": [],
+          "required": "60日窗口不跨越未处理公司行动",
+          "kind": "admission"
+        },
+        {
+          "check": "近期最大回撤",
+          "passed": true,
+          "observed": -0.12772133526850504,
+          "required": 0.15,
+          "kind": "admission"
+        },
+        {
+          "check": "模型样本外准入",
+          "passed": false,
+          "observed": "NOT_VALIDATED",
+          "required": "完整强基线共同OOS、校准、稳定性和前瞻验证均已验收",
+          "kind": "model"
+        }
+      ]
+    },
+    {
+      "run_id": "delivery-cases",
+      "as_of": "2026-10-28T19:00:00+08:00",
+      "created_at": "2026-10-28T19:19:53.175082+08:00",
+      "source_ids": [
+        "https://www.stats.gov.cn/sj/zxfbhjd/202609/t20260928_1965425.html#1",
+        "https://www.stats.gov.cn/sj/zxfb/202610/t20261027_1965697.html"
+      ],
+      "data_quality": {
+        "mode": "RECONSTRUCTED",
+        "gaps": [
+          "缺少经核验的资产估值与情景输入",
+          "资产映射",
+          "分红独立核对",
+          "模型样本外准入",
+          "独立补证不完整",
+          "资产行业暴露映射不足"
+        ]
+      },
+      "model_version": "deepseek-flash",
+      "status": "watching",
+      "opportunity_id": "517d945a4da4c2452e71c4fc",
+      "sector": "CN_NBS_C13",
+      "sector_name": "农副食品加工业",
+      "asset_id": "ETF_159865",
+      "asset_market": "CN_ETF",
+      "asset_name": "养殖ETF国泰",
+      "business_exposure": {
+        "fit": "弱",
+        "description": "以畜禽养殖为主，饲料与屠宰只占一部分"
+      },
+      "thesis": "官方规模以上工业数据显示，农副食品加工业的利润总额同比明显下滑，降幅与触发问题中暗示的下行幅度处于同一量级，说明行业盈利端的收缩已被行业层面统计数据直接记录，并且利润下滑幅度大于该行业营业收入和营业成本的增速，收入增长未能带动利润改善。但该证据只覆盖行业合计至某一累计月份，尚不能证明该降幅在后续月份持续、也不能说明单家企业持续性；同时没有任何估值或市场定价证据，因此传导至盈利这一点获得统计支持，而估值是否已反映无法从该证据判断，整体结论偏弱支持而非充分证实。",
+      "research_track": "AI_RESEARCH",
+      "return_validated": false,
+      "quant_track": {
+        "label": "QUANT_UNVALIDATED",
+        "status": "NOT_VALIDATED"
+      },
+      "valuation_method": "ETF穿透估值；缺少同期成分权重与可核验PE/PB，估值未知",
+      "valuation_inputs": [],
+      "calculation_rules": [],
+      "scenario_assumptions": {
+        "bear": {
+          "assumption": "需求回落或成本挤压，盈利传导失败",
+          "target_price": null,
+          "expected_return": null,
+          "input_ids": []
+        },
+        "base": {
+          "assumption": "等待下一期利润、营收及资产披露验证",
+          "target_price": null,
+          "expected_return": null,
+          "input_ids": []
+        },
+        "bull": {
+          "assumption": "需求改善持续且估值未充分反映；尚待补证",
+          "target_price": null,
+          "expected_return": null,
+          "input_ids": []
+        }
+      },
+      "entry_condition": "完成原始披露及独立反证、估值情景、流动性和回撤检查，并经人工审核",
+      "invalidation_condition": [
+        "新披露推翻盈利传导",
+        "资产行业暴露不足",
+        "证据失效或来源撤回"
+      ],
+      "exit_condition": "假设失效或观察期届满由人工复核，数据不足暂停",
+      "risk_flags": [
+        "缺少经核验的资产估值与情景输入",
+        "资产映射",
+        "分红独立核对",
+        "模型样本外准入",
+        "独立补证不完整",
+        "资产行业暴露映射不足"
+      ],
+      "recommendation_status": "WATCH",
+      "requires_human_review": true,
+      "execution_allowed": false,
+      "horizon_months": [
+        1,
+        3,
+        6
+      ],
+      "evidence_ids": [
+        "5d15b79b93914e4b5c6a7fee",
+        "f23e92addab4ea1af3bf85b7",
+        "71780798244256ff1b498fd8"
+      ],
+      "risk_checks": [
+        {
+          "check": "相邻公布期利润改善",
+          "passed": true,
+          "observed": 0.1,
+          "required": ">0且期次相邻",
+          "kind": "economic"
+        },
+        {
+          "check": "同期营收增长",
+          "passed": true,
+          "observed": 2.4,
+          "required": ">0",
+          "kind": "economic"
+        },
+        {
+          "check": "基本面所属期新鲜度",
+          "passed": true,
+          "observed": 28,
+          "required": 120,
+          "kind": "admission"
+        },
+        {
+          "check": "资产映射",
+          "passed": false,
+          "observed": "弱",
+          "required": "对口ETF",
+          "kind": "admission"
+        },
+        {
+          "check": "报价新鲜度",
+          "passed": true,
+          "observed": "2026-10-28",
+          "required": "<=5自然日",
+          "kind": "admission"
+        },
+        {
+          "check": "共同交易日覆盖",
+          "passed": true,
+          "observed": 1368,
+          "required": 61,
+          "kind": "admission"
+        },
+        {
+          "check": "可交易原始行情",
+          "passed": true,
+          "observed": 20,
+          "required": "20个正成交量、未复权交易日",
+          "kind": "admission"
+        },
+        {
+          "check": "流动性",
+          "passed": true,
+          "observed": 308093335.05,
+          "required": "20日平均成交份数>=1000000；未提供委托规模，不能证明实际冲击成本",
+          "kind": "admission"
+        },
+        {
+          "check": "波动风险",
+          "passed": true,
+          "observed": 0.18192031021743785,
+          "required": 0.4,
+          "kind": "admission"
+        },
+        {
+          "check": "价格确认",
+          "passed": true,
+          "observed": 0.05540806472954751,
+          "required": "20交易日含现金分红超额收益>0",
+          "kind": "admission"
+        },
+        {
+          "check": "分红独立核对",
+          "passed": false,
+          "observed": "未独立核验分红",
+          "required": "两来源记录一致、原件完整、核对未过期",
+          "kind": "admission"
+        },
+        {
+          "check": "近期公司行动",
+          "passed": true,
+          "observed": [],
+          "required": "60日窗口不跨越未处理公司行动",
+          "kind": "admission"
+        },
+        {
+          "check": "近期最大回撤",
+          "passed": true,
+          "observed": -0.11324041811846686,
+          "required": 0.15,
+          "kind": "admission"
+        },
+        {
+          "check": "模型样本外准入",
+          "passed": false,
+          "observed": "NOT_VALIDATED",
+          "required": "完整强基线共同OOS、校准、稳定性和前瞻验证均已验收",
+          "kind": "model"
+        }
+      ]
+    },
+    {
+      "run_id": "delivery-cases",
+      "as_of": "2026-10-28T19:00:00+08:00",
+      "created_at": "2026-10-28T19:19:53.175082+08:00",
+      "source_ids": [
+        "https://www.stats.gov.cn/sj/zxfbhjd/202609/t20260928_1965425.html#1",
+        "https://www.stats.gov.cn/sj/zxfb/202610/t20261027_1965697.html"
+      ],
+      "data_quality": {
+        "mode": "RECONSTRUCTED",
+        "gaps": [
+          "缺少经核验的资产估值与情景输入",
+          "资产映射",
+          "分红独立核对",
+          "近期最大回撤",
+          "模型样本外准入",
+          "独立补证不完整",
+          "资产行业暴露映射不足",
+          "模型数值解释被硬校验拦截"
+        ]
+      },
+      "model_version": "deepseek-flash",
+      "status": "watching",
+      "opportunity_id": "5636a0e38e3f1e8c12577043",
+      "sector": "CN_NBS_C35",
+      "sector_name": "专用设备制造业",
+      "asset_id": "ETF_560280",
+      "asset_market": "CN_ETF",
+      "asset_name": "工程机械ETF广发",
+      "business_exposure": {
+        "fit": "弱",
+        "description": "只覆盖工程机械"
+      },
+      "thesis": "原文已归档；模型解释中的数值缺少计算校验，盈利传导待核验",
+      "research_track": "AI_RESEARCH",
+      "return_validated": false,
+      "quant_track": {
+        "label": "QUANT_UNVALIDATED",
+        "status": "NOT_VALIDATED"
+      },
+      "valuation_method": "ETF穿透估值；缺少同期成分权重与可核验PE/PB，估值未知",
+      "valuation_inputs": [],
+      "calculation_rules": [],
+      "scenario_assumptions": {
+        "bear": {
+          "assumption": "需求回落或成本挤压，盈利传导失败",
+          "target_price": null,
+          "expected_return": null,
+          "input_ids": []
+        },
+        "base": {
+          "assumption": "等待下一期利润、营收及资产披露验证",
+          "target_price": null,
+          "expected_return": null,
+          "input_ids": []
+        },
+        "bull": {
+          "assumption": "需求改善持续且估值未充分反映；尚待补证",
+          "target_price": null,
+          "expected_return": null,
+          "input_ids": []
+        }
+      },
+      "entry_condition": "完成原始披露及独立反证、估值情景、流动性和回撤检查，并经人工审核",
+      "invalidation_condition": [
+        "新披露推翻盈利传导",
+        "资产行业暴露不足",
+        "证据失效或来源撤回"
+      ],
+      "exit_condition": "假设失效或观察期届满由人工复核，数据不足暂停",
+      "risk_flags": [
+        "缺少经核验的资产估值与情景输入",
+        "资产映射",
+        "分红独立核对",
+        "近期最大回撤",
+        "模型样本外准入",
+        "独立补证不完整",
+        "资产行业暴露映射不足",
+        "模型数值解释被硬校验拦截"
+      ],
+      "recommendation_status": "WATCH",
+      "requires_human_review": true,
+      "execution_allowed": false,
+      "horizon_months": [
+        1,
+        3,
+        6
+      ],
+      "evidence_ids": [
+        "80c9045de69e66b33b03e81b"
+      ],
+      "risk_checks": [
+        {
+          "check": "相邻公布期利润改善",
+          "passed": true,
+          "observed": 0.8,
+          "required": ">0且期次相邻",
+          "kind": "economic"
+        },
+        {
+          "check": "同期营收增长",
+          "passed": true,
+          "observed": 6.9,
+          "required": ">0",
+          "kind": "economic"
+        },
+        {
+          "check": "基本面所属期新鲜度",
+          "passed": true,
+          "observed": 28,
+          "required": 120,
+          "kind": "admission"
+        },
+        {
+          "check": "资产映射",
+          "passed": false,
+          "observed": "弱",
+          "required": "对口ETF",
+          "kind": "admission"
+        },
+        {
+          "check": "报价新鲜度",
+          "passed": true,
+          "observed": "2026-10-28",
+          "required": "<=5自然日",
+          "kind": "admission"
+        },
+        {
+          "check": "共同交易日覆盖",
+          "passed": true,
+          "observed": 726,
+          "required": 61,
+          "kind": "admission"
+        },
+        {
+          "check": "可交易原始行情",
+          "passed": true,
+          "observed": 20,
+          "required": "20个正成交量、未复权交易日",
+          "kind": "admission"
+        },
+        {
+          "check": "流动性",
+          "passed": true,
+          "observed": 57039861.95,
+          "required": "20日平均成交份数>=1000000；未提供委托规模，不能证明实际冲击成本",
+          "kind": "admission"
+        },
+        {
+          "check": "波动风险",
+          "passed": true,
+          "observed": 0.22029918489748535,
+          "required": 0.4,
+          "kind": "admission"
+        },
+        {
+          "check": "价格确认",
+          "passed": true,
+          "observed": 0.04164211421332431,
+          "required": "20交易日含现金分红超额收益>0",
+          "kind": "admission"
+        },
+        {
+          "check": "分红独立核对",
+          "passed": false,
+          "observed": "未独立核验分红",
+          "required": "两来源记录一致、原件完整、核对未过期",
+          "kind": "admission"
+        },
+        {
+          "check": "近期公司行动",
+          "passed": true,
+          "observed": [],
+          "required": "60日窗口不跨越未处理公司行动",
+          "kind": "admission"
+        },
+        {
+          "check": "近期最大回撤",
+          "passed": false,
+          "observed": -0.17347580138277807,
+          "required": 0.15,
+          "kind": "admission"
+        },
+        {
+          "check": "模型样本外准入",
+          "passed": false,
+          "observed": "NOT_VALIDATED",
+          "required": "完整强基线共同OOS、校准、稳定性和前瞻验证均已验收",
+          "kind": "model"
+        }
+      ]
+    },
+    {
+      "run_id": "delivery-cases",
+      "as_of": "2026-10-28T19:00:00+08:00",
+      "created_at": "2026-10-28T19:19:53.175082+08:00",
+      "source_ids": [
+        "https://www.stats.gov.cn/sj/zxfb/202610/t20261027_1965697.html",
+        "https://www.stats.gov.cn/sj/zxfb/202610/t20261027_1965697.html"
+      ],
+      "data_quality": {
+        "mode": "RECONSTRUCTED",
+        "gaps": [
+          "缺少经核验的资产估值与情景输入",
+          "资产映射",
+          "分红独立核对",
+          "模型样本外准入",
+          "独立补证不完整",
+          "资产行业暴露映射不足"
+        ]
+      },
+      "model_version": "deepseek-flash",
+      "status": "watching",
+      "opportunity_id": "f1f2b3da5917d61b7c55f9f5",
+      "sector": "CN_NBS_B07",
+      "sector_name": "石油和天然气开采业",
+      "asset_id": "ETF_159697",
+      "asset_market": "CN_ETF",
+      "asset_name": "石油ETF鹏华",
+      "business_exposure": {
+        "fit": "近似",
+        "description": "混入炼化与油服公司"
+      },
+      "thesis": "行业层面存在与触发值同量级的利润同比增长口径，但这是规模以上口径的累计同比，且官方明确与上年公布数据不可直接比较；该口径不能直接证明利润改善的持续传导，也不涉及估值；利润率、营业成本增速低于收入增速只能作方向性参考，不足以支撑触发阈值成立。",
+      "research_track": "AI_RESEARCH",
+      "return_validated": false,
+      "quant_track": {
+        "label": "QUANT_UNVALIDATED",
+        "status": "NOT_VALIDATED"
+      },
+      "valuation_method": "ETF穿透估值；缺少同期成分权重与可核验PE/PB，估值未知",
+      "valuation_inputs": [],
+      "calculation_rules": [],
+      "scenario_assumptions": {
+        "bear": {
+          "assumption": "需求回落或成本挤压，盈利传导失败",
+          "target_price": null,
+          "expected_return": null,
+          "input_ids": []
+        },
+        "base": {
+          "assumption": "等待下一期利润、营收及资产披露验证",
+          "target_price": null,
+          "expected_return": null,
+          "input_ids": []
+        },
+        "bull": {
+          "assumption": "需求改善持续且估值未充分反映；尚待补证",
+          "target_price": null,
+          "expected_return": null,
+          "input_ids": []
+        }
+      },
+      "entry_condition": "完成原始披露及独立反证、估值情景、流动性和回撤检查，并经人工审核",
+      "invalidation_condition": [
+        "新披露推翻盈利传导",
+        "资产行业暴露不足",
+        "证据失效或来源撤回"
+      ],
+      "exit_condition": "假设失效或观察期届满由人工复核，数据不足暂停",
+      "risk_flags": [
+        "缺少经核验的资产估值与情景输入",
+        "资产映射",
+        "分红独立核对",
+        "模型样本外准入",
+        "独立补证不完整",
+        "资产行业暴露映射不足"
+      ],
+      "recommendation_status": "WATCH",
+      "requires_human_review": true,
+      "execution_allowed": false,
+      "horizon_months": [
+        1,
+        3,
+        6
+      ],
+      "evidence_ids": [
+        "99ace3063e42821643d001dc"
+      ],
+      "risk_checks": [
+        {
+          "check": "相邻公布期利润改善",
+          "passed": true,
+          "observed": 4.3,
+          "required": ">0且期次相邻",
+          "kind": "economic"
+        },
+        {
+          "check": "同期营收增长",
+          "passed": true,
+          "observed": 15.1,
+          "required": ">0",
+          "kind": "economic"
+        },
+        {
+          "check": "基本面所属期新鲜度",
+          "passed": true,
+          "observed": 28,
+          "required": 120,
+          "kind": "admission"
+        },
+        {
+          "check": "资产映射",
+          "passed": false,
+          "observed": "近似",
+          "required": "对口ETF",
+          "kind": "admission"
+        },
+        {
+          "check": "报价新鲜度",
+          "passed": true,
+          "observed": "2026-10-28",
+          "required": "<=5自然日",
+          "kind": "admission"
+        },
+        {
+          "check": "共同交易日覆盖",
+          "passed": true,
+          "observed": 845,
+          "required": 61,
+          "kind": "admission"
+        },
+        {
+          "check": "可交易原始行情",
+          "passed": true,
+          "observed": 20,
+          "required": "20个正成交量、未复权交易日",
+          "kind": "admission"
+        },
+        {
+          "check": "流动性",
+          "passed": true,
+          "observed": 40017495.05,
+          "required": "20日平均成交份数>=1000000；未提供委托规模，不能证明实际冲击成本",
+          "kind": "admission"
+        },
+        {
+          "check": "波动风险",
+          "passed": true,
+          "observed": 0.27780805198649483,
+          "required": 0.4,
+          "kind": "admission"
+        },
+        {
+          "check": "价格确认",
+          "passed": true,
+          "observed": 0.08785037425429121,
+          "required": "20交易日含现金分红超额收益>0",
+          "kind": "admission"
+        },
+        {
+          "check": "分红独立核对",
+          "passed": false,
+          "observed": "未独立核验分红",
+          "required": "两来源记录一致、原件完整、核对未过期",
+          "kind": "admission"
+        },
+        {
+          "check": "近期公司行动",
+          "passed": true,
+          "observed": [],
+          "required": "60日窗口不跨越未处理公司行动",
+          "kind": "admission"
+        },
+        {
+          "check": "近期最大回撤",
+          "passed": true,
+          "observed": -0.08405797101449264,
+          "required": 0.15,
+          "kind": "admission"
+        },
+        {
+          "check": "模型样本外准入",
+          "passed": false,
+          "observed": "NOT_VALIDATED",
+          "required": "完整强基线共同OOS、校准、稳定性和前瞻验证均已验收",
+          "kind": "model"
+        }
+      ]
+    }
+  ]
+}

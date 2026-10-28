@@ -1706,5 +1706,44 @@ def market_sync(
     _emit(summary)
 
 
+@app.command("research-mvp")
+def research_mvp(
+    as_of: str = typer.Option("", "--as-of", help="带时区的冻结研究时点"),
+    run_id: str = typer.Option("", "--run-id"),
+    config: Annotated[Path | None, typer.Option("--config")] = None,
+    replay: Annotated[Path | None, typer.Option("--replay", help="冻结输入JSON，离线回放")] = None,
+    output: Annotated[Path | None, typer.Option("--output")] = None,
+    ledger_path: Annotated[Path | None, typer.Option("--ledger-path")] = None,
+    scheduled: bool = typer.Option(False, "--schedule", help="北京时间18:10交易日调度"),
+) -> None:
+    """跨行业AI补证、观察建议和冻结前瞻账本。"""
+    import yaml
+
+    from industrypulse.services import research_mvp as mvp
+    from industrypulse.services.workbench import Workbench
+
+    service = Workbench()
+    options = yaml.safe_load(config.read_text(encoding="utf-8")) if config else None
+    if scheduled:
+        mvp.schedule(service, options).start()
+        return
+    inputs = json.loads(replay.read_text(encoding="utf-8")) if replay else None
+    if inputs and not as_of:
+        as_of = inputs["as_of"]
+    if inputs and options is None:
+        options = inputs["config"]
+    result = mvp.run(
+        service,
+        as_of=mvp.moment(as_of) if as_of else None,
+        run_id=run_id,
+        config=options,
+        bundles=inputs["bundles"] if inputs else None,
+        tools=mvp.ToolArchive(replay.parent / "tool_archive.json") if replay else None,
+        output=output,
+        ledger_path=ledger_path,
+    )
+    _emit(result)
+
+
 if __name__ == "__main__":
     app()

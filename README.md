@@ -1,148 +1,122 @@
 # IndustryPulse
 
-主动研究与条件机会页面：`http://127.0.0.1:8765/research`。20行业的新数据、现有模型、
-独立AI反证与前瞻账本已接通；使用和验收见 [详细验收](docs/v3/event-research-acceptance.md)。
+本地优先的行业情报与 AI 投资研究工作台。覆盖20个研究行业，把公开资讯、行业统计、原始披露、资产映射和前瞻观察记录连接起来。支持 Windows、macOS、Linux 的浏览器运行方式；Windows 额外提供独立桌面窗口。
 
-本地优先的行业经济监测、预测与投资研究工作台：从官方公告与公开资讯采集行业数据，
-计算景气指标、运行预测模型、回测 ETF 策略——所有数据与计算都在你自己的电脑上完成。
+![跨行业研究页面](docs/screenshots/mvp-research-page.png)
 
-## 界面预览
+## 快速开始
 
-以下截图来自真实运行：资讯为内置公开源实时采集的内容，未接入行情的字段按设计留空（"—"），不虚构数据。
+需要 **Python 3.12 或 3.13**、Git，以及可访问所配置模型和公开数据源的网络。运行前端不需要 Node.js。以下命令均在项目根目录执行；推荐从源码检出后安装，不将未包含配置/静态资源的单独 wheel 当成完整发行包。
 
-**情报总览**——领域切换、资金排行与时间窗口资讯统计：
-
-![情报总览](docs/screenshots/overview.png)
-
-**资讯中心**——真实公开资讯流，按细分行业、来源与类别筛选：
-
-![资讯中心](docs/screenshots/news.png)
-
-**公司观察**——从资讯中识别的公司与相关动态：
-
-![公司观察](docs/screenshots/companies.png)
-
-**数据接入与设置**——按领域/行业勾选订阅通道，无需申请 API：
-
-![数据接入与设置](docs/screenshots/settings.png)
-
-## 功能一览
-
-**行业情报工作台**
-
-- 现代化深色界面，整合领域总览、趋势与资金、资讯、人事与公司动态、搜索与收藏。
-- 内置 102 个公开资讯订阅通道，覆盖 12 个领域、30 个细分行业（半导体、人工智能、
-  新能源、钢铁、医药生物、有色、化工、汽车、通信、消费、金融、宏观政策）。
-  在设置页按行业勾选即可订阅，无需申请任何资讯 API，默认每 15 分钟自动更新。
-- 可选配置 OpenAI 兼容模型 API（Base URL + Key），用于新闻 AI 解读与公告信息抽取；
-  不配置不影响其他功能，本地统计模型也不依赖它。
-
-**真实数据与研究**
-
-- **行情与宏观（2026-10-23 起）**：12 个行业板块指数与 ETF 真实涨跌、180 日趋势、
-  沪深300 基准对比、七大指数报价、行业龙头 A 股行情（现价/市值/PE/PB），
-  以及 31 项中国宏观指标（GDP/CPI/PPI/PMI/社融/M2/LPR/Shibor/国债收益率/进出口/用电量等），
-  全部来自腾讯/东方财富公开接口与官方统计，界面标注来源与数据期次。
-- **官方数据接入**：国家统计局公告自动发现与按月回填、上期所期货日行情、
-  FRED/ALFRED 实时版本、海关 HS 版本化数据、AKShare 备用导入，以及手工导入；
-  每条观测保留原件归档与 sha256 指纹，可追溯到来源。
-- **三种证据模式**（STRICT / RECONSTRUCTED / EXPLORATORY）：支持按任意历史时点
-  重建"当时实际可见"的数据，从机制上避免未来函数；严格模式证据不足时宁可返回空，
-  不伪造覆盖。
-- **八类统计预测模型**（M00–M07，从朴素基线、季节性、AR、Logit、Elastic Net 到
-  动态因子、LightGBM、Markov 状态模型）：支持冻结特征与训练截止的半年扩展窗
-  滚动实验，含 purge/embargo、共同 OOS、分年评估与 bootstrap 区间。
-- **ETF 回测引擎**：次日开盘成交、佣金 + 滑点 + 现金利息、权重与换手约束、
-  分红入账、同成本买入持有基准、逐笔事件与已实现盈亏。
-- **证据审查**：候选导入、官方公告搜索、原件核验、批准/拒绝留痕，审查后才发布。
-- **运维**：数据包导入导出、Parquet/Bronze 备份与 hash 核验恢复、
-  每日采集与月末预测的本地定时调度。
-
-## 安装与启动
-
-环境要求：Windows（主要验证平台）· Python 3.13（兼容 `>=3.12,<3.14`）· [uv](https://docs.astral.sh/uv/) ≥0.12
-
-```powershell
-uv sync --all-extras
-./scripts/start-dashboard.ps1     # 或直接双击 启动IndustryPulse.cmd
+```sh
+git clone https://github.com/jasonxuan12345/IndustryPulse.git
+cd IndustryPulse
+python -m venv .venv
 ```
 
-没有 uv？直接双击启动即可：首次没有可用 Python 时，控制台会让你粘贴路径
-（python.exe 或 conda 环境目录），验证后记住，以后启动不再询问。
-也可以用 `-PythonPath` 参数、`INDUSTRYPULSE_PYTHON` 环境变量或项目 `.venv`。
+Windows PowerShell：
 
-启动后自动打开独立应用窗口（不占用普通浏览器），默认地址 http://127.0.0.1:8765 。
-启动控制台是总开关：关闭控制台或按 Ctrl+C 会结束界面、服务与全部后台任务；
-关闭应用窗口同样退出。数据、设置与调度配置在重启后沿用。
+```powershell
+.\.venv\Scripts\python.exe -m pip install -e .
+Copy-Item .env.example .env
+# 编辑 .env 填入 API，或启动后在设置页配置模型
+.\.venv\Scripts\python.exe scripts/start_dashboard.py
+```
 
-## 上手路径
+macOS / Linux：
 
-1. **看资讯**：开箱即用。进入「数据接入与设置」，按领域/行业勾选资讯来源并保存。
-2. **接 AI（可选）**：设置页填写 Base URL 与 API Key，测试后保存即为默认模型。
-3. **做研究**：宏观总览 → 行业景气 → 模型预测 → 滚动实验 → ETF 回测，
-   全程支持选择研究模式、历史时点与冻结快照。
-4. **审证据**：证据审查页导入候选、核对原件后发布。
-5. **挂调度**：数据与任务页开启每日采集与月末预测（需保持服务运行）。
+```sh
+.venv/bin/python -m pip install -e .
+cp .env.example .env
+# 编辑 .env，或在设置页配置模型
+.venv/bin/python scripts/start_dashboard.py
+```
 
-## 命令行工具
+打开 [工作台](http://127.0.0.1:8765/) 或 [跨行业 AI 研究](http://127.0.0.1:8765/research)。Ctrl+C 停止服务，已有数据保留。更换端口使用 `--port 8766`。浏览器只是界面，服务进程需持续运行才能执行后台任务。
 
-图形界面之外，全部能力均可通过 `industrypulse` CLI 驱动（`uv run industrypulse --help`）：
+已安装 [uv](https://docs.astral.sh/uv/) 时也可使用 `uv sync`，然后 `uv run python scripts/start_dashboard.py`。Windows 原有 `启动IndustryPulse.cmd` / `scripts/start-dashboard.ps1` 仍可启动独立窗口；它们不是 macOS/Linux 的入口。
 
-| 命令 | 用途 |
-|---|---|
-| `doctor` | 环境自检 |
-| `source list / permit` | 数据源清单与许可状态 |
-| `init` / `ingest` | 初始化数据库、单源摄取 |
-| `backfill` / `backfill-monthly` | 批量回填、按月公告发现与回填 |
-| `calendar derive / validate` | 交易日历推导与校验 |
-| `compare-modes` | 三种证据模式对照 |
-| `etf` / `backtest` | ETF 数据管道与回测 |
-| `workbench-run` | 预测/实验/回测/备份等后台作业 |
-| `chain-demo` | 完整产业链示范：领先事件、经济验证、ETF筛选与费后回测，含冻结输入及离线报告 |
-| `ledger-start / ledger-run / ledger-daily / ledger-weekly / ledger-mark` | 开启前瞻账本、持续采集、费后窗口评估、日报周报及追加撤销/验证 |
-| `serve` | 启动 API 服务 |
+### 配置 API
 
-## 数据与隐私
+复制的 `.env` 由跨平台启动脚本加载，已有进程环境变量优先；设置页配置保存到本机 `data/model-provider.json`。未填写环境配置时使用设置页保存的连接。
 
-- 本地优先：研究数据存于 `data/g2.duckdb`（DuckDB，单写者），资讯缓存与设置在
-  `data/news/`，均不入 Git，可随时备份或删除。
-- 除你主动配置的资讯源抓取与模型 API 调用外，系统不向任何服务器发送数据。
-- 未配置的授权数据与 API Key 不会被程序假定存在；来源失败时保留上次成功内容并
-  显示错误，不静默降级。
+```dotenv
+INDUSTRYPULSE_MODEL_BASE_URL=https://api.deepseek.com/v1
+INDUSTRYPULSE_MODEL_API_KEY=替换为自己的密钥
+INDUSTRYPULSE_MODEL_NAME=服务商实际提供的模型ID
+INDUSTRYPULSE_MODEL_PROTOCOL=chat_completions
+```
 
-## 局限与声明
+支持 **OpenAI 兼容 Chat Completions** 和 **Responses** 协议；可配置 DeepSeek、兼容云服务或本地兼容服务的 Base URL、模型和密钥。Responses 服务将协议改为 `responses`。本地免密服务可留空密钥。原生 Anthropic、Azure 特有鉴权等非兼容接口需要适配或兼容网关，不能仅换一个 URL 就假定支持。
 
-- **本系统不提供投资建议。** 模型状态保持 NOT_VALIDATED / UNCALIBRATED / NO_EDGE，
-  统计模型概率不是投资胜率；在样本不足时系统宁可返回"证据不足"，也不宣称优势。
-- ETF 行情来自第三方公开接口（C 级证据），复权口径已交叉验证，但历史主表仍待官方核验。
-- 历史文档的"同期原件"证据无法追溯补办，严格模式只能从启用捕获后向前累积。
-- 不绕过登录、验证码或付费墙；无真实行情时涨跌、资金流与价格曲线留空，不虚构。
+AI 自主补证还需要搜索及正文读取接口。默认是 DeepSeek Search/Fetch；当模型也使用同一来源的 DeepSeek 服务时可沿用该服务密钥。其他模型服务必须另配检索密钥：
+
+```dotenv
+INDUSTRYPULSE_SEARCH_URL=https://api.deepseek.com/v1/tools/search
+INDUSTRYPULSE_FETCH_URL=https://api.deepseek.com/v1/tools/fetch
+INDUSTRYPULSE_SEARCH_KEY=检索服务密钥
+```
+
+自建检索服务需兼容本文档约定的 JSON 请求/响应；详见 [部署与配置](docs/deployment.md)。密钥不会跨服务来源自动复用，也不会由设置查询接口返回明文。`.env`、本地设置、数据库及运行工件均排除在 Git/Docker 构建上下文之外。
+
+**配置 API 不等于自动拥有全部历史数据。** 首次启动即可浏览公开资讯并配置模型；研究链路可基于已采集新闻运行，缺失统计/行情会明确降级。历史预测、回测与严格 PIT 需要另行导入/采集历史数据；未知数据不补成数字。
+
+## 现在能做什么
+
+- **行业情报**：公开资讯源按领域、细分行业订阅；保留原文链接、发布时间、缓存与失败状态。行情、资金流、商品和宏观接口可用时显示；缺项集中说明原因和处理入口，不保留空图框。
+- **跨行业 AI 研究 `/research`**：扫描20行业，每行业最多一条、全局最多5条机会。支持和反对分别检索，读取官方正文，核验逐字摘录、日期与hash。展示资产暴露、估值缺口、三种情景、考虑/放弃/退出条件、1/3/6月观察窗。
+- **可追溯输出**：机会队列、证据包、反证审查、投资 memo 和每日 Markdown 简报；前端支持筛选、切换归档、后台运行与下载。断点恢复、失败日志及幂等入账复用原项目机制。
+- **量化研究 `/research/quant`**：保留原统计模型、T1/T2/T3目标、样本外验收、ETF回测、分红/费用与风险门槛。未通过验收的预测不标为有效信号。
+- **前瞻账本 `/ledger`**：冻结原始判断，跟踪成熟窗口；未来收益与未成熟标签不会回填成已验证结果。
+- **本地运维**：数据包导入/导出、备份恢复、来源健康与调度。已知交易日收盘后运行；日历缺失或日期未知时跳过并留痕，需补入日历，不能以工作日代替交易日。
+
+当前 AI 研究是 **AI_RESEARCH / 收益未验证**。估值及资产证据不足时输出 WATCH/REJECT，不制造精确目标价与收益；需要人工审核，无实盘下单功能。
+
+## Docker（可选）
+
+安装 Docker Desktop 或 Docker Engine + Compose，先复制并填写 `.env`：
+
+```sh
+docker compose up --build -d
+# 停止，保留命名卷中的数据
+docker compose down
+```
+
+浏览器地址同上。默认仅绑定宿主机127.0.0.1；模型设置、数据和工件保存在命名卷中。容器内不能用 `localhost` 指代宿主机的模型服务；地址、权限和 Linux 网关配置见 [部署说明](docs/deployment.md)。
+
+## 离线样例与验证
+
+[examples/research-mvp](examples/research-mvp/) 随仓库提供四行业公开披露样例、裁剪冻结输入和无凭据工具归档，属于事后重建材料，不是新装环境的实时推荐。
+
+```sh
+# 将下面 python 换成当前虚拟环境解释器；脚本禁用网络后验证三次连续运行、幂等和故障注入
+python scripts/verify_mvp_delivery.py
+```
+
+样例没有收益有效性证明；四条建议均保持 WATCH。历史本机验收和前端记录见 [MVP 验收](acceptance_report.md)、[前端验收](docs/mvp-ui-acceptance.md)。当前跨平台验证与限制见 [发布核验](docs/portability-acceptance.md)。
+
+## 开发与测试
+
+```sh
+python -m pip install -e ".[dev,advanced]"
+python -m ruff check src tests scripts
+python -m ruff format --check src tests scripts
+python -m mypy src
+python scripts/export_contracts.py --check
+python -m pytest --basetemp=artifacts/pytest-local --disable-warnings
+node scripts/check_dashboard_states.cjs
+```
+
+Node.js 22+ 仅用于前端开发校验。LightGBM、AKShare 是可选项，分别通过 `.[advanced]`、`.[market]` 安装；Linux 的 LightGBM 可能需要系统 OpenMP 运行库。默认核心安装不依赖它们。
+
+CI 覆盖 Windows / macOS / Ubuntu × Python 3.12 / 3.13，执行静态检查、合同同步、回归和前端状态校验。实际结果以 [GitHub Actions](https://github.com/jasonxuan12345/IndustryPulse/actions) 为准，不将配置了矩阵等同于已经验证所有环境。
 
 ## 文档
 
-| 文档 | 内容 |
-|---|---|
-| [运行手册](docs/operations.md) | 启动、模型与资讯设置、调度、研究工具、故障处置 |
-| [资讯源说明](docs/news-sources.md) | 内置来源覆盖、采集行为与可用性 |
-| [工作台 API](docs/dashboard-api.md) | JSON API、字段结构与可选环境变量 |
-| [开发任务书](IndustryPulse_开发任务书_V2.0.md) | 完整产品需求规格（IP-SRS-002） |
-| [docs/](docs/) | 架构、API、数据源、研究协议、runbook 与历轮交付记录 |
+- [部署与配置](docs/deployment.md)：系统环境、API、容器、首次运行与故障排查。
+- [MVP 运行手册](README_MVP.md)：研究命令、预算、证据约束与复现。
+- [运维手册](docs/operations.md)：采集、调度、量化研究、备份与停止。
+- [界面 API](docs/dashboard-api.md)：前端接口与数据形状。
+- [历史开发任务书](IndustryPulse_开发任务书_V2.0.md)：原始需求，不代表所有研究效果已经验收。
 
-## 开源许可
-
-以 [MIT 许可](LICENSE) 发布。资讯内容版权归各发布方所有，本软件仅作为个人订阅阅读器展示摘要与原文链接。
-
-## 开发
-
-```bash
-uv sync --all-extras
-uv run ruff check src tests scripts && uv run ruff format --check src tests scripts
-uv run mypy src                       # strict
-uv run pytest --cov=industrypulse
-uv run python scripts/export_contracts.py --check
-```
-
-- 共享数据合同冻结于 `src/industrypulse/contracts/`（Pydantic v2），
-  生成物在 `contracts/`（勿手改）；变更流程见 [docs/contracts-v1/README.md](docs/contracts-v1/README.md)。
-- 开发过程、各阶段验收记录与已知事项见 [STATUS.md](STATUS.md)。
-- CI 配置覆盖 Windows/Linux × Python 3.12/3.13；本仓库无远端，云端矩阵未实际执行。
+本项目以 [MIT](LICENSE) 发布。资讯与披露内容归各发布方所有，研究结论不构成收益承诺。

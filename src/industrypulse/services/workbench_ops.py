@@ -227,6 +227,19 @@ def configure_schedule(service: Workbench, enabled: bool) -> dict[str, Any]:
         scheduler.add_job(
             monthly, "cron", hour=18, minute=40, id="forecast", coalesce=True, max_instances=1
         )
+        from industrypulse.services.research_mvp import scheduled_tick
+
+        scheduler.add_job(
+            lambda: scheduled_tick(service),
+            "cron",
+            hour=19,
+            minute=10,
+            day_of_week="mon-fri",
+            id="research-mvp",
+            coalesce=True,
+            max_instances=1,
+            misfire_grace_time=3600,
+        )
         scheduler.start()
         service.scheduler = scheduler
     config = {
@@ -234,6 +247,7 @@ def configure_schedule(service: Workbench, enabled: bool) -> dict[str, Any]:
         "timezone": "Asia/Shanghai",
         "capture": "每日 18:10",
         "forecast": "月末 18:40",
+        "research_mvp": "已知交易日 19:10（北京时间）",
         "requires": "本地服务持续运行；重启自动恢复配置",
     }
     write_json(service.output / "schedule.json", config)

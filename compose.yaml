@@ -1,0 +1,13 @@
+services:
+  industrypulse:
+    build: .
+    ports:
+      - "127.0.0.1:8765:8765"
+    env_file: .env
+    volumes:
+      - industrypulse-data:/app/data
+      - industrypulse-artifacts:/app/artifacts
+    restart: unless-stopped
+volumes:
+  industrypulse-data:
+  industrypulse-artifacts:

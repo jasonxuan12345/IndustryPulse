@@ -14,7 +14,7 @@ from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from datetime import date, datetime, timedelta
 from pathlib import Path
-from typing import Any, cast
+from typing import Any, TypeVar, cast
 
 import yaml
 
@@ -26,6 +26,7 @@ from .models import Bar, QuoteSnapshot
 from .providers import akshare_provider, chinamoney, eastmoney, sina_public, tencent
 
 ROOT = Path(__file__).resolve().parents[3]
+T = TypeVar("T")
 SECTORS_CONFIG = ROOT / "config/market/sectors.yaml"
 MACRO_CONFIG = ROOT / "config/market/macro_indicators.yaml"
 
@@ -36,7 +37,7 @@ _TREND_BARS = 180
 
 
 def _load_yaml(path: Path) -> dict[str, Any]:
-    return yaml.safe_load(path.read_text(encoding="utf-8"))
+    return cast(dict[str, Any], yaml.safe_load(path.read_text(encoding="utf-8")))
 
 
 def resolve_net_flow(
@@ -133,12 +134,12 @@ class MarketService:
             "PRIMARY KEY(sector, day))"
         )
 
-    def _cached(self, key: str, ttl: int, loader: Callable[[], Any]) -> Any:
+    def _cached(self, key: str, ttl: int, loader: Callable[[], T]) -> T:
         now = time.monotonic()
         with self._cache_lock:
             hit = self._cache.get(key)
             if hit and now - hit[0] < ttl:
-                return hit[1]
+                return cast(T, hit[1])
         value = loader()
         with self._cache_lock:
             self._cache[key] = (now, value)
@@ -210,7 +211,7 @@ class MarketService:
             return rows
 
         try:
-            return cast(dict[str, dict[str, Any]], self._cached("flow:sina", _TTL_FLOW, load))
+            return self._cached("flow:sina", _TTL_FLOW, load)
         except Exception as exc:  # noqa: BLE001
             self.health.record_failure("sina:moneyflow", str(exc)[:160])
             return {}
@@ -532,7 +533,7 @@ class MarketService:
             "status": "ok",
         }
         self._overview_memory = (
-            overview["_built_at"],
+            cast(float, overview["_built_at"]),
             {key: value for key, value in overview.items() if key not in ("_built_at", "_config")},
         )
         self._overview_path.parent.mkdir(parents=True, exist_ok=True)
@@ -571,7 +572,7 @@ class MarketService:
         )
         if cached and cached.get("status") != "failed":
             self.overview(stories)  # 过期则顺带触发后台刷新
-            return cached
+            return cast(dict[str, Any], cached)
         return self.sector_snapshot(domain_id, stories)
 
     # ------------------------------------------------------------------ macro

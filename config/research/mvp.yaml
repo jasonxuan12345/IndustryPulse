@@ -1,0 +1,15 @@
+version: research-mvp-v1
+# 空值沿用设置页或环境变量选中的模型，避免覆盖其他供应商的模型名称。
+model: null
+ai_enabled: true
+max_opportunities: 5
+max_rounds: 3
+max_calls_per_opportunity: 24
+pages_per_search: 2
+timeout_seconds: 30
+opportunity_timeout_seconds: 240
+stat_max_age_days: 45
+relative_strength_threshold: 0.03
+search_url: https://api.deepseek.com/v1/tools/search
+fetch_url: https://api.deepseek.com/v1/tools/fetch
+official_domains: [stats.gov.cn, gov.cn, sse.com.cn, szse.cn, cninfo.com.cn, hkexnews.hk, hkex.com.hk, chinaamc.com, gtfund.com, penghua.com.cn, fullgoal.com.cn, gffunds.com.cn]

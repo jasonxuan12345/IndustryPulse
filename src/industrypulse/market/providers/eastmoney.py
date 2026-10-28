@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import time
 from datetime import date, datetime
-from typing import Any
+from typing import Any, cast
 
 import httpx
 
@@ -38,7 +38,7 @@ def _get_json(client: httpx.Client, mirrors: list[str], params: dict[str, str]) 
         try:
             response = client.get(mirror, params=params)
             response.raise_for_status()
-            return response.json()
+            return cast(dict[str, Any], response.json())
         except (httpx.HTTPError, ValueError) as exc:
             last_error = exc
             time.sleep(0.2)

@@ -49,7 +49,7 @@ PMI_NAMES = {
 
 
 def _points(rows: Sequence[Any]) -> list[Any]:
-    chosen: dict[object, Any] = {}
+    chosen: dict[date, Any] = {}
     for row in rows:
         current = chosen.get(row.observation_start)
         if current is None or row.vintage_id > current.vintage_id:
@@ -218,7 +218,7 @@ def build_economic_state(
     regime = classify_regime(level, previous)
     breadth = expansion_breadth(levels)
     covered = sum(key in levels for key in ("new_orders", "production", "employment"))
-    industries = []
+    industries: list[dict[str, Any]] = []
     hypotheses = []
     gaps = []
     price_lines = _PriceLines(service, repository.database, as_of)

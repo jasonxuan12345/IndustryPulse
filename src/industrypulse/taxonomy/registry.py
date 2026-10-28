@@ -143,7 +143,7 @@ class TaxonomyRegistry(ContractBaseModel):
         if path.suffix == ".json":
             data = json.loads(content)
         else:
-            import yaml  # type: ignore[import-untyped]
+            import yaml
 
             data = yaml.safe_load(content)
         return cls.model_validate(data)

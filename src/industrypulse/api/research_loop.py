@@ -1,13 +1,15 @@
 """Local event research, baseline evidence and conditional opportunity endpoints."""
 
+import threading
 from typing import Any
+from uuid import uuid4
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, ConfigDict
 
 from industrypulse.api.workbench import workspace
-from industrypulse.services import research_loop, trusted_baseline
+from industrypulse.services import research_loop, research_view, trusted_baseline
 
 
 class RunRequest(BaseModel):
@@ -24,10 +26,51 @@ class Settings(BaseModel):
 
 def create_research_router() -> APIRouter:
     router = APIRouter()
+    submit_lock = threading.Lock()
+    active: dict[str, str] = {}
 
     @router.get("/research", include_in_schema=False)
     def page() -> FileResponse:
         return FileResponse(workspace().root / "apps/dashboard/web/research.html")
+
+    @router.get("/research/quant", include_in_schema=False)
+    def quant_page() -> FileResponse:
+        return FileResponse(workspace().root / "apps/dashboard/web/research-quant.html")
+
+    @router.get("/api/research/mvp/report")
+    def mvp_report(run_id: str = "") -> dict[str, Any]:
+        try:
+            return research_view.report(workspace().root, run_id)
+        except FileNotFoundError as exc:
+            raise HTTPException(404, str(exc)) from exc
+        except (ValueError, KeyError, TypeError, OSError) as exc:
+            raise HTTPException(409, "研究归档无法通过完整性检查，请核对文件或备份") from exc
+
+    @router.post("/api/research/mvp/run", status_code=202)
+    def mvp_run() -> dict[str, str]:
+        service = workspace()
+        with submit_lock:
+            previous = active.get("id")
+            if previous and not (service.output / "results" / f"{previous}.json").exists():
+                return {"id": previous, "state": "queued"}
+            result = service.launch("research_mvp", {"run_id": "mvp-ui-" + uuid4().hex})
+            active["id"] = result["id"]
+            return result
+
+    @router.get("/api/research/mvp/download/{run_id}/{name}")
+    def mvp_download(run_id: str, name: str) -> FileResponse:
+        if name not in research_view.FILES:
+            raise HTTPException(404, "该研究文件不提供下载")
+        try:
+            research_view.report(workspace().root, run_id)
+            path = research_view.directory(workspace().root, run_id) / name
+            if not path.is_file():
+                raise FileNotFoundError
+            return FileResponse(path, filename=name)
+        except FileNotFoundError as exc:
+            raise HTTPException(404, "研究文件不存在") from exc
+        except (ValueError, KeyError, TypeError, OSError) as exc:
+            raise HTTPException(409, "研究文件无法通过完整性检查") from exc
 
     @router.get("/api/research/report")
     def report() -> dict[str, Any]:

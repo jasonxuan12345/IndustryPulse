@@ -6,7 +6,7 @@ import json
 import os
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 
 import httpx
 from fastapi import APIRouter, HTTPException
@@ -14,6 +14,9 @@ from pydantic import AwareDatetime, BaseModel, Field, HttpUrl
 
 from industrypulse.contracts import TZ_SHANGHAI
 from industrypulse.intelligence.service import NewsService
+
+if TYPE_CHECKING:
+    from industrypulse.market.service import MarketService
 
 ROOT = Path(__file__).resolve().parents[3]
 SECTORS = {
@@ -197,10 +200,10 @@ def demo_feed() -> Feed:
     )
 
 
-_market_service: "object | None" = None
+_market_service: MarketService | None = None
 
 
-def market_service() -> "MarketService | None":
+def market_service() -> MarketService | None:
     """行情服务单例；INDUSTRYPULSE_MARKET_DATA=0 可整体停用。"""
     global _market_service
     if os.getenv("INDUSTRYPULSE_MARKET_DATA", "1") == "0":
@@ -209,7 +212,7 @@ def market_service() -> "MarketService | None":
         from industrypulse.market.service import MarketService
 
         _market_service = MarketService()
-    return _market_service  # type: ignore[no-any-return]
+    return _market_service
 
 
 def create_dashboard_router(service: NewsService | None = None) -> APIRouter:
@@ -246,17 +249,18 @@ def create_dashboard_router(service: NewsService | None = None) -> APIRouter:
                     companies=[],
                 )
             payload = service.feed()
-            market = market_service()
-            if market is not None:
-                try:
+            try:
+                market = market_service()
+                if market is not None:
                     from industrypulse.market.service import enrich_sector_trends
 
                     payload = enrich_sector_trends(payload, market)
-                except Exception as exc:  # noqa: BLE001 - 行情失败不拖垮资讯
-                    payload["market"] = {
-                        "status": "failed",
-                        "message": f"行情数据源暂时失败：{str(exc)[:80]}",
-                    }
+            except Exception as exc:  # noqa: BLE001 - 初始化/数据库占用也不能拖垮资讯
+                payload["market"] = {
+                    "status": "failed",
+                    "message": "行情服务暂时不可用，已有资讯仍可查看；稍后刷新重试",
+                    "error_type": type(exc).__name__,
+                }
             return Feed.model_validate(payload)
         except (httpx.HTTPError, ValueError, OSError) as exc:
             raise HTTPException(502, "资讯源读取失败，请检查接口配置或导入文件") from exc
