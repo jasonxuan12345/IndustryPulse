@@ -111,7 +111,7 @@ node scripts/check_dashboard_states.cjs
 
 Node.js 22+ 仅用于前端开发校验。LightGBM、AKShare 是可选项，分别通过 `.[advanced]`、`.[market]` 安装；Linux 的 LightGBM 可能需要系统 OpenMP 运行库；macOS 使用前执行 `brew install libomp`。默认核心安装不依赖它们。
 
-CI 覆盖 Windows / macOS / Ubuntu × Python 3.12 / 3.13，执行静态检查、合同同步、回归和前端状态校验。实际结果以 [GitHub Actions](https://github.com/jasonxuan12345/IndustryPulse/actions) 为准，不将配置了矩阵等同于已经验证所有环境。
+CI 覆盖 Windows / macOS / Ubuntu × Python 3.12 / 3.13，执行静态检查、合同同步、回归和前端状态校验。2026-10-28 的[发布验证](https://github.com/jasonxuan12345/IndustryPulse/actions/runs/40689393451)中，六组平台测试及Docker构建/启动共七个作业全部通过。对应代码提交、验证范围和API边界见[发布核验](docs/portability-acceptance.md)；后续提交结果以 [GitHub Actions](https://github.com/jasonxuan12345/IndustryPulse/actions) 为准。
 
 ## 文档
 
