@@ -1,8 +1,9 @@
-"""量化位置与高危预警分析：把价格位置、成交拥挤度、相对强弱、波动率合成客观标尺。
+"""量化位置与高危预警分析（V2 CheckList 硬门槛版）。
 
-定位：不做无依据的涨跌预测，而是辅助回答两个问题：
-1. 当前是不是“别人还没入场”的早期低位（LURKING）？
-2. 是否已经进入“人声鼎沸/放量滞涨”的高危拥挤区（HIGH_RISK / CROWDED）？
+核心原则：
+1. 横轴（催化强度）看【真实硬异动 + 盘面逆势抗跌 + 新闻异常增量】，不给普通日常新闻虚高打分；
+2. 纵轴（大周期位置）拉长至 180 个交易日，彻底拆开【左侧急跌 (FALLING)】与【低位企稳 (LURKING)】；
+3. 允许大多数行业在大环境差时处于 FALLING 或 NEUTRAL，不强行凑出潜伏机会。
 """
 
 from __future__ import annotations
@@ -21,9 +22,7 @@ def _pct_return(series: list[float], days: int) -> float | None:
 
 
 def _percentile(value: float, window: list[float]) -> float:
-    if not window:
-        return 50.0
-    if len(window) == 1:
+    if len(window) <= 1:
         return 50.0
     below = sum(1 for item in window if item < value)
     equal = sum(1 for item in window if item == value)
@@ -58,27 +57,40 @@ def compute_position_radar(
     heat: float | None = None,
     news_count_24h: int = 0,
     news_count_prev_24h: int = 0,
+    hard_signal_count: int = 0,
+    overseas_lead_20d: float | None = None,
+    overseas_avg_20d: float | None = None,
     extra_catalyst_boost: float = 0.0,
 ) -> dict[str, Any]:
-    """根据行业收盘价、成交额与信息热度计算量化位置、拥挤度及高危预警。"""
+    """根据 180 日行情、量价结构与真实硬异动计算量化状态与四象限坐标。"""
+    _ = heat  # 保留参数签名兼容调用方，不再用日常水文总量虚高抬催化分
     clean_closes = [float(x) for x in closes if x and x > 0]
     if len(clean_closes) < 10:
+        base_cat = _clamp(hard_signal_count * 22.0 + extra_catalyst_boost)
         return {
             "available": False,
             "zone": "UNKNOWN",
             "zone_label": "数据不足",
             "position_score": None,
-            "catalyst_score": round(_clamp((heat or 0.0) + extra_catalyst_boost), 1),
+            "catalyst_score": round(base_cat, 1),
+            "hard_signal_count": hard_signal_count,
+            "anti_drop": False,
+            "falling_knife": False,
             "risk_flags": ["历史行情不足 10 个交易日，暂无法计算位置分位"],
         }
 
-    window_closes = clean_closes[-60:]
+    window_closes = clean_closes[-180:]
     price_pct = _percentile(clean_closes[-1], window_closes)
     ret_5d = _pct_return(clean_closes, 5)
     ret_20d = _pct_return(clean_closes, 20)
     ret_60d = _pct_return(clean_closes, 59 if len(clean_closes) == 60 else 60)
 
-    bench_ret_20d = _pct_return([float(x) for x in (benchmark_closes or []) if x and x > 0], 20)
+    clean_bench = [float(x) for x in (benchmark_closes or []) if x and x > 0]
+    bench_ret_5d = _pct_return(clean_bench, 5)
+    bench_ret_20d = _pct_return(clean_bench, 20)
+    relative_5d = (
+        round(ret_5d - bench_ret_5d, 2) if ret_5d is not None and bench_ret_5d is not None else None
+    )
     relative_20d = (
         round(ret_20d - bench_ret_20d, 2)
         if ret_20d is not None and bench_ret_20d is not None
@@ -89,7 +101,7 @@ def compute_position_radar(
     turnover_pct: float | None = None
     turnover_z: float | None = None
     if len(clean_amounts) >= 20:
-        win_amt = clean_amounts[-60:]
+        win_amt = clean_amounts[-180:]
         recent_amt = sum(win_amt[-5:]) / min(5, len(win_amt))
         turnover_pct = _percentile(recent_amt, win_amt)
         mean_amt = sum(win_amt) / len(win_amt)
@@ -98,36 +110,66 @@ def compute_position_radar(
 
     vol_20d = _volatility_annual_pct(clean_closes, 20)
 
-    # 综合市场位置与拥挤度评分 (0-100)
-    slope_score = _clamp(50.0 + (ret_20d or 0.0) * 2.0)
+    # 纵轴：综合市场位置与拥挤度评分 (0-100)
+    slope_score = _clamp(50.0 + (ret_20d or 0.0) * 1.8)
     if turnover_pct is not None:
-        position_score = round(0.5 * price_pct + 0.35 * turnover_pct + 0.15 * slope_score, 1)
+        position_score = round(0.55 * price_pct + 0.30 * turnover_pct + 0.15 * slope_score, 1)
     else:
         position_score = round(0.75 * price_pct + 0.25 * slope_score, 1)
 
-    # 信息催化分 (0-100)
-    news_scale = _clamp((math.log1p(news_count_24h) / math.log1p(60)) * 100.0)
-    if news_count_prev_24h > 0:
-        growth = (news_count_24h - news_count_prev_24h) / news_count_prev_24h
-        news_growth = _clamp((growth + 0.5) * 50.0)
-    else:
-        news_growth = 55.0 if news_count_24h > 0 else 0.0
-    base_catalyst = (
-        0.5 * (heat if heat is not None else news_scale) + 0.3 * news_scale + 0.2 * news_growth
+    # 盘面微观行为异动：逆势抗跌 / 左侧急跌
+    anti_drop = bool(
+        (relative_20d is not None and relative_20d >= 3.0 and (ret_5d is None or ret_5d >= -1.0))
+        or (
+            bench_ret_5d is not None
+            and bench_ret_5d <= -1.5
+            and relative_5d is not None
+            and relative_5d >= 2.0
+        )
     )
-    catalyst_score = round(_clamp(base_catalyst + extra_catalyst_boost), 1)
+    falling_knife = bool(
+        (ret_20d is not None and ret_20d <= -5.0 and (ret_5d is None or ret_5d < -0.5))
+        or (ret_60d is not None and ret_60d <= -12.0 and (ret_5d is None or ret_5d < 0.0))
+    )
+
+    # 横轴：异常催化分（以硬异动和盘面逆势为主，常规新闻数量只给低基线）
+    if news_count_prev_24h > 0:
+        surge_ratio = (news_count_24h - news_count_prev_24h) / news_count_prev_24h
+        news_anomaly = _clamp(8.0 + max(0.0, surge_ratio) * 18.0, 0.0, 26.0)
+    else:
+        news_anomaly = 12.0 if news_count_24h > 0 else 0.0
+    hard_score = _clamp(hard_signal_count * 22.0, 0.0, 66.0)
+    overseas_score = (
+        12.0
+        if (
+            overseas_lead_20d is not None
+            and overseas_lead_20d >= 6.0
+            and (overseas_avg_20d is None or overseas_avg_20d >= 2.0)
+        )
+        else 0.0
+    )
+    anti_drop_score = 22.0 if anti_drop else 0.0
+    catalyst_score = round(
+        _clamp(news_anomaly + hard_score + overseas_score + anti_drop_score + extra_catalyst_boost),
+        1,
+    )
 
     flags: list[str] = []
     if price_pct >= 80:
-        flags.append(f"近60日价格处于 {price_pct}% 高分位")
+        flags.append(f"180日价格处于 {price_pct}% 高位区间")
     elif price_pct <= 25:
-        flags.append(f"近60日价格处于 {price_pct}% 低位区间")
+        flags.append(f"180日价格处于 {price_pct}% 低位区间")
 
     if turnover_pct is not None:
         if turnover_pct >= 85:
             flags.append(f"成交拥挤度达 {turnover_pct}% 分位")
-        elif turnover_pct <= 30:
-            flags.append(f"成交额处于 {turnover_pct}% 冷清低位")
+        elif turnover_pct <= 25:
+            flags.append(f"成交处于 {turnover_pct}% 极冷区间")
+
+    if anti_drop:
+        flags.append("大盘偏弱背景下出现逆势抗跌/相对走强信号")
+    if falling_knife:
+        flags.append(f"近20日下跌 {ret_20d}% 且未见止跌，谨防左侧接飞刀")
 
     stall_divergence = (
         turnover_z is not None
@@ -138,31 +180,46 @@ def compute_position_radar(
     )
     if stall_divergence:
         flags.append("高位放量滞涨（量增价平，警惕资金兑现）")
-    if vol_20d is not None and vol_20d >= 35:
+    if vol_20d is not None and vol_20d >= 40:
         flags.append(f"20日年化波动率偏高（{vol_20d}%）")
     if ret_20d is not None and ret_20d >= 18:
-        flags.append(f"近20日涨幅已达 {ret_20d}%，注意短期追高风险")
+        flags.append(f"近20日涨幅已达 {ret_20d}%，短期不宜追高")
 
-    # 四档位置判定
+    # 6 档硬门槛 CheckList 判定
+    weak_market = bench_ret_20d is not None and bench_ret_20d <= -2.5
     high_risk = (
-        position_score >= 80
+        position_score >= 78
         and (
-            (turnover_pct is not None and turnover_pct >= 85)
-            or stall_divergence
-            or (vol_20d is not None and vol_20d >= 35)
+            stall_divergence
+            or (turnover_pct is not None and turnover_pct >= 85 and (ret_20d or 0.0) >= 15)
+            or (vol_20d is not None and vol_20d >= 40 and price_pct >= 85)
         )
-    ) or (stall_divergence and position_score >= 72)
+    ) or (stall_divergence and position_score >= 70)
+
+    has_real_catalyst = hard_signal_count >= 1 or anti_drop or catalyst_score >= 52.0
+    low_and_stable = position_score <= 48.0 and not falling_knife
+    if weak_market:
+        low_and_stable = low_and_stable and (
+            anti_drop or (relative_20d is not None and relative_20d >= 0.0)
+        )
+    not_crowded = turnover_pct is None or turnover_pct <= 75.0
 
     if high_risk:
         zone, label = "HIGH_RISK", "高危离场警示"
-    elif position_score >= 68 or (ret_20d is not None and ret_20d >= 18):
-        zone, label = "CROWDED", "拥挤警示"
-    elif position_score <= 42 and catalyst_score >= 40:
-        zone, label = "LURKING", "早期潜伏区"
-    elif 42 < position_score < 68 and (relative_20d is None or relative_20d > 0):
-        zone, label = "RISING", "温和启动"
+    elif position_score >= 70.0 or (ret_20d is not None and ret_20d >= 18.0):
+        zone, label = "CROWDED", "高位拥挤"
+    elif falling_knife and not anti_drop:
+        zone, label = "FALLING", "左侧阴跌（慎接飞刀）"
+    elif has_real_catalyst and low_and_stable and not_crowded:
+        zone, label = "LURKING", "底部潜伏窗口"
+    elif (
+        position_score < 70.0
+        and (relative_20d is None or relative_20d > 0.0)
+        and (ret_5d or 0.0) >= 0.0
+    ):
+        zone, label = "RISING", "趋势走强"
     else:
-        zone, label = "NEUTRAL", "冷门观望"
+        zone, label = "NEUTRAL", "观望"
 
     return {
         "available": True,
@@ -179,5 +236,10 @@ def compute_position_radar(
         "relative_20d": relative_20d,
         "volatility_20d": vol_20d,
         "divergence": stall_divergence,
+        "anti_drop": anti_drop,
+        "falling_knife": falling_knife,
+        "hard_signal_count": hard_signal_count,
+        "overseas_lead_20d": overseas_lead_20d,
+        "overseas_avg_20d": overseas_avg_20d,
         "risk_flags": flags,
     }

@@ -19,6 +19,7 @@ from industrypulse.api.radar import create_radar_router
 from industrypulse.api.smart_money import create_smart_money_router
 from industrypulse.core import Settings
 from industrypulse.intelligence.service import NewsService
+from industrypulse.signals.anomalies import SignalService
 from industrypulse.smart_money.service import SmartMoneyService
 
 
@@ -26,6 +27,7 @@ def create_app(settings: Settings | None = None, *, root: Path | None = None) ->
     _ = settings
     news_service = NewsService()
     smart_money_service = SmartMoneyService()
+    signal_service = SignalService()
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI) -> Any:
@@ -37,13 +39,18 @@ def create_app(settings: Settings | None = None, *, root: Path | None = None) ->
     application = FastAPI(title="IndustryPulse", version="2.0.0", lifespan=lifespan)
     application.state.news_service = news_service
     application.state.smart_money_service = smart_money_service
+    application.state.signal_service = signal_service
     application.include_router(create_dashboard_router(news_service))
     application.include_router(create_sources_router(news_service))
     application.include_router(create_events_router(news_service))
     application.include_router(create_model_router())
-    application.include_router(create_radar_router(news_service, smart_money_service))
+    application.include_router(
+        create_radar_router(news_service, smart_money_service, signal_service)
+    )
     application.include_router(create_smart_money_router(smart_money_service))
-    application.include_router(create_ai_router(news_service, smart_money_service))
+    application.include_router(
+        create_ai_router(news_service, smart_money_service, signal_service=signal_service)
+    )
 
     @application.middleware("http")
     async def protect_local_writes(request: Request, call_next: Any) -> Any:

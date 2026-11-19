@@ -13,6 +13,7 @@ def isolated_env(tmp_path, monkeypatch):
     monkeypatch.setenv("INDUSTRYPULSE_NEWS_DIR", str(tmp_path / "news"))
     monkeypatch.setenv("INDUSTRYPULSE_SMART_MONEY_DIR", str(tmp_path / "sm"))
     monkeypatch.setenv("INDUSTRYPULSE_AI_DIR", str(tmp_path / "ai"))
+    monkeypatch.setenv("INDUSTRYPULSE_SIGNALS_DIR", str(tmp_path / "signals"))
     monkeypatch.setenv("INDUSTRYPULSE_MODEL_CONFIG", str(tmp_path / "model.json"))
     monkeypatch.setenv("INDUSTRYPULSE_NEWS_AUTO_FETCH", "0")
     monkeypatch.setenv("INDUSTRYPULSE_MARKET_DATA", "0")
@@ -46,7 +47,9 @@ def test_clean_api_end_to_end() -> None:
         entry_id = created.json()["id"]
         assert client.delete(f"/api/smart-money/entries/{entry_id}").status_code == 200
 
-        run_res = client.post("/api/ai/butterfly/run", json={"use_ai": False})
+        run_res = client.post(
+            "/api/ai/butterfly/run", json={"use_ai": False, "refresh_signals": False}
+        )
         assert run_res.status_code == 200
         assert run_res.json()["mode"] == "rule_fallback"
 

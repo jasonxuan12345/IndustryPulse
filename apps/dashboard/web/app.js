@@ -14,8 +14,10 @@ const state = {
   health: null,
   verifyResult: null,
   aiBusy: false,
+  sigBusy: false,
   verifyBusy: false,
   smSyncBusy: false,
+  smParseBusy: false,
   error: ''
 };
 
@@ -74,6 +76,7 @@ function zoneBadge(zone, label) {
   const map = {
     LURKING: 'badge-lurking',
     RISING: 'badge-rising',
+    FALLING: 'badge-falling',
     CROWDED: 'badge-crowded',
     HIGH_RISK: 'badge-highrisk',
     NEUTRAL: 'badge-neutral',
@@ -95,6 +98,7 @@ function quadrantChart(sectors) {
   const colorOf = z => ({
     LURKING: '#5ee3b5',
     RISING: '#7db7ff',
+    FALLING: '#b7896b',
     CROWDED: '#e8c88d',
     HIGH_RISK: '#f48691',
     NEUTRAL: '#8390a4'
@@ -165,8 +169,25 @@ function renderRadar() {
   const aiHeaderRight = `
     <div class="toolbar">
       ${hasReport ? `<span class="pill ${report.mode === 'ai' ? '' : 'demo'}">${report.mode === 'ai' ? `AI · ${escapeHtml(report.model || '')}` : '规则基线'} · ${date(report.generated_at)}</span>` : ''}
-      <button class="control primary" data-action="run-butterfly" ${state.aiBusy ? 'disabled' : ''}>${state.aiBusy ? '正在并行推演…' : '✧ 运行 AI 蝴蝶效应扫描'}</button>
+      <button class="control" data-action="refresh-signals" ${state.sigBusy ? 'disabled' : ''}>${state.sigBusy ? '拉取异动中…' : '↻ 刷新硬异动源'}</button>
+      <button class="control primary" data-action="run-butterfly" ${state.aiBusy ? 'disabled' : ''}>${state.aiBusy ? '正在并行严审…' : '✧ 运行 AI 蝴蝶效应扫描'}</button>
     </div>`;
+
+  const anomalies = radarData.anomalies || {};
+  const highlights = anomalies.highlights || [];
+  const anomalyBar = highlights.length
+    ? `<div class="panel-body">
+        <div class="tag-row" style="margin-bottom:12px">
+          ${Object.entries(anomalies.channels || {}).map(([k, v]) => `<span class="pill ${v.status === 'ok' ? '' : 'warn-pill'}">${escapeHtml(k)}: ${v.status === 'ok' ? `${v.count}条` : '失败'}</span>`).join('')}
+        </div>
+        <div class="card-grid">${highlights.slice(0, 6).map(h => `<div class="sm-inst-card">
+          <div class="signal-top"><span class="tag">${escapeHtml(h.tag)}</span><small class="muted">${escapeHtml(h.sector)} · ${escapeHtml(h.date || '')}</small></div>
+          <div style="font-size:12.5px;font-weight:500;margin:6px 0">${escapeHtml(h.title)}</div>
+          <div class="muted" style="font-size:11.5px">${escapeHtml(h.detail || '')}</div>
+          ${h.url ? `<div style="margin-top:6px;font-size:11px"><a href="${escapeHtml(h.url)}" target="_blank" rel="noopener">查看原始公告/来源 ↗</a></div>` : ''}
+        </div>`).join('')}</div>
+      </div>`
+    : '<div class="panel-body"><p class="muted">尚未拉取全网硬异动（业绩预增簇 / 巨潮公告 / 台股月度营收 / 海外映射）。点击「刷新硬异动源」或直接运行扫描即可自动采集。</p></div>';
 
   const macroSummary = hasReport
     ? `<div class="panel-body">
@@ -176,7 +197,7 @@ function renderRadar() {
           ${(macro.key_risks || []).map(t => `<span class="pill warn-pill">关注风险：${escapeHtml(t)}</span>`).join('')}
         </div>
       </div>`
-    : `<div class="panel-body"><p class="muted">尚未运行过扫描。点击右上角「运行 AI 蝴蝶效应扫描」，系统会并行读取 12 行业最新新闻，结合量化位置与机构共识找出早期潜伏线索与高危离场信号。</p></div>`;
+    : `<div class="panel-body"><p class="muted">尚未运行过扫描。点击右上角「运行 AI 蝴蝶效应扫描」，系统会先抓取硬异动并结合 180 日止跌位置与机构共识做严苛筛选。</p></div>`;
 
   const earlyCards = early.length
     ? early.map(item => {
@@ -192,6 +213,8 @@ function renderRadar() {
             <button class="control" data-jump-sector="${escapeHtml(item.sector)}">进行业透视 ↗</button>
           </div>
           <h3>${escapeHtml(item.title)}</h3>
+          ${(item.hard_triggers || []).length ? `<div class="tag-row" style="margin-bottom:8px">${item.hard_triggers.map(t => `<span class="tag">${escapeHtml(t)}</span>`).join('')}</div>` : ''}
+          ${item.sub_theme_and_targets ? `<p class="disproof"><b>细分方向与标的：</b>${escapeHtml(item.sub_theme_and_targets)}</p>` : ''}
           <p class="signal-body">${escapeHtml(item.butterfly_chain)}</p>
           <div class="signal-meta">
             ${item.quant_alignment ? `<span>📊 ${escapeHtml(item.quant_alignment)}</span>` : ''}
@@ -201,7 +224,9 @@ function renderRadar() {
           ${evs.length ? `<div class="evidence-links"><b>依据原文：</b>${evs.map(s => `<a href="${escapeHtml(s.url || '#')}" target="_blank" rel="noopener">${escapeHtml(s.title)}</a>`).join(' · ')}</div>` : ''}
         </article>`;
       }).join('')
-    : '<div class="empty">当前暂无高催化且处于低位的潜伏线索（或尚未运行扫描）。</div>';
+    : (hasReport
+        ? '<div class="empty"><b>当前 0 个早期潜伏板块</b>经严审，目前暂无同时满足「真实硬异动 + 180日低位止跌企稳 + 未拥挤」的行业，建议防守观望，宁缺毋滥。</div>'
+        : '<div class="empty">尚未运行过扫描。</div>');
 
   const riskCards = highRisk.length
     ? highRisk.map(item => `<article class="signal-card risk-card">
@@ -220,10 +245,11 @@ function renderRadar() {
 
   const quantTable = `<div class="panel-body">
     <div class="table-wrap"><table class="radar-table">
-      <thead><tr><th>行业</th><th>状态</th><th>位置分</th><th>催化分</th><th>20日涨跌</th><th>相对沪深300</th><th>60日价格分位</th><th>成交拥挤度</th></tr></thead>
+      <thead><tr><th>行业</th><th>状态</th><th>硬异动</th><th>位置分</th><th>催化分</th><th>20日涨跌</th><th>相对沪深300</th><th>180日价格分位</th><th>成交拥挤度</th></tr></thead>
       <tbody>${sectors.map(s => `<tr data-jump-sector="${escapeHtml(s.id)}" class="clickable-row">
         <td><b>${escapeHtml(s.name)}</b></td>
         <td>${zoneBadge(s.zone, s.zone_label)}</td>
+        <td>${s.hard_signal_count ? `<span class="pill">${s.hard_signal_count}条</span>` : (s.anti_drop ? '<span class="pill">逆势抗跌</span>' : '<span class="muted">0</span>')}</td>
         <td>${s.position_score ?? '—'}</td>
         <td>${s.catalyst_score ?? '—'}</td>
         <td class="${(s.return_20d ?? 0) >= 0 ? 'positive' : 'negative'}">${signed(s.return_20d)}</td>
@@ -252,15 +278,16 @@ function renderRadar() {
 
   return `
     <div class="page-heading">
-      <div><p class="eyebrow">EARLY RADAR / AI 蝴蝶效应 + 量化位置</p><h1>早期雷达<span> · 潜伏与离场</span></h1></div>
+      <div><p class="eyebrow">EARLY RADAR / 硬异动 + AI严审 + 180日位置</p><h1>早期雷达<span> · 潜伏与离场</span></h1></div>
       ${aiHeaderRight}
     </div>
-    ${panel('宏观经济风向与主要矛盾', macroSummary, '', 'MACRO REGIME')}
+    ${panel('全网硬异动探测器（业绩预增簇 / 公告 / 台股月营收 / 海外映射）', anomalyBar, anomalies.updated_at ? `<span class="muted" style="font-size:11px">更新于 ${date(anomalies.updated_at)}</span>` : '', 'HARD ANOMALY DETECTORS')}
+    <div style="margin-top:20px">${panel('宏观经济风向与主要矛盾', macroSummary, '', 'MACRO REGIME')}</div>
     <div class="two-col" style="margin-top:20px">
-      ${panel('「信息催化 × 市场位置」四象限', `<div class="panel-body">${quadrantChart(sectors)}</div>`, '', 'QUANT POSITION MATRIX')}
+      ${panel('「异常催化 × 180日市场位置」四象限', `<div class="panel-body">${quadrantChart(sectors)}</div>`, '', 'QUANT POSITION MATRIX')}
       ${panel('高危离场警示区', `<div class="panel-body stack">${riskCards}</div>`, '', 'HIGH RISK WARNINGS')}
     </div>
-    ${panel('早期潜伏重点板块（高催化 + 未拥挤）', `<div class="panel-body card-grid">${earlyCards}</div>`, '', 'EARLY OPPORTUNITIES')}
+    ${panel('早期潜伏重点板块（硬异动 + 止跌企稳 + 未拥挤）', `<div class="panel-body card-grid">${earlyCards}</div>`, '', 'EARLY OPPORTUNITIES')}
     ${weakSignalsHtml ? `<div style="margin-top:20px">${panel('各行业 AI 初筛弱信号与传导链', weakSignalsHtml, '', 'WEAK SIGNALS')}</div>` : ''}
     <div style="margin-top:20px">${panel('12 行业量化位置全览', quantTable, '', 'ALL SECTORS QUANT RADAR')}</div>
   `;
@@ -413,6 +440,13 @@ function renderSmartMoney() {
       </div>`).join('')
     : '<div class="empty">暂无手动录入的机构持仓或观点笔记。</div>';
 
+  const parseForm = `<form id="sm-parse-form" class="panel-body stack-sm">
+    <label class="wb-field">直接粘贴一段机构季报摘要 / 13F 新闻 / 知名投资人访谈，AI 自动提取结构化条目并入库：
+      <textarea name="text" rows="3" placeholder="例如：段永平 Q3 13F 显示大幅增持…… / 某头部公募基金经理季报表示重点加仓电网设备与出海算力……" required></textarea>
+    </label>
+    <div><button type="submit" class="control primary" ${state.smParseBusy ? 'disabled' : ''}>${state.smParseBusy ? 'AI 解析入库中…' : '✦ AI 自动拆解并入库'}</button></div>
+  </form>`;
+
   return `
     <div class="page-heading">
       <div><p class="eyebrow">SMART MONEY / 滞后性提醒</p><h1>国内外知名机构动向<span> · 中长期风向与拥挤校验</span></h1></div>
@@ -421,8 +455,9 @@ function renderSmartMoney() {
       </div>
     </div>
     <div class="notice">提示：13F 与国内公募季报披露存在 15~45 天滞后，切勿直接作短线追高依据；重点看资本跨季度迁徙方向，以及机构极度一致扎堆时的高危反向信号。</div>
-    <div class="two-col">
-      ${panel('录入机构动态 / 大佬观点', entryForm, '', 'ADD OBSERVATION')}
+    ${panel('AI 快捷解析机构动向（免手填）', parseForm, '', 'AI AUTO PARSE')}
+    <div class="two-col" style="margin-top:20px">
+      ${panel('手动录入机构动态 / 大佬观点', entryForm, '', 'ADD OBSERVATION')}
       ${panel('已跟踪机构名录', `<div class="panel-body stack-sm">${instCards}</div>`, '', 'WATCHED INSTITUTIONS')}
     </div>
     ${panel(`机构动向时间线 (${(sm.entries || []).length})`, entryList, '', 'TIMELINE')}
@@ -627,12 +662,20 @@ document.addEventListener('click', async event => {
         await request('/api/ai/butterfly/run', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ use_ai: true, refresh_news: false })
+          body: JSON.stringify({ use_ai: true, refresh_news: false, refresh_signals: true })
         });
-        toast('蝴蝶效应扫描完成');
+        toast('硬异动与 AI 蝴蝶效应严审完成');
         await load();
       } catch (e) { toast(e.message); }
       finally { state.aiBusy = false; render(); }
+    } else if (act === 'refresh-signals') {
+      state.sigBusy = true; render();
+      try {
+        await request('/api/radar/signals/refresh', { method: 'POST' });
+        toast('全网硬异动数据源已更新');
+        await load();
+      } catch (e) { toast(e.message); }
+      finally { state.sigBusy = false; render(); }
     } else if (act === 'sync-sec') {
       state.smSyncBusy = true; render();
       try {
@@ -655,7 +698,22 @@ document.addEventListener('click', async event => {
 });
 
 document.addEventListener('submit', async event => {
-  if (event.target.id === 'sm-form') {
+  if (event.target.id === 'sm-parse-form') {
+    event.preventDefault();
+    const fd = new FormData(event.target);
+    state.smParseBusy = true; render();
+    try {
+      await request('/api/smart-money/parse', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: fd.get('text') })
+      });
+      toast('已自动拆解并入库');
+      event.target.reset();
+      await load();
+    } catch (e) { toast(e.message); }
+    finally { state.smParseBusy = false; render(); }
+  } else if (event.target.id === 'sm-form') {
     event.preventDefault();
     const fd = new FormData(event.target);
     const body = Object.fromEntries(fd.entries());

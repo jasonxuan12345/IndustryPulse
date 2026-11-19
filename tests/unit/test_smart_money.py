@@ -80,3 +80,41 @@ def test_sync_sec_filings_handles_success_and_error(tmp_path, monkeypatch) -> No
     res = svc.sync_sec_filings()
     assert res["filings"]["berkshire"]["filing_date"] == "2026-11-14"
     assert "bridgewater" in res["errors"]
+
+
+def test_smart_money_ai_parse_and_add(tmp_path, monkeypatch) -> None:
+    import json
+
+    from industrypulse.ai import gateway
+
+    monkeypatch.setenv("INDUSTRYPULSE_SMART_MONEY_DIR", str(tmp_path / "sm"))
+    monkeypatch.setenv("INDUSTRYPULSE_MODEL_CONFIG", str(tmp_path / "model.json"))
+    gateway.save_connection(
+        gateway.ModelConnection(
+            base_url="https://mock.example/v1", model="deepseek-chat", api_key="k", enabled=True
+        )
+    )
+
+    def reply(_request: httpx.Request) -> httpx.Response:
+        content = json.dumps(
+            {
+                "institution_id": "coatue",
+                "sector": "semiconductor",
+                "direction": "INCREASE",
+                "title": "Coatue Q3 加仓半导体设备",
+                "summary": "13F 披露增持先进封装与设备龙头",
+                "disclosed_at": "2026-11-15",
+            },
+            ensure_ascii=False,
+        )
+        return httpx.Response(200, json={"choices": [{"message": {"content": content}}]})
+
+    orig = httpx.Client
+    monkeypatch.setattr(
+        httpx, "Client", lambda **kw: orig(**kw, transport=httpx.MockTransport(reply))
+    )
+    svc = SmartMoneyService()
+    saved = svc.parse_and_add("新闻报道 Coatue 三季度大幅加仓半导体设备公司")
+    assert saved["institution_id"] == "coatue"
+    assert saved["sector"] == "semiconductor"
+    assert saved["direction"] == "INCREASE"

@@ -602,6 +602,9 @@ class MarketService:
         *,
         snapshot: dict[str, Any] | None = None,
         benchmark_closes: list[float] | None = None,
+        hard_signal_count: int = 0,
+        overseas_lead_20d: float | None = None,
+        overseas_avg_20d: float | None = None,
     ) -> dict[str, Any]:
         config = self.sectors_config["domains"].get(domain_id)
         if config is None:
@@ -639,11 +642,18 @@ class MarketService:
             heat=float(heat) if heat is not None else None,
             news_count_24h=count_24h,
             news_count_prev_24h=count_prev,
+            hard_signal_count=hard_signal_count,
+            overseas_lead_20d=overseas_lead_20d,
+            overseas_avg_20d=overseas_avg_20d,
         )
         return {
             "id": domain_id,
             "name": config["name"],
             "etf": config["etfs"]["primary"],
+            "companies": [
+                {"name": c["name"], "symbol": c["symbol"]}
+                for c in list(config.get("companies") or [])[:4]
+            ],
             "change": snapshot.get("change") if snapshot else None,
             "net_flow": snapshot.get("net_flow") if snapshot else None,
             "heat": heat,
@@ -651,21 +661,32 @@ class MarketService:
             **radar,
         }
 
-    def position_radars(self, stories: list[dict[str, Any]] | None = None) -> list[dict[str, Any]]:
+    def position_radars(
+        self,
+        stories: list[dict[str, Any]] | None = None,
+        *,
+        anomalies_by_sector: dict[str, dict[str, Any]] | None = None,
+    ) -> list[dict[str, Any]]:
         """返回全部 12 领域的量化位置与高危状态（优先复用缓存总览+本地DB，不阻塞外网）。"""
         overview, _ = self._overview_snapshot()
         by_id = {item["id"]: item for item in (overview or {}).get("sectors", []) if "id" in item}
         csi300 = str(self.sectors_config["benchmarks"]["csi300"]["symbol"])
         bench_closes = [b["close"] for b in self.cached_bars(csi300)]
-        return [
-            self.sector_position(
-                domain_id,
-                stories,
-                snapshot=by_id.get(domain_id),
-                benchmark_closes=bench_closes or None,
+        out: list[dict[str, Any]] = []
+        for domain_id in self.sectors_config["domains"]:
+            anom = (anomalies_by_sector or {}).get(domain_id) or {}
+            out.append(
+                self.sector_position(
+                    domain_id,
+                    stories,
+                    snapshot=by_id.get(domain_id),
+                    benchmark_closes=bench_closes or None,
+                    hard_signal_count=int(anom.get("hard_signal_count") or 0),
+                    overseas_lead_20d=anom.get("overseas_lead_20d"),
+                    overseas_avg_20d=anom.get("overseas_avg_20d"),
+                )
             )
-            for domain_id in self.sectors_config["domains"]
-        ]
+        return out
 
     # ------------------------------------------------------------------ macro
     def _macro_sync_state(self, provider: str, source: str) -> tuple[Any, Any, str]:

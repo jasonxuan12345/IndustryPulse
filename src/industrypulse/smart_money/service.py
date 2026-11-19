@@ -117,6 +117,76 @@ class SmartMoneyService:
         self._write_json(self.entries_path, rows)
         return next(item for item in self.entries() if item["id"] == record["id"])
 
+    def parse_and_add(self, text: str) -> dict[str, Any]:
+        """用当前默认大模型从一段季报/13F/机构新闻文本中自动提取结构化条目并入库。"""
+        from industrypulse.ai.gateway import complete_json, load_connection
+
+        conn = load_connection()
+        if conn is None or not conn.enabled or not conn.model:
+            raise ValueError("请先在设置中配置并启用大模型 API，或使用上方表单手动录入")
+        inst_list = [{"id": item["id"], "name": item["name"]} for item in self.institutions()]
+        sectors = [
+            "semiconductor",
+            "ai",
+            "energy",
+            "steel",
+            "health",
+            "metals",
+            "chemicals",
+            "auto",
+            "digital",
+            "consumer",
+            "finance",
+            "macro",
+        ]
+        prompt = json.dumps(
+            {
+                "text": text[:6000],
+                "available_institutions": inst_list,
+                "available_sectors": sectors,
+                "today": datetime.now(TZ_SHANGHAI).date().isoformat(),
+            },
+            ensure_ascii=False,
+        )
+        system = (
+            "你是机构动向结构化提取助手。从用户粘贴的机构季报、13F新闻或大佬观点中提取 1 条记录。\n"
+            "必须返回严格 JSON：\n"
+            "{\n"
+            '  "institution_id": "从 available_institutions 里选最匹配的 id；'
+            '都不匹配则选 cn_public_funds 或 berkshire",\n'
+            '  "sector": "从 available_sectors 里选最匹配的 id",\n'
+            '  "direction": "INCREASE|REDUCE|HOLD|VIEW",\n'
+            '  "title": "不超过40字的标题",\n'
+            '  "summary": "核心持仓变动或观点要点（不超过200字）",\n'
+            '  "disclosed_at": "YYYY-MM-DD（找不到则用 today）"\n'
+            "}"
+        )
+        parsed = complete_json(conn, prompt, system=system)
+        inst_ids = {item["id"] for item in self.institutions()}
+        inst_id = str(parsed.get("institution_id") or "")
+        if inst_id not in inst_ids:
+            inst_id = inst_list[0]["id"] if inst_list else "cn_public_funds"
+        sec = str(parsed.get("sector") or "macro")
+        if sec not in sectors:
+            sec = "macro"
+        direction = str(parsed.get("direction") or "VIEW")
+        if direction not in {"INCREASE", "REDUCE", "HOLD", "VIEW"}:
+            direction = "VIEW"
+        try:
+            disclosed = date.fromisoformat(str(parsed.get("disclosed_at") or "")[:10])
+        except ValueError:
+            disclosed = datetime.now(TZ_SHANGHAI).date()
+        return self.add_entry(
+            SmartMoneyEntryInput(
+                institution_id=inst_id,
+                sector=sec,
+                direction=cast(Literal["INCREASE", "REDUCE", "HOLD", "VIEW"], direction),
+                title=str(parsed.get("title") or "机构动向摘要")[:180],
+                summary=str(parsed.get("summary") or text[:200])[:1800],
+                disclosed_at=disclosed,
+            )
+        )
+
     def delete_entry(self, entry_id: str) -> bool:
         rows = list(self._read_json(self.entries_path, []))
         filtered = [row for row in rows if row.get("id") != entry_id]

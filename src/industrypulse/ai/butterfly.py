@@ -273,9 +273,21 @@ def run_butterfly_analysis(
             "return_5d": r.get("return_5d"),
             "return_20d": r.get("return_20d"),
             "relative_20d": r.get("relative_20d"),
-            "price_percentile_60d": r.get("price_percentile_60d"),
-            "turnover_percentile_60d": r.get("turnover_percentile_60d"),
+            "price_percentile_180d": r.get("price_percentile_60d"),
+            "turnover_percentile_180d": r.get("turnover_percentile_60d"),
+            "anti_drop": r.get("anti_drop"),
+            "falling_knife": r.get("falling_knife"),
             "risk_flags": r.get("risk_flags") or [],
+            "etf": r.get("etf"),
+            "companies": r.get("companies") or [],
+            "hard_signals": [
+                {"tag": h.get("tag"), "title": h.get("title"), "detail": h.get("detail")}
+                for h in (r.get("hard_signals") or [])[:4]
+            ],
+            "twse_pulse": r.get("twse_pulse"),
+            "overseas_proxies": r.get("overseas_proxies") or [],
+            "overseas_avg_20d": r.get("overseas_avg_20d"),
+            "overseas_lead_20d": r.get("overseas_lead_20d"),
             "smart_money": smart_money_summary.get(str(r["id"]), {}),
         }
         for r in radars
@@ -302,40 +314,49 @@ def run_butterfly_analysis(
     synthesis_prompt = json.dumps(
         {
             "as_of": generated_at,
-            "macro_indicators": compact_macro[:12],
-            "commodities": commodities[:8],
-            "sector_quant_and_smart_money": compact_radars,
-            "sector_weak_signals": compact_signals,
+            "macro_indicators": compact_macro[:14],
+            "commodities": commodities[:14],
+            "sector_quant_hard_signals": compact_radars,
+            "sector_news_weak_signals": compact_signals,
         },
         ensure_ascii=False,
     )
     synthesis_system = (
-        "你是冷静务实的行业投研分析师。核心目标：通过行业新闻弱信号与宏观/大宗变动找出【蝴蝶效应传导链】，"
-        "并结合量化位置分位（避免推荐已经暴涨拥挤的板块去接盘）与机构动向（注意机构披露有滞后，过度扎堆反而是高危），"
-        "输出两类关键清单：1）早期潜伏机会（高催化且位置不高）；2）高危离场警示（位置极高/放量滞涨/拥挤或逻辑证伪）。\n"
-        "严格约束：\n"
-        "- 可以引用输入中的真实宏观、涨跌幅、分位数字，禁止编造未提供的精确目标价或收益率预测；\n"
-        "- evidence_story_ids 只能填输入 sector_weak_signals 里出现的真实 story_ids；\n"
-        "- 必须输出合法 JSON，结构如下：\n"
+        "你是冷静严苛的行业投研严审官。核心目标：结合真实【硬异动（业绩预告簇/官方中标回购停产公告/"
+        "台股月度营收/海外映射领先时差/期货异动/盘面逆势抗跌）】与新闻弱信号，"
+        "找出真正早于共识的蝴蝶效应，并警惕高危拥挤。\n"
+        "严格审核准则（宁缺毋滥）：\n"
+        "1. 允许交白卷：如果市场整体走弱且缺乏同时满足"
+        "【硬异动 + 止跌企稳(非FALLING接飞刀) + 未拥挤】的板块，"
+        "early_opportunities 必须返回空数组 []，并在 macro_regime 里坦诚建议防守观望，"
+        "严禁硬凑故事！\n"
+        "2. 低分位且 falling_knife=true 的板块属于左侧阴跌，不能作为早期潜伏推荐，"
+        "除非已有极其过硬的反证或明确标在 watch_list 等企稳。\n"
+        "3. 必须穿透到具体细分环节与关联代表标的（sub_theme_and_targets），"
+        "例如指出具体受益于该行业内的哪个子环节及参考 ETF/龙头。\n"
+        "4. 允许引用输入中的真实数值，禁止编造未提供的精确目标价；"
+        "evidence_story_ids 只能引用输入里存在的真实 id。\n"
+        "必须输出合法 JSON：\n"
         "{\n"
-        '  "macro_regime": {"summary": "宏观周期与主线判断", '
+        '  "macro_regime": {"summary": "宏观与商品周期总判断", '
         '"favored_styles": ["风格1"], "key_risks": ["风险1"]},\n'
         '  "early_opportunities": [{\n'
         '    "sector": "领域id", "sector_name": "中文名", "title": "一句话标题",\n'
-        '    "butterfly_chain": "微小变动 -> 传导路径 -> 受益点（可带入真实数据）",\n'
-        '    "quant_alignment": "说明当前量化位置分位与拥挤度是否合适潜伏",\n'
-        '    "smart_money_note": "机构风向参考（如有）",\n'
-        '    "disproof_signal": "什么迹象出现说明逻辑错了",\n'
+        '    "sub_theme_and_targets": "具体细分环节与关联代表标的/ETF",\n'
+        '    "butterfly_chain": "硬异动/微小变动 -> 传导路径 -> 受益逻辑",\n'
+        '    "quant_alignment": "结合180日位置、止跌抗跌状态与成交分位说明为何适合潜伏",\n'
+        '    "smart_money_note": "机构风向校验（如有）",\n'
+        '    "disproof_signal": "什么迹象出现说明逻辑证伪",\n'
         '    "evidence_story_ids": ["真实新闻id"]\n'
         "  }],\n"
         '  "high_risk_warnings": [{\n'
         '    "sector": "领域id", "sector_name": "中文名", "title": "高危警示标题",\n'
-        '    "reason": "拥挤/滞涨/估值或逻辑证伪原因",\n'
+        '    "reason": "高位拥挤/放量滞涨/下跌证伪原因",\n'
         '    "disproof_signal": "解除警示条件",\n'
         '    "evidence_story_ids": ["真实新闻id"]\n'
         "  }],\n"
         '  "watch_list": [{"sector": "领域id", "sector_name": "中文名", '
-        '"status": "跟踪观察", "note": "一句话原因"}]\n'
+        '"status": "左侧待企稳/观察", "note": "一句话原因"}]\n'
         "}"
     )
 
@@ -380,12 +401,18 @@ def run_butterfly_analysis(
                 if i in stories_by_id
             ]
             radar = radar_map.get(sid, {})
+            hard_tags = [
+                str(h.get("tag")) for h in (radar.get("hard_signals") or []) if h.get("tag")
+            ]
+            if radar.get("anti_drop"):
+                hard_tags.append("盘面逆势抗跌")
             cleaned.append(
                 {
                     **item,
                     "sector_name": item.get("sector_name") or radar.get("name") or sid,
                     "evidence_story_ids": raw_ids,
                     "evidence_stories": evidence_stories,
+                    "hard_triggers": list(dict.fromkeys(hard_tags))[:5],
                     "position_score": radar.get("position_score"),
                     "catalyst_score": radar.get("catalyst_score"),
                     "zone": radar.get("zone"),

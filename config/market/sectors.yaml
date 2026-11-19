@@ -132,6 +132,10 @@ commodities:
   - { id: ma, name: 甲醇, symbol: MA0, unit: 元/吨, sectors: [chemicals] }
   - { id: ta, name: PTA, symbol: TA0, unit: 元/吨, sectors: [chemicals] }
   - { id: si, name: 工业硅, symbol: SI0, unit: 元/吨, sectors: [semiconductor, energy] }
+  - { id: sa, name: 纯碱, symbol: SA0, unit: 元/吨, sectors: [chemicals] }
+  - { id: fg, name: 玻璃, symbol: FG0, unit: 元/吨, sectors: [chemicals, steel] }
+  - { id: ao, name: 氧化铝, symbol: AO0, unit: 元/吨, sectors: [metals] }
+  - { id: ec, name: 集运欧线, symbol: EC0, unit: 点, sectors: [consumer, macro] }
 
 # 市场基准（§6 中国市场基准；历史与快照同源）
 benchmarks:

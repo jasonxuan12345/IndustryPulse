@@ -13,12 +13,14 @@ from industrypulse.ai.verify import verify_lead
 from industrypulse.api.dashboard import market_service
 from industrypulse.api.radar import collect_sector_radars
 from industrypulse.intelligence.service import NewsService
+from industrypulse.signals.anomalies import SignalService
 from industrypulse.smart_money.service import SmartMoneyService
 
 
 class ButterflyRunRequest(BaseModel):
     use_ai: bool = True
     refresh_news: bool = False
+    refresh_signals: bool = True
 
 
 class VerifyLeadRequest(BaseModel):
@@ -50,9 +52,11 @@ def create_ai_router(
     news_service: NewsService,
     smart_money: SmartMoneyService | None = None,
     history: JudgmentHistory | None = None,
+    signal_service: SignalService | None = None,
 ) -> APIRouter:
     sm = smart_money or SmartMoneyService()
     journal = history or JudgmentHistory()
+    sig_svc = signal_service or SignalService()
     router = APIRouter(prefix="/api/ai", tags=["ai-butterfly"])
 
     @router.get("/butterfly/latest")
@@ -66,13 +70,25 @@ def create_ai_router(
     def run_butterfly(body: ButterflyRunRequest) -> dict[str, Any]:
         if body.refresh_news:
             news_service.refresh(force=True)
-        radars, stories = collect_sector_radars(news_service)
+        radars, stories, _ = collect_sector_radars(news_service, sig_svc)
+        if body.refresh_signals:
+            try:
+                a_rets = {str(r["id"]): r.get("return_20d") for r in radars}
+                sig_svc.refresh(a_share_returns_20d=a_rets)
+                radars, stories, _ = collect_sector_radars(news_service, sig_svc)
+            except Exception:  # noqa: BLE001 - 硬异动抓取失败不阻断 AI 分析
+                pass
+
         market = market_service()
         macro_items: list[dict[str, Any]] = []
         commodities: list[dict[str, Any]] = []
         if market is not None:
             try:
                 macro_items = list(market.macro().get("items") or [])
+                valid_macro = [m for m in macro_items if m.get("value") is not None]
+                if len(valid_macro) < 5:
+                    market.sync_macro()
+                    macro_items = list(market.macro().get("items") or [])
             except Exception:  # noqa: BLE001
                 macro_items = []
             try:
@@ -95,7 +111,7 @@ def create_ai_router(
 
     @router.post("/verify")
     def verify(body: VerifyLeadRequest) -> dict[str, Any]:
-        radars, stories = collect_sector_radars(news_service)
+        radars, stories, _ = collect_sector_radars(news_service, sig_svc)
         try:
             return verify_lead(
                 text=body.text,
@@ -109,7 +125,7 @@ def create_ai_router(
 
     @router.get("/history")
     def list_history() -> dict[str, Any]:
-        radars, _ = collect_sector_radars(news_service)
+        radars, _, _ = collect_sector_radars(news_service, sig_svc)
         items = journal.list_with_outcomes(_sector_latest_prices(radars))
         return {"items": items, "count": len(items)}
 

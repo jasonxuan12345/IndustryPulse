@@ -33,11 +33,11 @@ if exist ".env" set "ENV_ARG=--env-file .env"
 
 echo Starting IndustryPulse...
 echo Python: %PYTHON_EXE%
-echo URL:    http://127.0.0.1:%PORT%/
+echo Preferred URL: http://127.0.0.1:%PORT%/
 echo Press Ctrl+C to stop.
 echo.
 
-"%PYTHON_EXE%" -m uvicorn industrypulse.api.runtime:app --host 127.0.0.1 --port %PORT% %ENV_ARG%
+"%PYTHON_EXE%" -m industrypulse.cli serve --host 127.0.0.1 --port %PORT% %ENV_ARG%
 if errorlevel 1 (
     echo.
     echo [ERROR] Server exited unexpectedly.

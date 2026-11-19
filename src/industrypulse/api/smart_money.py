@@ -5,8 +5,13 @@ from __future__ import annotations
 from typing import Any
 
 from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel, Field
 
 from industrypulse.smart_money.service import SmartMoneyEntryInput, SmartMoneyService
+
+
+class SmartMoneyParseRequest(BaseModel):
+    text: str = Field(min_length=8, max_length=20000)
 
 
 def create_smart_money_router(service: SmartMoneyService | None = None) -> APIRouter:
@@ -21,6 +26,13 @@ def create_smart_money_router(service: SmartMoneyService | None = None) -> APIRo
     def add_entry(payload: SmartMoneyEntryInput) -> dict[str, Any]:
         try:
             return sm.add_entry(payload)
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from exc
+
+    @router.post("/parse")
+    def parse_entry(payload: SmartMoneyParseRequest) -> dict[str, Any]:
+        try:
+            return sm.parse_and_add(payload.text)
         except ValueError as exc:
             raise HTTPException(422, str(exc)) from exc
 

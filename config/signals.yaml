@@ -1,0 +1,76 @@
+# 硬异动探测配置（所有外部数据源均为免登录公开免费接口）
+
+# 海外龙头/ETF 映射（腾讯美股/港股接口：qt.gtimg.cn & web.ifzq.gtimg.cn）
+overseas_proxies:
+  semiconductor:
+    - { symbol: usSOXX.OQ, name: 费城半导体ETF }
+    - { symbol: usTSM.N, name: 台积电 }
+    - { symbol: usNVDA.OQ, name: 英伟达 }
+  ai:
+    - { symbol: usMSFT.OQ, name: 微软 }
+    - { symbol: usNVDA.OQ, name: 英伟达 }
+    - { symbol: usPLTR.OQ, name: Palantir }
+  energy:
+    - { symbol: usTAN.AM, name: 太阳能ETF }
+    - { symbol: usENPH.OQ, name: Enphase }
+    - { symbol: hk03800, name: 协鑫科技 }
+  steel:
+    - { symbol: usXME.AM, name: 金属矿业ETF }
+  health:
+    - { symbol: usXBI.AM, name: 生物科技ETF }
+    - { symbol: hk01801, name: 信达生物 }
+  metals:
+    - { symbol: usCOPX.AM, name: 铜矿ETF }
+    - { symbol: usFCX.N, name: 自由港麦克莫兰 }
+  chemicals:
+    - { symbol: usXLE.AM, name: 能源ETF }
+    - { symbol: usXLB.AM, name: 材料ETF }
+  auto:
+    - { symbol: usTSLA.OQ, name: 特斯拉 }
+    - { symbol: hk09868, name: 小鹏汽车 }
+    - { symbol: hk01211, name: 比亚迪股份 }
+  digital:
+    - { symbol: usQQQ.OQ, name: 纳斯达克100ETF }
+    - { symbol: hk00700, name: 腾讯控股 }
+  consumer:
+    - { symbol: usXLY.AM, name: 可选消费ETF }
+    - { symbol: hk09988, name: 阿里巴巴 }
+  finance:
+    - { symbol: usXLF.AM, name: 金融ETF }
+    - { symbol: hk02318, name: 中国平安 }
+  macro:
+    - { symbol: usSPY.AM, name: 标普500ETF }
+
+# 台湾证交所公开月度营收「產業別」 -> 12 行业映射
+twse_industry_map:
+  半導體業: semiconductor
+  電子零組件業: semiconductor
+  電腦及週邊設備業: ai
+  資訊服務業: digital
+  通信網路業: digital
+  光電業: energy
+  綠能環保: energy
+  鋼鐵工業: steel
+  生技醫療業: health
+  化學工業: chemicals
+  塑膠工業: chemicals
+  油電燃氣業: chemicals
+  汽車工業: auto
+  航運業: consumer
+  貿易百貨: consumer
+  金融保險業: finance
+
+# 巨潮资讯公告高价值硬信号检索关键词
+cninfo_keywords:
+  - { keyword: 中标, tag: 大额中标, weight: 2 }
+  - { keyword: 签订重大合同, tag: 重大长协合同, weight: 2 }
+  - { keyword: 股份回购, tag: 回购护盘, weight: 1 }
+  - { keyword: 增持, tag: 股东增持, weight: 1 }
+  - { keyword: 停产, tag: 产能收缩/停产, weight: 2 }
+
+# SEC EDGAR 产业链链主 8-K 突发跟踪
+sec_chain_leaders:
+  - { cik: "0001045810", name: NVIDIA, sector: semiconductor }
+  - { cik: "0000789019", name: Microsoft, sector: ai }
+  - { cik: "0001318605", name: Tesla, sector: auto }
+  - { cik: "0000320193", name: Apple, sector: consumer }

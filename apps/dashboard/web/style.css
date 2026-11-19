@@ -20,6 +20,7 @@
 .zone-badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:500;margin-left:6px}
 .badge-lurking{background:#15382e;color:#5ee3b5;border:1px solid #2b6e5a}
 .badge-rising{background:#182b44;color:#7db7ff;border:1px solid #2e5280}
+.badge-falling{background:#2d211b;color:#c99677;border:1px solid #593b2a}
 .badge-crowded{background:#342a18;color:#e8c88d;border:1px solid #6b5328}
 .badge-highrisk{background:#3a1c24;color:#f48691;border:1px solid #75313e}
 .badge-neutral{background:#1d2531;color:#93a1b5;border:1px solid #2d3848}
