@@ -1,21 +1,14 @@
-"""核心类型、时间语义、错误码、配置与上下文（lane C 契约的运行时载体）。"""
+"""Core runtime utilities: settings, timezone, atomic file helpers."""
 
-from .calendar import (
-    DEFAULT_MAX_GAP_DAYS,
-    CalendarError,
-    TradingCalendar,
-    load_trading_calendar,
-)
-from .evidence import grades_for_candidate, release_grade, value_grade
+from __future__ import annotations
+
+from .files import replace_file
 from .settings import Settings
+from .time import TZ_SHANGHAI, now_shanghai
 
 __all__ = [
-    "DEFAULT_MAX_GAP_DAYS",
-    "CalendarError",
     "Settings",
-    "TradingCalendar",
-    "grades_for_candidate",
-    "load_trading_calendar",
-    "release_grade",
-    "value_grade",
+    "TZ_SHANGHAI",
+    "now_shanghai",
+    "replace_file",
 ]

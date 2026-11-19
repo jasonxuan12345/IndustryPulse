@@ -12,7 +12,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from industrypulse.contracts import TZ_SHANGHAI
+from industrypulse.core import TZ_SHANGHAI
 
 from .models import SourceStatus
 

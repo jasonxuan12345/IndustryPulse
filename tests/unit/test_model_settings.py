@@ -7,8 +7,7 @@ import pytest
 from fastapi.testclient import TestClient
 from pydantic import SecretStr
 
-from industrypulse.ai_research import model_gateway as gateway
-from industrypulse.ai_research.http_provider import HttpResearchProvider
+from industrypulse.ai import gateway
 from industrypulse.api import create_app
 
 
@@ -76,13 +75,9 @@ def test_discover_save_restart_and_shared_runtime(configured_api):
     client.post(
         "/api/dashboard/model/settings", json={**options, "api_key": "", "model": "model-z"}
     )
-    provider = HttpResearchProvider("", "https://legacy.example/extract", "old")
-    assert provider.can_extract
-    assert provider.extract("source text", {}) == "OK chat"
-    assert json.loads(calls[-1].content)["model"] == "model-z"
-    assert calls[-1].url.host == "provider.example"
     analysis = client.post("/api/dashboard/model/analyze", json={"text": "summarize"})
     assert analysis.json() == {"model": "model-z", "text": "OK chat"}
+    assert json.loads(calls[-1].content)["model"] == "model-z"
 
 
 def test_discovery_failure_keeps_saved_settings_and_key_scoped_to_host(configured_api):
@@ -126,7 +121,6 @@ def test_responses_and_disable_take_effect_immediately(configured_api):
     assert calls[-1].url.path == "/v1/responses"
     client.post("/api/dashboard/model/settings", json={**options, "enabled": False})
     assert client.post("/api/dashboard/model/analyze", json={"text": "analysis"}).status_code == 422
-    assert not HttpResearchProvider("", "https://legacy.example/extract").can_extract
 
 
 @pytest.mark.parametrize(
@@ -150,3 +144,43 @@ def test_no_provider_and_invalid_address(configured_api):
         gateway.resolve_connection(
             gateway.ModelConnection(base_url="invalid", api_key=SecretStr(""))
         )
+
+
+@pytest.mark.parametrize("protocol", ["chat_completions", "responses"])
+def test_streaming_sse_assembly_and_keepalive(monkeypatch, protocol):
+    seen_payloads = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen_payloads.append(json.loads(request.content))
+        if protocol == "chat_completions":
+            sse = (
+                ": keep-alive\n\n"
+                'data: {"choices":[{"delta":{"content":"{\\"ok\\": "}}]}\n\n'
+                'data: {"choices":[{"delta":{"content":"true}"}}]}\n\n'
+                "data: [DONE]\n\n"
+            )
+        else:
+            sse = (
+                "event: response.output_text.delta\n"
+                'data: {"type":"response.output_text.delta","delta":"{\\"ok\\": "}\n\n'
+                "event: response.output_text.delta\n"
+                'data: {"type":"response.output_text.delta","delta":"true}"}\n\n'
+                "event: response.completed\n"
+                'data: {"type":"response.completed",'
+                '"response":{"output_text":"{\\"ok\\": true}"}}\n\n'
+            )
+        return httpx.Response(200, text=sse, headers={"content-type": "text/event-stream"})
+
+    orig = httpx.Client
+    monkeypatch.setattr(
+        httpx, "Client", lambda **kw: orig(**kw, transport=httpx.MockTransport(handler))
+    )
+    conn = gateway.ModelConnection(
+        base_url="https://stream.example/v1",
+        model="deepseek-flash",
+        api_key=SecretStr("sk-test"),
+        protocol=protocol,
+    )
+    parsed = gateway.complete_json(conn, "hi", system="sys")
+    assert parsed == {"ok": True}
+    assert seen_payloads[0]["stream"] is True

@@ -14,3 +14,39 @@
 .macro-cell em{font-style:normal;font-size:10px;opacity:.5}
 .macro-cell em.positive{color:var(--green)}
 .macro-cell em.negative{color:var(--red)}
+
+
+/* —— V2 早期雷达 / 四象限 / 机构动向 / 投喂核验样式 —— */
+.zone-badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:500;margin-left:6px}
+.badge-lurking{background:#15382e;color:#5ee3b5;border:1px solid #2b6e5a}
+.badge-rising{background:#182b44;color:#7db7ff;border:1px solid #2e5280}
+.badge-crowded{background:#342a18;color:#e8c88d;border:1px solid #6b5328}
+.badge-highrisk{background:#3a1c24;color:#f48691;border:1px solid #75313e}
+.badge-neutral{background:#1d2531;color:#93a1b5;border:1px solid #2d3848}
+.warn-pill{color:#e8c88d;background:#2a2419;border-color:#4a3b25}
+.macro-lead{font-size:15px;line-height:1.8;color:#dce5f2;margin-bottom:12px}
+.tag-row{display:flex;flex-wrap:wrap;gap:8px}
+.quadrant-wrap svg{width:100%;max-height:340px;display:block}
+.q-dot{cursor:pointer}.q-dot:hover circle{r:9;stroke:#fff}
+.card-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px}
+.signal-card{border:1px solid var(--line);border-radius:8px;padding:16px;background:#10151d}
+.early-card{border-left:3px solid var(--green)}
+.risk-card{border-left:3px solid var(--red)}
+.signal-top{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.signal-card h3{margin:10px 0 8px;font-size:14px;color:#edf2f8}
+.signal-body{font-size:12.5px;line-height:1.75;color:#b8c4d4;margin-bottom:10px}
+.signal-meta{display:flex;flex-direction:column;gap:4px;font-size:11px;color:#96a5ba;margin-bottom:8px}
+.disproof{font-size:11.5px;color:#a8b5c7;margin:6px 0}
+.evidence-links{font-size:11px;color:var(--muted);margin-top:8px;line-height:1.8}
+.table-wrap{overflow:auto}
+.radar-table{width:100%;border-collapse:collapse;font-size:12px}
+.radar-table th,.radar-table td{padding:10px 12px;border-bottom:1px solid var(--line);text-align:left}
+.radar-table th{color:var(--muted);font-weight:500;font-size:11px}
+.clickable-row{cursor:pointer}.clickable-row:hover{background:#18202c}
+.sm-inst-card{border:1px solid var(--line);border-radius:7px;padding:12px;background:#10151d}
+.stack-sm{display:grid;gap:12px}
+.form-row{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+.wb-field{display:grid;gap:6px;font-size:12px;color:#b2bfd0}
+.wb-field input,.wb-field select,.wb-field textarea{border:1px solid var(--line);border-radius:6px;background:#0e131b;padding:8px 10px;color:var(--text);font:inherit;width:100%}
+.wb-error{padding:10px 12px;border-left:2px solid var(--red);background:#2a171c;color:#f3a3ab;font-size:12px}
+@media(max-width:800px){.form-row{grid-template-columns:1fr}}

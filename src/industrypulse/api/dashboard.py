@@ -12,7 +12,7 @@ import httpx
 from fastapi import APIRouter, HTTPException
 from pydantic import AwareDatetime, BaseModel, Field, HttpUrl
 
-from industrypulse.contracts import TZ_SHANGHAI
+from industrypulse.core import TZ_SHANGHAI
 from industrypulse.intelligence.service import NewsService
 
 if TYPE_CHECKING:
@@ -51,6 +51,7 @@ class Sector(BaseModel):
     amount: float | None = None
     amount_metric: str | None = None
     flow_status: str | None = None
+    radar: dict[str, object] | None = None
 
 
 class Story(BaseModel):
@@ -282,14 +283,13 @@ def create_dashboard_router(service: NewsService | None = None) -> APIRouter:
 
     @router.get("/research")
     def research() -> dict[str, object]:
-        from industrypulse.repositories.database import Database
+        import duckdb
 
         path = Path(os.getenv("INDUSTRYPULSE_DASHBOARD_DB", str(ROOT / "data/g2.duckdb")))
         if not path.exists():
-            return {"mode": "unavailable", "series": [], "message": "未找到研究数据库"}
+            return {"mode": "unavailable", "series": [], "message": "未找到历史研究数据库"}
         try:
-            database = Database(path)
-            with database.transaction() as connection:
+            with duckdb.connect(str(path), read_only=True) as connection:
                 rows = connection.execute(
                     "SELECT payload FROM observation_vintage ORDER BY observation_start, vintage_id"
                 ).fetchall()
@@ -299,14 +299,14 @@ def create_dashboard_router(service: NewsService | None = None) -> APIRouter:
                 grouped.setdefault(item["series_id"], []).append(item)
             return {
                 "mode": "local",
-                "message": "本地当前版本浏览 · 非 STRICT PIT · 不代表预测有效性",
+                "message": "本地宏观/行业统计历史数据",
                 "count": len(rows),
                 "series": [
                     {"id": key, "count": len(items), "latest": items[-1], "history": items}
                     for key, items in grouped.items()
                 ],
             }
-        except (OSError, RuntimeError) as exc:
+        except (OSError, RuntimeError, duckdb.Error) as exc:
             raise HTTPException(503, "研究数据库暂不可读") from exc
 
     @router.get("/market/overview")

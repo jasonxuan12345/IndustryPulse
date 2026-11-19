@@ -10,7 +10,7 @@ from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
 from typing import Any
 
-from industrypulse.contracts import TZ_SHANGHAI
+from industrypulse.core import TZ_SHANGHAI
 
 _PUNCTUATION = re.compile(r"[\s\W_]+", re.UNICODE)
 _PREFIX = re.compile(r"^(?:【[^】]{1,12}】|快讯[：:]|独家[｜|]|突发[：:]|刚刚[｜|])+")

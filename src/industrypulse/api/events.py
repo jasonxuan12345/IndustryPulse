@@ -8,7 +8,7 @@ from typing import Any
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
 
-from industrypulse.ai_research.model_gateway import complete, load_connection
+from industrypulse.ai.gateway import complete, load_connection
 from industrypulse.intelligence.event_book import EventBook
 from industrypulse.intelligence.service import NewsService
 

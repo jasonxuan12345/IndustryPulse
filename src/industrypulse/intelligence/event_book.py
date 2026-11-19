@@ -8,7 +8,7 @@ from datetime import date, datetime
 from pathlib import Path
 from typing import Any
 
-from industrypulse.contracts import TZ_SHANGHAI
+from industrypulse.core import TZ_SHANGHAI
 from industrypulse.intelligence.events import (
     apply_extraction,
     build_brief,

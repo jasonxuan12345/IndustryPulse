@@ -10,7 +10,7 @@ from datetime import datetime
 
 import httpx
 
-from industrypulse.contracts import TZ_SHANGHAI
+from industrypulse.core import TZ_SHANGHAI
 
 from ..models import Bar, QuoteSnapshot
 

@@ -7,7 +7,7 @@ from typing import Any
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
-from industrypulse.ai_research.model_gateway import (
+from industrypulse.ai.gateway import (
     ModelConnection,
     complete,
     list_models,

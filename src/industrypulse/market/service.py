@@ -19,7 +19,8 @@ from typing import Any, TypeVar, cast
 import yaml
 
 from industrypulse.analytics.heat import compute_heat
-from industrypulse.contracts import TZ_SHANGHAI
+from industrypulse.analytics.position import compute_position_radar
+from industrypulse.core import TZ_SHANGHAI
 
 from .health import SourceHealthMonitor
 from .models import Bar, QuoteSnapshot
@@ -575,6 +576,97 @@ class MarketService:
             return cast(dict[str, Any], cached)
         return self.sector_snapshot(domain_id, stories)
 
+    def cached_bars(self, symbol: str, limit: int = 180) -> list[dict[str, Any]]:
+        """只读 DuckDB 已缓存的日线（不触发外部网络请求）。"""
+        with self._db_lock:
+            rows = self._db.execute(
+                "SELECT trade_date, close, volume, amount FROM ui_bar "
+                "WHERE symbol=? ORDER BY trade_date DESC LIMIT ?",
+                [symbol, limit],
+            ).fetchall()
+        rows.reverse()
+        return [
+            {
+                "date": r[0].isoformat() if hasattr(r[0], "isoformat") else str(r[0]),
+                "close": float(r[1]),
+                "volume": float(r[2]) if r[2] is not None else None,
+                "amount": float(r[3]) if r[3] is not None else None,
+            }
+            for r in rows
+        ]
+
+    def sector_position(
+        self,
+        domain_id: str,
+        stories: list[dict[str, Any]] | None = None,
+        *,
+        snapshot: dict[str, Any] | None = None,
+        benchmark_closes: list[float] | None = None,
+    ) -> dict[str, Any]:
+        config = self.sectors_config["domains"].get(domain_id)
+        if config is None:
+            raise KeyError(domain_id)
+        board = str(config["board"])
+        etf_symbol = str(config["etfs"]["primary"])
+        bars = self.cached_bars(board) or self.cached_bars(etf_symbol)
+        closes = [b["close"] for b in bars]
+        amounts = [
+            float(b["amount"] if b["amount"] is not None else (b["volume"] or 0.0)) for b in bars
+        ]
+        if len(closes) < 10 and snapshot and snapshot.get("trend"):
+            closes = [float(p["value"]) for p in snapshot["trend"] if p.get("value") is not None]
+        if benchmark_closes is None:
+            csi300 = str(self.sectors_config["benchmarks"]["csi300"]["symbol"])
+            bench_bars = self.cached_bars(csi300)
+            benchmark_closes = [b["close"] for b in bench_bars]
+            if len(benchmark_closes) < 10 and snapshot and snapshot.get("trend"):
+                benchmark_closes = [
+                    float(p["benchmark"])
+                    for p in snapshot["trend"]
+                    if p.get("benchmark") is not None
+                ]
+        news = [s for s in (stories or []) if s.get("sector") == domain_id]
+        now = datetime.now(TZ_SHANGHAI)
+        count_24h = sum(1 for story in news if self._within(story, now, hours=24))
+        count_prev = sum(
+            1 for story in news if self._within(story, now - timedelta(hours=24), hours=24)
+        )
+        heat = snapshot.get("heat") if snapshot else None
+        radar = compute_position_radar(
+            closes=closes,
+            amounts=amounts,
+            benchmark_closes=benchmark_closes,
+            heat=float(heat) if heat is not None else None,
+            news_count_24h=count_24h,
+            news_count_prev_24h=count_prev,
+        )
+        return {
+            "id": domain_id,
+            "name": config["name"],
+            "etf": config["etfs"]["primary"],
+            "change": snapshot.get("change") if snapshot else None,
+            "net_flow": snapshot.get("net_flow") if snapshot else None,
+            "heat": heat,
+            "news_count_24h": count_24h,
+            **radar,
+        }
+
+    def position_radars(self, stories: list[dict[str, Any]] | None = None) -> list[dict[str, Any]]:
+        """返回全部 12 领域的量化位置与高危状态（优先复用缓存总览+本地DB，不阻塞外网）。"""
+        overview, _ = self._overview_snapshot()
+        by_id = {item["id"]: item for item in (overview or {}).get("sectors", []) if "id" in item}
+        csi300 = str(self.sectors_config["benchmarks"]["csi300"]["symbol"])
+        bench_closes = [b["close"] for b in self.cached_bars(csi300)]
+        return [
+            self.sector_position(
+                domain_id,
+                stories,
+                snapshot=by_id.get(domain_id),
+                benchmark_closes=bench_closes or None,
+            )
+            for domain_id in self.sectors_config["domains"]
+        ]
+
     # ------------------------------------------------------------------ macro
     def _macro_sync_state(self, provider: str, source: str) -> tuple[Any, Any, str]:
         with self._db_lock:
@@ -853,6 +945,11 @@ def enrich_sector_trends(feed: dict[str, Any], market: MarketService) -> dict[st
         for key in ("net_flow_label", "flow_status", "index_source", "trend_label"):
             if snapshot.get(key) is not None:
                 sector[key] = snapshot[key]
+        sector["radar"] = market.sector_position(
+            str(sector["id"]),
+            feed.get("stories") or [],
+            snapshot=snapshot,
+        )
     leaders = market.company_quotes()
     quotes_by_name = {row["name"]: row for row in leaders}
     for company in feed.get("companies", []):

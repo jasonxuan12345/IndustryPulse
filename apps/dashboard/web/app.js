@@ -1,52 +1,700 @@
-const $ = selector => document.querySelector(selector);
-const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, character => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[character]));
-const names = {overview:'情报总览',trends:'趋势与资金',news:'资讯中心',companies:'公司观察',research:'研究数据',saved:'我的收藏',settings:'数据接入与设置'};
-const categories = {news:'公司新闻',hotspot:'产业热点',personnel:'人事动态'};
-let saved;
-try { saved = new Set(JSON.parse(localStorage.getItem('ip-saved') || '[]')); } catch { saved = new Set(); }
-const state = {feed:null,sector:'semiconductor',page:(Object.hasOwn(names,new URLSearchParams(location.search).get('page'))?new URLSearchParams(location.search).get('page'):'overview'),range:30,filter:'all',query:'',saved,research:null,error:null,macro:null,events:null,extracting:false};
-const dashWhy = () => state.feed && state.feed.market && state.feed.market.status === 'failed' ? '数据源暂时失败，已保留上次成功数据' : '暂无可靠公开数据';
-const number = (value, digits=2) => value == null ? `<span class="dash" title="${dashWhy()}">—</span>` : Number(value).toLocaleString('zh-CN',{minimumFractionDigits:digits,maximumFractionDigits:digits});
-const signed = value => value == null ? `<span class="dash" title="${dashWhy()}">—</span>` : `${value >= 0 ? '+' : ''}${number(value)}`;
-const tone = value => value == null ? 'muted' : value >= 0 ? 'positive' : 'negative';
-const date = value => new Date(value).toLocaleString('zh-CN',{timeZone:'Asia/Shanghai',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false});
-function toast(message){$('#toast').textContent=message;$('#toast').style.display='block';clearTimeout(toast.timer);toast.timer=setTimeout(()=>$('#toast').style.display='none',2600)}
-async function request(url, options){const response=await fetch(url,options);if(!response.ok){let data={};try{data=await response.json()}catch{}throw new Error(data.detail || `请求失败 (${response.status})`)}return response.json()}
-async function load(){ $('#refresh').disabled=true;try{state.feed=await request('/api/dashboard/feed');state.error=null;if(!state.feed.sectors.some(sector=>sector.id===state.sector))state.sector=state.feed.sectors[0]?.id;render();fetch('/api/dashboard/macro').then(r=>r.json()).then(m=>{state.macro=m;if(state.page==='overview'||state.page==='trends')render()}).catch(error=>{state.macroError=error.message;if(['overview','trends'].includes(state.page))render()});scheduleWarmup()}catch(error){state.error=error.message;render()}finally{$('#refresh').disabled=false}}
-function scheduleWarmup(){clearTimeout(scheduleWarmup.timer);const market=state.feed&&state.feed.market;const marketPending=market&&(market.status==='cold'||market.status==='refreshing'||!(market.commodities||[]).length||state.feed.sectors.some(item=>item.net_flow==null));const macroPending=!state.macro||(state.macro.indicators||[]).some(item=>item.value==null);if((marketPending||macroPending)&&(state.warmup||0)<12){state.warmup=(state.warmup||0)+1;scheduleWarmup.timer=setTimeout(()=>load(),5000)}}
-function sector(){return state.feed.sectors.find(item=>item.id===state.sector)}
-function stories(){const cutoff=Date.now()-state.range*86400000;return state.feed.stories.filter(item=>item.sector===state.sector && (state.filter==='all'||item.category===state.filter) && (state.page!=='saved'||state.saved.has(item.id)) && new Date(item.published_at).getTime()>=cutoff && `${item.title} ${item.summary} ${item.company||''} ${item.tags.join(' ')}`.toLowerCase().includes(state.query.toLowerCase())).sort((first,second)=>new Date(second.published_at)-new Date(first.published_at))}
-function heading(){if(state.page==='research')return `<div class="page-heading"><div><p class="eyebrow">RESEARCH / 本地数据</p><h1>研究数据 <span>· 本地经济库</span></h1><p class="subtitle">浏览已有观测、历史版本与原始来源。</p></div><span class="pill">● 本地真实数据</span></div>`;return `<div class="page-heading"><div><p class="eyebrow">INDUSTRY INTELLIGENCE / 行业情报</p><h1>${names[state.page]} <span>· ${escapeHtml(sector()?.name||'工作空间')}</span></h1><p class="subtitle">把分散的信息，连接成清晰的产业视野。</p></div><div class="toolbar"><span class="pill ${state.feed.mode==='demo'?'demo':''}">${state.feed.mode==='demo'?'◈ 演示数据':'● 已接入资讯源'}</span><select id="period" aria-label="时间窗口"><option value="7" ${state.range===7?'selected':''}>近 7 天</option><option value="30" ${state.range===30?'selected':''}>近 30 天</option><option value="90" ${state.range===90?'selected':''}>近 90 天</option><option value="180" ${state.range===180?'selected':''}>近 180 天</option></select><button class="control" data-action="export">↓ 导出</button></div></div>`}
-function tabs(){return `<div class="sector-tabs">${state.feed.sectors.map(item=>`<button data-sector="${escapeHtml(item.id)}" class="${item.id===state.sector?'active':''}" title="${escapeHtml(item.latest_date?`数据截至 ${item.latest_date}`:'')} ${escapeHtml(item.trend_label||'')}">${escapeHtml(item.name)} <span class="tiny ${tone(item.change)}">${signed(item.change)}${item.change==null?'':'%'}</span></button>`).join('')}</div>`}
-function panel(title,content,extra='',caption=''){return `<section class="panel"><div class="panel-head"><div>${caption?`<p class="eyebrow">${caption}</p>`:''}<h2>${title}</h2></div>${extra}</div>${content}</section>`}
-function spark(){return `<svg class="spark" viewBox="0 0 80 30"><path d="M0 26 L8 22 L16 25 L24 12 L32 17 L40 9 L48 14 L56 6 L64 9 L72 2 L80 5" fill="none" stroke="currentColor" stroke-width="2"/></svg>`}
-function heatTitle(item){if(!item?.heat_components)return '热度分：新闻规模40% + 新闻增速20% + 成交活跃度30% + 价格波动10%';const c=item.heat_components;return '热度构成：'+Object.entries(c).map(([key,value])=>`${({news_scale:'新闻规模',news_growth:'新闻增速',turnover_activity:'成交活跃度',price_shock:'价格波动'})[key]||key} ${Math.round((value.value||0)*100)}分×${value.weight}`).join(' + ')}
-const MACRO_STATUS={ok:'最新期次',stale:'本地副本陈旧，先运行 market-sync --macro',not_published:'来源尚未公布新期次，以上游为准',source_failure:'最近一次同步失败，稍后重试',missing:'尚未同步'};
-function macroPanel(){const m=state.macro;if(!m)return panel('宏观指标速览','<div class="panel-body"><div class="empty">正在同步宏观指标（首次约需一分钟，页面会自动刷新）…</div></div>','','MACRO / 宏观真实数据');const items=m.indicators.filter(item=>item.value!=null);const missing=m.indicators.filter(item=>item.value==null);return panel('宏观指标速览',`<div class="panel-body"><div class="macro-grid">${items.map(item=>`<div class="macro-cell${item.status==='ok'?'':' warn'}" title="来源 ${escapeHtml(item.source)} · 期次 ${escapeHtml(item.period||'')} · ${MACRO_STATUS[item.status]||escapeHtml(item.status)}${item.zero_value?' · 真实零值':''}${item.message?' · '+escapeHtml(item.message):''}"><small>${escapeHtml(item.name)}</small><b>${number(item.value, item.value!=null&&Math.abs(item.value)<10?2:0)}<i>${escapeHtml(item.unit||'')}</i></b><em>${escapeHtml(item.period||'')}</em></div>`).join('')}</div>${missing.length?`<div class="section-caption">另有 ${missing.length} 项仍在同步：${escapeHtml(missing.map(item=>item.name).slice(0,6).join('、'))}${missing.length>6?' 等':''}</div>`:''}</div>`,'<a href="/api/dashboard/data-health" target="_blank" rel="noopener" style="color:inherit">数据源健康 ↗</a>','MACRO / 宏观真实数据')}
-function benchmarksPanel(){const market=state.feed.market||{};return panel('市场基准',`<div class="panel-body"><div class="macro-grid">${(market.benchmarks||[]).map(item=>`<div class="macro-cell"><small>${escapeHtml(item.name)}</small><b>${number(item.price,2)}</b><em class="${tone(item.change_pct)}">${signed(item.change_pct)}%</em></div>`).join('')}</div><div class="section-caption">来源：${escapeHtml(market.source_label||'腾讯公开行情')} · 更新 ${market.updated_at?date(market.updated_at):'—'}</div></div>`,'','BENCHMARK / 市场基准')}
-function commoditiesPanel(){const market=state.feed.market||{};const items=market.commodities||[];if(!items.length)return panel('商品价格',`<div class="panel-body"><div class="empty">${market.status==='ok'?'商品行情暂时没有返回':'正在同步商品行情…'}</div></div>`,'','COMMODITY / 期货主力连续');return panel('商品价格',`<div class="panel-body"><div class="macro-grid">${items.map(item=>`<div class="macro-cell${(item.sectors||[]).includes(state.sector)?' on':''}" title="${escapeHtml(item.source)} · ${escapeHtml(item.date||'')}"><small>${escapeHtml(item.name)}</small><b>${number(item.price, item.price>=1000?0:2)}</b><em class="${tone(item.change_pct)}">${signed(item.change_pct)}% · ${escapeHtml(item.unit||'')}</em></div>`).join('')}</div><div class="section-caption">来源：新浪财经期货主力连续（相对昨结算）· 绿框为当前领域相关品种</div></div>`,'','COMMODITY / 期货主力连续')}
-function metrics(){const item=sector();const market=state.feed.market||{};return `<div class="metric-grid"><div class="metric"><div class="label">行业涨跌幅 <span>↗</span></div><div class="value ${tone(item?.change)}">${signed(item?.change)}<small>%</small></div><div class="meta">${escapeHtml(item?.latest_date||'')}${item?.latest_date?' · ':''}${escapeHtml(item?.trend_label||market.trend_label||'行业指数')}${item?.index_source==='etf'?'（板块指数源暂不可用，ETF 代理）':''}</div>${state.feed.mode==='demo'?spark():''}</div><div class="metric"><div class="label">主力净流入 <span>⇄</span></div><div class="value ${tone(item?.net_flow)}">${signed(item?.net_flow)}<small>${escapeHtml(state.feed.flow_unit)}</small></div><div class="meta">${escapeHtml(item?.net_flow_label||(((item?.flow_status==='unavailable'||item?.net_flow==null)&&state.feed.mode!=='demo')?'资金流数据源暂时失败':'净流入 / 流出 · 板块口径'))}</div></div><div class="metric"><div class="label">领域关注热度 <span>♨</span></div><div class="value" title="${heatTitle(item)}">${number(item?.heat,0)}<small>/ 100</small></div><div class="meta" title="${heatTitle(item)}">新闻规模40% + 增速20% + 成交30% + 波动10%</div></div><div class="metric"><div class="label">时间窗口内资讯 <span>▤</span></div><div class="value">${stories().length}<small>条</small></div><div class="meta">24 小时资讯 ${item?.news_count_24h??'—'} 条 · 新闻 · 热点 · 人事</div></div></div>`}
-function chart(points, label, benchmark, id='trend'){if(!points.length)return '<div class="empty">该时间窗口暂无趋势数据</div>';const values=points.flatMap(point=>[point.value,point.benchmark].filter(value=>value!=null));const minimum=Math.min(...values),maximum=Math.max(...values),spread=maximum-minimum||1;const x=index=>20+index/Math.max(1,points.length-1)*690;const y=value=>185-(value-minimum)/spread*155;const path=key=>{let pen=false;return points.map((point,index)=>{if(point[key]==null){pen=false;return ''}const part=`${pen?'L':'M'}${x(index).toFixed(1)},${y(point[key]).toFixed(1)}`;pen=true;return part}).join(' ')};return `<div class="legend"><span><i></i>${escapeHtml(label)}</span>${points.some(point=>point.benchmark!=null)?`<span><i class="purple"></i>${escapeHtml(benchmark)}</span>`:''}</div><div class="chart" data-chart="${id}"><div class="chart-tooltip"></div><svg viewBox="0 0 760 220" preserveAspectRatio="none" role="img" aria-label="${escapeHtml(label)}趋势图"><defs><linearGradient id="${id}-fill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5ee3b5" stop-opacity=".18"/><stop offset="1" stop-color="#5ee3b5" stop-opacity="0"/></linearGradient></defs>${[0,1,2,3].map(index=>`<line x1="20" x2="710" y1="${30+index*52}" y2="${30+index*52}" stroke="#27313d" stroke-dasharray="3 5"/><text x="720" y="${34+index*52}" fill="#65758d" font-size="10">${number(maximum-index*spread/3,1)}</text>`).join('')}<path d="${path('value')} L${x(points.length-1)},205 L20,205 Z" fill="url(#${id}-fill)"/><path class="line" d="${path('benchmark')}" fill="none" stroke="#ae9aff" stroke-width="2"/><path class="line" d="${path('value')}" fill="none" stroke="#5ee3b5" stroke-width="2.5"/><line class="crosshair" y1="20" y2="205" stroke="#718299" stroke-dasharray="3 3" visibility="hidden"/></svg></div><div class="chart-axis"><span>${escapeHtml(points[0].date)}</span><span>${escapeHtml(points[Math.floor(points.length/2)].date)}</span><span>${escapeHtml(points.at(-1).date)}</span></div>`}
-function trendPoints(){const cutoff=new Date();cutoff.setDate(cutoff.getDate()-state.range);return (sector()?.trend||[]).filter(point=>new Date(point.date)>=cutoff).sort((first,second)=>first.date.localeCompare(second.date))}
-function trendPanel(){const market=state.feed.market||{};return panel('行业走势',`<div class="panel-body">${chart(trendPoints(),(market.trend_label||state.feed.trend_label),(market.benchmark_label||state.feed.benchmark_label))}<p class="chart-note">${escapeHtml(sector()?.latest_date?`最近数据 ${sector().latest_date} · `:'')}${escapeHtml(sector()?.index_source==='etf'?'板块指数源暂时失败，使用行业 ETF 代理 · ':'')}${escapeHtml(market.source_label||'公开行情接口')} · 移动鼠标查看数据</p></div>`,`<div class="range">${[7,30,90,180].map(days=>`<button data-range="${days}" class="${state.range===days?'active':''}">${days}D</button>`).join('')}</div>`,'TREND / 趋势追踪')}
-function flowPanel(){const market=state.feed.market||{};const hasFlow=state.feed.sectors.some(item=>item.net_flow!=null);if(!hasFlow&&state.feed.mode!=='demo')return panel('领域资金流向',`<div class="panel-body"><div class="empty">资金流数据源暂时失败（板块资金流接口不可用）。<br>市场资金面真实指标（两融余额、Shibor、LPR）见下方宏观面板。</div></div>`,'','CAPITAL / 资金动向');const maximum=Math.max(1,...state.feed.sectors.map(item=>Math.abs(item.net_flow||0)));return panel('领域资金流向',`<div class="panel-body">${[...state.feed.sectors].sort((first,second)=>(second.net_flow||0)-(first.net_flow||0)).map((item,index)=>`<button class="flow-row" data-sector="${escapeHtml(item.id)}" style="width:100%;text-align:left"><span class="rank">0${index+1}</span><span>${escapeHtml(item.name)}</span><div class="flow-track"><span style="width:${Math.abs(item.net_flow||0)/maximum*100}%;background:${item.net_flow>=0?'var(--green)':'var(--red)'}"></span></div><span class="flow-value ${tone(item.net_flow)}">${signed(item.net_flow)}</span></button>`).join('')}<div class="section-caption">单位：${escapeHtml(state.feed.flow_unit)} · ${escapeHtml(market.flow_label||'板块主力净流入')} · 负值为流出</div></div>`,'','CAPITAL / 资金动向')}
-function newsRows(items){return items.length?items.map(item=>`<article class="news-row"><div class="news-marker ${item.category}">${{news:'▤',hotspot:'↗',personnel:'♙'}[item.category]}</div><div class="news-content"><button class="news-title" data-story="${escapeHtml(item.id)}">${escapeHtml(item.title)}</button><div class="news-meta"><span class="tag">${categories[item.category]}</span><span>${escapeHtml(item.source)}</span><span>${date(item.published_at)}</span>${item.tags.slice(0,2).map(tag=>`<span class="tag">${escapeHtml(tag)}</span>`).join('')}</div></div><button class="bookmark ${state.saved.has(item.id)?'on':''}" data-save="${escapeHtml(item.id)}" title="收藏" aria-label="收藏 ${escapeHtml(item.title)}">${state.saved.has(item.id)?'★':'☆'}</button></article>`).join(''):'<div class="empty"><b>暂无匹配资讯</b>切换领域、筛选或时间窗口，或在数据接入页导入资讯。</div>'}
-function hotspots(){const hot=stories().filter(item=>item.category==='hotspot').slice(0,4);const rows=hot.length?hot:stories().slice(0,4);return panel(hot.length?'热点聚焦':'近期要闻',`<div class="panel-body">${rows.map((item,index)=>`<div class="hotspot"><span class="number">${index+1}</span><div><button data-story="${escapeHtml(item.id)}">${escapeHtml(item.title)}</button><small>${escapeHtml(item.tags.join(' / '))}</small></div></div>`).join('')||'<p class="muted">当前窗口暂无资讯</p>'}</div>`,`<span class="pill">TOPICS</span>`)}
-function companies(){return state.feed.companies.filter(item=>item.sector===state.sector&&`${item.name} ${item.symbol} ${item.focus}`.toLowerCase().includes(state.query.toLowerCase()))}
-function companyPanel(){return panel('重点公司',`<div class="panel-body">${companies().map(item=>`<div class="company-mini"><span class="company-logo">${escapeHtml(item.name.slice(-2,-1))}</span><div><h3>${escapeHtml(item.name)}</h3><small>${escapeHtml(item.symbol)} · ${escapeHtml(item.focus)}</small></div><span class="${tone(item.change)}">${signed(item.change)}%</span></div>`).join('')||'<p class="muted">暂无匹配公司</p>'}</div>`,`<button data-page="companies">全部公司 ↗</button>`)}
-function filters(){return `<div class="filter-bar">${Object.entries({all:'全部资讯',...categories}).map(([key,label])=>`<button data-filter="${key}" class="${state.filter===key?'active':''}">${label}</button>`).join('')}</div>`}
-function settings(){return `<div class="settings-grid">${panel('资讯数据接入',`<div class="panel-body"><div class="setting-line"><span>当前模式</span><b>${state.feed.mode==='demo'?'虚构演示':'接口数据'}</b></div><div class="setting-line"><span>数据来源</span><b>${escapeHtml(state.feed.source)}</b></div><div class="setting-line"><span>源更新时间</span><b>${date(state.feed.updated_at)}</b></div><div class="setting-line"><span>已接入内容</span><b>${state.feed.sectors.length} 个领域 / ${state.feed.stories.length} 条资讯</b></div><p class="help" style="margin-top:18px">方式一：导出当前数据作为模板，按统一结构映射你的 API，再配置下方环境变量。<br>方式二：直接导入相同结构的 JSON，保存到本地后刷新即生效。真实数据请设 mode 为 live，缺失数值使用 null。导入演示模板仍保留演示标记。</p><div class="actions"><button class="control primary" data-action="import">↑ 导入 JSON</button><button class="control" data-action="export">↓ 导出当前数据 / 模板</button><a class="control" href="/api/dashboard/schema" target="_blank" rel="noopener">查看 JSON Schema ↗</a></div><input type="file" id="feed-file" accept="application/json,.json" hidden></div>`)}${panel('接口约定',`<div class="panel-body"><p class="help">统一适配层提供领域趋势、资金流、新闻、热点、公司与人事变动。前端所有模块共用一个接口，不需要逐页修改。远程模式优先于本地文件。</p><div class="code">GET /api/dashboard/feed\nPOST /api/dashboard/feed\nGET /api/dashboard/research\nGET /api/dashboard/schema\n\n# PowerShell · 配置后重启服务\n$env:INDUSTRYPULSE_FEED_URL = 'https://你的接口/feed'\n$env:INDUSTRYPULSE_FEED_TOKEN = '你的令牌'\n\n# 可选本地文件 / 数据库\nINDUSTRYPULSE_FEED_FILE\nINDUSTRYPULSE_DASHBOARD_DB</div><p class="help" style="margin-top:15px">新闻类型：news / hotspot / personnel。时间请使用带时区的 ISO 8601。源时间保留原样，刷新不会把旧新闻变成最新新闻。</p></div>`)}</div>`}
-function research(){if(!state.research)return '<div class="loading">正在读取本地研究数据库…</div>';const data=state.research;return `<div class="notice">${escapeHtml(data.message)}。历史研究和投资模型仍须按原有验证流程使用。</div>${panel(`本地经济序列 <span class="muted">/ ${data.count||0} 个观测版本</span>`,`<div class="research-row research-head"><span>序列标识</span><span>最近所属期</span><span>最近值</span><span>版本数 / 证据</span><span>原始来源</span></div>${data.series.map((item,index)=>`<div class="research-row"><button data-research="${index}" style="text-align:left;color:var(--green);overflow-wrap:anywhere">${escapeHtml(item.id)}</button><span>${escapeHtml(item.latest.observation_start)}</span><span>${escapeHtml(item.latest.value??'缺失')} ${escapeHtml(item.latest.unit)}</span><span>${item.count} / ${escapeHtml(item.latest.value_evidence)}</span><span>${sourceLink(item.latest.source_url,'查看 ↗')}</span></div>`).join('')||'<div class="empty">暂无本地数据</div>'}`)}`}
-function safeUrl(url){try{const parsed=new URL(url);return ['http:','https:'].includes(parsed.protocol)?parsed.href:null}catch{return null}}
-function sourceLink(url,label){const href=safeUrl(url);return href?`<a href="${escapeHtml(href)}" target="_blank" rel="noopener">${label}</a>`:'<span class="muted">暂无原文</span>'}
-function render(){document.querySelectorAll('[data-page]').forEach(button=>button.classList.toggle('active',button.dataset.page===state.page));$('#breadcrumb').textContent=names[state.page];$('#saved-count').textContent=state.saved.size;if(!state.feed){$('#main').innerHTML=`<div class="empty"><b>暂时无法连接数据</b>${escapeHtml(state.error||'请重试')}<div class="actions"><button class="control" data-action="retry">重新连接</button></div></div>`;$('#connection').textContent='连接失败';return}$('#connection').textContent=state.error?'连接异常':state.feed.mode==='demo'?'演示模式 · 本地运行':'资讯接口已连接';$('#footer-status').textContent=`源更新 ${date(state.feed.updated_at)} · ASIA/SHANGHAI`;let content='';if(state.page==='overview')content=metrics()+`<div class="two-col">${trendPanel()}${flowPanel()}</div>${commoditiesPanel()}<div class="two-col">${panel('领域资讯',newsRows(stories().slice(0,6)),`<button data-page="news">全部资讯 ↗</button>`,'NEWS / 信息流')}<div class="stack">${hotspots()}${companyPanel()}</div></div><div class="two-col">${macroPanel()}${benchmarksPanel()}</div>`;if(state.page==='trends')content=metrics()+`<div class="two-col">${trendPanel()}${flowPanel()}</div>${commoditiesPanel()}<div class="two-col">${macroPanel()}${benchmarksPanel()}</div>`+hotspots();if(state.page==='news'||state.page==='saved')content=filters()+(state.page==='news'?eventBrief():'')+panel(state.page==='saved'?'已收藏资讯':'领域信息流',newsRows(stories()));if(state.page==='companies')content=`<div class="company-grid">${companies().map(item=>`<section class="panel company-card"><div class="company-logo">◈</div><h2>${escapeHtml(item.name)}</h2><small>${escapeHtml(item.symbol)} · ${escapeHtml(item.focus)}</small><p>当日涨跌 <b class="${tone(item.change)}">${signed(item.change)}%</b>${item.quote&&item.quote.price!=null?` · 现价 ${number(item.quote.price,2)} · 市值 ${number(item.quote.market_cap,0)} 亿 · PE ${number(item.quote.pe,1)} / PB ${number(item.quote.pb,2)}`:''}</p>${(item.announcements||[]).filter(note=>/^https:\/\//.test(note.url||'')).map(note=>`<a class="notice-line" href="${escapeHtml(note.url)}" target="_blank" rel="noopener">${escapeHtml(note.published_at)} · ${escapeHtml(note.title)}</a>`).join('')}<button data-company="${escapeHtml(item.name)}">查看公司资讯与人事动态 ↗</button></section>`).join('')||'<div class="empty">暂无匹配公司</div>'}</div><div style="margin-top:20px">${panel('公司与人事动态',newsRows(stories().filter(item=>item.company||item.category==='personnel')))}</div>`;if(state.page==='settings')content=settings();if(state.page==='research')content=research();$('#main').innerHTML=heading()+(state.page==='settings'||state.page==='research'?'':tabs())+(state.error?`<div class="notice error">${escapeHtml(state.error)} · 保留上次成功读取的数据，尚未更新。</div>`:'')+(state.feed.mode==='demo'&&state.page!=='research'?'<div class="notice">演示模式：趋势、资金、新闻与公司均为虚构样例，不代表实时市场。进入「数据接入」后可导入 JSON 或接入 API。</div>':'')+content;bindCharts()}
-function bindCharts(){document.querySelectorAll('[data-chart]').forEach(element=>{const points=element.dataset.chart==='research'?state.detailPoints:trendPoints();if(!points?.length)return;element.onmousemove=event=>{const rect=element.getBoundingClientRect();const index=Math.max(0,Math.min(points.length-1,Math.round(((event.clientX-rect.left)/rect.width*760-20)/690*(points.length-1))));const point=points[index];const tip=element.querySelector('.chart-tooltip');tip.textContent=`${point.date} · ${number(point.value)}${point.benchmark==null?'':` / 基准 ${number(point.benchmark)}`}`;tip.style.display='block';tip.style.left=`${Math.min(Math.max(0,event.clientX-rect.left-50),Math.max(0,rect.width-230))}px`;const line=element.querySelector('.crosshair');line.setAttribute('x1',20+index/Math.max(1,points.length-1)*690);line.setAttribute('x2',line.getAttribute('x1'));line.setAttribute('visibility','visible')};element.onmouseleave=()=>{element.querySelector('.chart-tooltip').style.display='none';element.querySelector('.crosshair').setAttribute('visibility','hidden')}})}
-function detail(item){$('#detail-body').innerHTML=`<span class="pill ${state.feed.mode==='demo'?'demo':''}">${state.feed.mode==='demo'?'虚构演示 · ':''}${categories[item.category]}</span><h2>${escapeHtml(item.title)}</h2><div class="news-meta">${escapeHtml(item.source)} · ${date(item.published_at)}</div><p>${escapeHtml(item.summary)}</p>${item.company?`<p>关联公司：${escapeHtml(item.company)}</p>`:''}<div class="news-meta">${item.tags.map(tag=>`<span class="tag">${escapeHtml(tag)}</span>`).join('')}</div><div class="actions">${sourceLink(item.url,'阅读原文 ↗')}<button class="control" data-save="${escapeHtml(item.id)}">${state.saved.has(item.id)?'★ 已收藏':'☆ 收藏资讯'}</button></div>`;$('#detail').showModal()}
-function eventBrief(){const data=state.events;if(!data)return panel('今日事件简报','<div class="panel-body"><p class="help">正在按标题合并今天的报道。</p></div>','','EVENTS / 同一件事');if(data.error)return panel('今日事件简报',`<div class="panel-body"><p class="help">${escapeHtml(data.error)}</p></div>`);const rows=(data.clusters||[]).slice(0,12).map(item=>{const links=(item.sources||[]).map(source=>sourceLink(source.url,escapeHtml(source.name))).join(' ');const figure=item.quantity==null?'原文没有可核对的数字':`${number(item.quantity)}${escapeHtml(item.unit||'')}`;return `<article class="news-row"><div class="news-content"><div class="news-title">${escapeHtml(item.subject||'主体未写明')} · ${escapeHtml(item.action||item.quote||'尚未抽出动作')}</div><div class="news-meta"><span class="tag">${item.status==='EXTRACTED'?'已核对':item.status==='REJECTED'?'引用未采用':'待抽取'}</span><span>${figure}</span><span>${(item.sources||[]).length} 家来源</span></div><p class="help">${escapeHtml(item.note||'')}</p><div class="news-meta">${links}</div></div></article>`}).join('')||'<div class="empty"><b>这一天没有可合并的报道</b>简报只看所选领域、上海时区的一个自然日。</div>';return panel('今日事件简报',`<div class="panel-body"><p class="help">${escapeHtml(data.disclaimer||'')} 简报日 ${escapeHtml(data.day||'—')}，合并 ${(data.clusters||[]).length} 组，这里显示最新 12 组。${data.model_configured?'':'尚未保存可用模型，事实字段保持空白。'}</p><div class="actions"><button class="control primary" data-action="extract-events" ${state.extracting?'disabled':''}>${state.extracting?'正在抽取…':'用已保存模型抽取'}</button></div></div>${rows}`,'','EVENTS / 同一件事')}
-async function loadEvents(){try{state.events=await request('/api/dashboard/events?sector='+encodeURIComponent(state.sector))}catch(error){state.events={error:error.message,clusters:[],events:[]}}}
-async function extractEvents(){state.extracting=true;render();try{state.events=await request('/api/dashboard/events/extract',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sector:state.sector,day:state.events&&state.events.day||null,limit:8})});toast('已按原文核对这一批事件')}catch(error){toast(error.message)}finally{state.extracting=false;render()}}
-async function navigate(page){state.page=page;state.filter='all';if(page==='news')await loadEvents();render();if(page==='research'&&!state.research){try{state.research=await request('/api/dashboard/research')}catch(error){state.research={message:error.message,series:[]}}render()}}
-document.addEventListener('click',async event=>{const button=event.target.closest('button');if(!button)return;const data=button.dataset;if(data.page){await navigate(data.page)}else if(data.action==='extract-events'){await extractEvents()}else if(data.sector){state.sector=data.sector;if(state.page==='news')await loadEvents();render()}else if(data.range){state.range=Number(data.range);render()}else if(data.filter){state.filter=data.filter;render()}else if(data.story){detail(state.feed.stories.find(item=>item.id===data.story))}else if(data.save){state.saved.has(data.save)?state.saved.delete(data.save):state.saved.add(data.save);try{localStorage.setItem('ip-saved',JSON.stringify([...state.saved]))}catch{toast('浏览器无法持久保存，收藏在本次会话有效')}render();if($('#detail').open){const item=state.feed.stories.find(story=>story.id===data.save);if(item){$('#detail').close();detail(item)}}}else if(data.company){state.query=data.company;$('#search').value=data.company;await navigate('news')}else if(data.research){const item=state.research.series[Number(data.research)];const latest=new Map();item.history.forEach(row=>{if(row.value!=null)latest.set(row.observation_start,{date:row.observation_start,value:Number(row.value)})});state.detailPoints=[...latest.values()];$('#detail-body').innerHTML=`<span class="pill">本地真实数据 · 当前版本</span><h2>${escapeHtml(item.id)}</h2><p>单位 ${escapeHtml(item.latest.unit)} · 值证据 ${escapeHtml(item.latest.value_evidence)} · ${item.count} 个观测版本</p><div class="detail-chart">${chart(state.detailPoints,'观测值','', 'research')}</div><p>按所属期展示当前库中最后版本，未按历史时点过滤。</p>${sourceLink(item.latest.source_url,'打开原始来源 ↗')}`;$('#detail').showModal();bindCharts()}else if(data.action==='export'){const blob=new Blob([JSON.stringify(state.feed,null,2)],{type:'application/json'});const url=URL.createObjectURL(blob);const anchor=document.createElement('a');anchor.href=url;anchor.download='industrypulse-feed.json';anchor.click();setTimeout(()=>URL.revokeObjectURL(url),500);toast('已导出资讯数据，可作为接入模板')}else if(data.action==='import'){$('#feed-file').click()}else if(data.action==='retry'){load()}});
-document.addEventListener('change',async event=>{if(event.target.id==='period'){state.range=Number(event.target.value);render()}if(event.target.id==='feed-file'){const file=event.target.files[0];if(!file)return;try{const payload=JSON.parse(await file.text());await request('/api/dashboard/feed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});await load();toast('导入完成，数据已保存')}catch(error){toast(`导入失败：${error.message}`)}}});
-$('#search').addEventListener('input',event=>{state.query=event.target.value;if(['research','settings'].includes(state.page))state.page='news';render()});$('#refresh').onclick=()=>{state.research=null;load().then(()=>{if(state.page==='research')navigate('research')})};$('#close-detail').onclick=()=>$('#detail').close();$('#detail').addEventListener('click',event=>{if(event.target===$('#detail')){const bounds=$('#detail').getBoundingClientRect();if(event.clientX<bounds.left)$('#detail').close()}});document.addEventListener('keydown',event=>{if(event.key==='/'&&!['INPUT','TEXTAREA'].includes(document.activeElement.tagName)){event.preventDefault();$('#search').focus()}});
+const $ = s => document.querySelector(s);
+const $$ = s => [...document.querySelectorAll(s)];
+
+const state = {
+  page: 'radar',
+  sector: 'semiconductor',
+  range: 90,
+  search: '',
+  feed: null,
+  radar: null,
+  macro: null,
+  smartMoney: null,
+  history: null,
+  health: null,
+  verifyResult: null,
+  aiBusy: false,
+  verifyBusy: false,
+  smSyncBusy: false,
+  error: ''
+};
+
+const pageNames = {
+  radar: '早期雷达',
+  sector: '行业透视',
+  smart: '机构动向',
+  verify: '投喂核验 & 回看',
+  settings: '模型与数据源设置'
+};
+
+// news-sources.js 兼容集合：非资讯视图避免自动整页刷新打断表单输入
+const workPages = new Set(['smart', 'verify', 'settings']);
+
+const escapeHtml = v => String(v ?? '').replace(/[&<>"']/g, c => ({
+  '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+}[c]));
+
+const date = iso => iso
+  ? new Intl.DateTimeFormat('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }).format(new Date(iso))
+  : '—';
+
+const signed = (v, u = '%') => (v == null || Number.isNaN(Number(v)))
+  ? '<span class="dash">—</span>'
+  : `${Number(v) >= 0 ? '+' : ''}${Number(v).toFixed(2)}${u}`;
+
+function toast(msg) {
+  const box = $('#toast');
+  if (!box) return;
+  box.textContent = msg;
+  box.style.display = 'block';
+  clearTimeout(toast.t);
+  toast.t = setTimeout(() => { box.style.display = 'none'; }, 2800);
+}
+
+async function request(url, opts = {}) {
+  const res = await fetch(url, opts);
+  const text = await res.text();
+  let data = {};
+  try { data = text ? JSON.parse(text) : {}; } catch { data = { detail: text }; }
+  if (!res.ok) throw new Error(data.detail || data.message || `请求失败 (${res.status})`);
+  return data;
+}
+
+function panel(title, body, right = '', eyebrow = '') {
+  return `<section class="panel">
+    <div class="panel-head">
+      <div>${eyebrow ? `<p class="eyebrow">${escapeHtml(eyebrow)}</p>` : ''}<h2>${escapeHtml(title)}</h2></div>
+      <div>${right}</div>
+    </div>
+    ${body}
+  </section>`;
+}
+
+function zoneBadge(zone, label) {
+  const map = {
+    LURKING: 'badge-lurking',
+    RISING: 'badge-rising',
+    CROWDED: 'badge-crowded',
+    HIGH_RISK: 'badge-highrisk',
+    NEUTRAL: 'badge-neutral',
+    UNKNOWN: 'badge-neutral'
+  };
+  return `<span class="zone-badge ${map[zone] || 'badge-neutral'}">${escapeHtml(label || zone || '—')}</span>`;
+}
+
+// ------------------------------------------------------------------ 四象限 SVG 图
+function quadrantChart(sectors) {
+  const items = (sectors || []).filter(s => s.available && s.position_score != null && s.catalyst_score != null);
+  if (!items.length) {
+    return '<div class="empty"><b>暂无量化坐标数据</b>请先刷新行情与新闻以生成位置分位。</div>';
+  }
+  const w = 640, h = 320, pad = 42;
+  const xOf = c => pad + (Math.max(0, Math.min(100, c)) / 100) * (w - pad * 2);
+  const yOf = p => (h - pad) - (Math.max(0, Math.min(100, p)) / 100) * (h - pad * 2);
+  const midX = xOf(45), midY = yOf(50);
+  const colorOf = z => ({
+    LURKING: '#5ee3b5',
+    RISING: '#7db7ff',
+    CROWDED: '#e8c88d',
+    HIGH_RISK: '#f48691',
+    NEUTRAL: '#8390a4'
+  }[z] || '#8390a4');
+
+  const dots = items.map(s => {
+    const cx = xOf(s.catalyst_score).toFixed(1);
+    const cy = yOf(s.position_score).toFixed(1);
+    const fill = colorOf(s.zone);
+    return `<g class="q-dot" data-jump-sector="${escapeHtml(s.id)}">
+      <circle cx="${cx}" cy="${cy}" r="7" fill="${fill}" fill-opacity="0.85" stroke="#0b0e14" stroke-width="1.5"></circle>
+      <text x="${cx}" y="${Number(cy) - 11}" text-anchor="middle" fill="#dce5f2" font-size="11">${escapeHtml(s.name)}</text>
+    </g>`;
+  }).join('');
+
+  return `<div class="quadrant-wrap">
+    <svg viewBox="0 0 ${w} ${h}" role="img" aria-label="信息催化强度与量化位置四象限">
+      <rect x="${midX}" y="${pad}" width="${w - pad - midX}" height="${midY - pad}" fill="#f486910d"/>
+      <rect x="${midX}" y="${midY}" width="${w - pad - midX}" height="${h - pad - midY}" fill="#5ee3b512"/>
+      <line x1="${pad}" y1="${midY}" x2="${w - pad}" y2="${midY}" stroke="#2b3748" stroke-dasharray="4 4"/>
+      <line x1="${midX}" y1="${pad}" x2="${midX}" y2="${h - pad}" stroke="#2b3748" stroke-dasharray="4 4"/>
+      <rect x="${pad}" y="${pad}" width="${w - pad * 2}" height="${h - pad * 2}" fill="none" stroke="#252d39"/>
+      <text x="${w - pad - 8}" y="${h - pad - 10}" text-anchor="end" fill="#5ee3b5" font-size="10">★ 黄金潜伏区（高催化 + 低位置）</text>
+      <text x="${w - pad - 8}" y="${pad + 16}" text-anchor="end" fill="#f48691" font-size="10">▲ 高危拥挤区（高位置 + 资金拥挤）</text>
+      <text x="${pad + 8}" y="${pad + 16}" fill="#e8c88d" font-size="10">高位无新增催化</text>
+      <text x="${pad + 8}" y="${h - pad - 10}" fill="#8390a4" font-size="10">冷门观望区</text>
+      <text x="${w / 2}" y="${h - 10}" text-anchor="middle" fill="#8390a4" font-size="11">横轴：信息与新闻催化强度 (0 → 100) →</text>
+      <text x="14" y="${h / 2}" text-anchor="middle" transform="rotate(-90 14 ${h / 2})" fill="#8390a4" font-size="11">纵轴：市场位置与拥挤度 (0 → 100) →</text>
+      ${dots}
+    </svg>
+    <p class="chart-note">点击图上任意行业圆点，可直接跳转到该行业的「行业透视」核验新闻与行情明细。</p>
+  </div>`;
+}
+
+function trendSvg(points) {
+  if (!points || points.length < 2) return '<div class="empty">暂无趋势曲线</div>';
+  const slice = points.slice(-state.range);
+  const vals = slice.flatMap(p => [p.value, p.benchmark].filter(v => v != null));
+  const min = Math.min(...vals), max = Math.max(...vals);
+  const span = (max - min) || 1;
+  const w = 680, h = 210, pad = 16;
+  const x = i => (pad + (i / (slice.length - 1)) * (w - pad * 2)).toFixed(1);
+  const y = v => (h - pad - ((v - min) / span) * (h - pad * 2)).toFixed(1);
+  const pathFor = key => slice
+    .map((p, i) => p[key] != null ? `${i === 0 ? 'M' : 'L'}${x(i)},${y(p[key])}` : '')
+    .filter(Boolean).join(' ');
+  return `<div class="chart">
+    <div class="legend"><span><i></i>行业指数</span><span><i class="purple"></i>沪深300基准</span></div>
+    <svg viewBox="0 0 ${w} ${h}">
+      <path d="${pathFor('benchmark')}" fill="none" stroke="#ae9aff" stroke-width="1.6" stroke-opacity="0.7"/>
+      <path class="line" d="${pathFor('value')}" fill="none" stroke="#5ee3b5" stroke-width="2.2"/>
+    </svg>
+    <div class="chart-axis"><span>${escapeHtml(slice[0].date)}</span><span>近 ${slice.length} 个交易日</span><span>${escapeHtml(slice[slice.length - 1].date)}</span></div>
+  </div>`;
+}
+
+// ------------------------------------------------------------------ Page 1: 早期雷达
+function renderRadar() {
+  const radarData = state.radar || {};
+  const sectors = radarData.sectors || [];
+  const report = radarData.latest_ai_report || {};
+  const hasReport = Boolean(report && report.run_id);
+  const macro = report.macro_regime || {};
+  const early = report.early_opportunities || [];
+  const highRisk = report.high_risk_warnings || [];
+  const storiesById = new Map((state.feed?.stories || []).map(s => [String(s.id), s]));
+
+  const aiHeaderRight = `
+    <div class="toolbar">
+      ${hasReport ? `<span class="pill ${report.mode === 'ai' ? '' : 'demo'}">${report.mode === 'ai' ? `AI · ${escapeHtml(report.model || '')}` : '规则基线'} · ${date(report.generated_at)}</span>` : ''}
+      <button class="control primary" data-action="run-butterfly" ${state.aiBusy ? 'disabled' : ''}>${state.aiBusy ? '正在并行推演…' : '✧ 运行 AI 蝴蝶效应扫描'}</button>
+    </div>`;
+
+  const macroSummary = hasReport
+    ? `<div class="panel-body">
+        <p class="macro-lead">${escapeHtml(macro.summary || '暂无宏观研判')}</p>
+        <div class="tag-row">
+          ${(macro.favored_styles || []).map(t => `<span class="pill">有利方向：${escapeHtml(t)}</span>`).join('')}
+          ${(macro.key_risks || []).map(t => `<span class="pill warn-pill">关注风险：${escapeHtml(t)}</span>`).join('')}
+        </div>
+      </div>`
+    : `<div class="panel-body"><p class="muted">尚未运行过扫描。点击右上角「运行 AI 蝴蝶效应扫描」，系统会并行读取 12 行业最新新闻，结合量化位置与机构共识找出早期潜伏线索与高危离场信号。</p></div>`;
+
+  const earlyCards = early.length
+    ? early.map(item => {
+        const evs = (item.evidence_stories || []).length
+          ? item.evidence_stories
+          : (item.evidence_story_ids || []).map(id => storiesById.get(String(id))).filter(Boolean);
+        return `<article class="signal-card early-card">
+          <div class="signal-top">
+            <div>
+              <strong>${escapeHtml(item.sector_name || item.sector)}</strong>
+              ${zoneBadge(item.zone, item.zone_label)}
+            </div>
+            <button class="control" data-jump-sector="${escapeHtml(item.sector)}">进行业透视 ↗</button>
+          </div>
+          <h3>${escapeHtml(item.title)}</h3>
+          <p class="signal-body">${escapeHtml(item.butterfly_chain)}</p>
+          <div class="signal-meta">
+            ${item.quant_alignment ? `<span>📊 ${escapeHtml(item.quant_alignment)}</span>` : ''}
+            ${item.smart_money_note ? `<span>⚖ ${escapeHtml(item.smart_money_note)}</span>` : ''}
+          </div>
+          ${item.disproof_signal ? `<p class="disproof"><b>证伪红线：</b>${escapeHtml(item.disproof_signal)}</p>` : ''}
+          ${evs.length ? `<div class="evidence-links"><b>依据原文：</b>${evs.map(s => `<a href="${escapeHtml(s.url || '#')}" target="_blank" rel="noopener">${escapeHtml(s.title)}</a>`).join(' · ')}</div>` : ''}
+        </article>`;
+      }).join('')
+    : '<div class="empty">当前暂无高催化且处于低位的潜伏线索（或尚未运行扫描）。</div>';
+
+  const riskCards = highRisk.length
+    ? highRisk.map(item => `<article class="signal-card risk-card">
+        <div class="signal-top">
+          <div>
+            <strong>${escapeHtml(item.sector_name || item.sector)}</strong>
+            ${zoneBadge(item.zone || 'HIGH_RISK', item.zone_label || '高危警示')}
+          </div>
+          <button class="control" data-jump-sector="${escapeHtml(item.sector)}">核验走势 ↗</button>
+        </div>
+        <h3>${escapeHtml(item.title)}</h3>
+        <p class="signal-body">${escapeHtml(item.reason)}</p>
+        ${item.disproof_signal ? `<p class="disproof"><b>解除条件：</b>${escapeHtml(item.disproof_signal)}</p>` : ''}
+      </article>`).join('')
+    : '<div class="empty">当前没有触发高危离场警示的板块。</div>';
+
+  const quantTable = `<div class="panel-body">
+    <div class="table-wrap"><table class="radar-table">
+      <thead><tr><th>行业</th><th>状态</th><th>位置分</th><th>催化分</th><th>20日涨跌</th><th>相对沪深300</th><th>60日价格分位</th><th>成交拥挤度</th></tr></thead>
+      <tbody>${sectors.map(s => `<tr data-jump-sector="${escapeHtml(s.id)}" class="clickable-row">
+        <td><b>${escapeHtml(s.name)}</b></td>
+        <td>${zoneBadge(s.zone, s.zone_label)}</td>
+        <td>${s.position_score ?? '—'}</td>
+        <td>${s.catalyst_score ?? '—'}</td>
+        <td class="${(s.return_20d ?? 0) >= 0 ? 'positive' : 'negative'}">${signed(s.return_20d)}</td>
+        <td class="${(s.relative_20d ?? 0) >= 0 ? 'positive' : 'negative'}">${signed(s.relative_20d)}</td>
+        <td>${s.price_percentile_60d != null ? `${s.price_percentile_60d}%` : '—'}</td>
+        <td>${s.turnover_percentile_60d != null ? `${s.turnover_percentile_60d}%` : '—'}</td>
+      </tr>`).join('')}</tbody>
+    </table></div>
+  </div>`;
+
+  const sectorSignals = (report.sector_signals || []).filter(s => (s.signals || []).length);
+  const weakSignalsHtml = sectorSignals.length
+    ? `<div class="panel-body card-grid">${sectorSignals.map(group => `<article class="signal-card">
+        <div class="signal-top">
+          <strong>${escapeHtml(group.sector_name || group.sector)}</strong>
+          <button class="control" data-jump-sector="${escapeHtml(group.sector)}">看行业 ↗</button>
+        </div>
+        <div class="stack-sm" style="margin-top:10px">
+          ${(group.signals || []).map(sig => `<div style="border-top:1px solid var(--line);padding-top:8px">
+            <div style="font-size:12.5px;font-weight:500">${escapeHtml(sig.headline)} <span class="tag">${escapeHtml(sig.strength)}</span></div>
+            <div class="muted" style="font-size:11.5px;margin-top:4px">${escapeHtml(sig.chain)}</div>
+          </div>`).join('')}
+        </div>
+      </article>`).join('')}</div>`
+    : '';
+
+  return `
+    <div class="page-heading">
+      <div><p class="eyebrow">EARLY RADAR / AI 蝴蝶效应 + 量化位置</p><h1>早期雷达<span> · 潜伏与离场</span></h1></div>
+      ${aiHeaderRight}
+    </div>
+    ${panel('宏观经济风向与主要矛盾', macroSummary, '', 'MACRO REGIME')}
+    <div class="two-col" style="margin-top:20px">
+      ${panel('「信息催化 × 市场位置」四象限', `<div class="panel-body">${quadrantChart(sectors)}</div>`, '', 'QUANT POSITION MATRIX')}
+      ${panel('高危离场警示区', `<div class="panel-body stack">${riskCards}</div>`, '', 'HIGH RISK WARNINGS')}
+    </div>
+    ${panel('早期潜伏重点板块（高催化 + 未拥挤）', `<div class="panel-body card-grid">${earlyCards}</div>`, '', 'EARLY OPPORTUNITIES')}
+    ${weakSignalsHtml ? `<div style="margin-top:20px">${panel('各行业 AI 初筛弱信号与传导链', weakSignalsHtml, '', 'WEAK SIGNALS')}</div>` : ''}
+    <div style="margin-top:20px">${panel('12 行业量化位置全览', quantTable, '', 'ALL SECTORS QUANT RADAR')}</div>
+  `;
+}
+
+// ------------------------------------------------------------------ Page 2: 行业透视
+function renderSector() {
+  const sectors = state.feed?.sectors || [];
+  const radars = state.radar?.sectors || [];
+  const current = sectors.find(s => s.id === state.sector) || sectors[0];
+  const radar = radars.find(r => r.id === (current?.id || state.sector)) || {};
+  const q = state.search.trim().toLowerCase();
+  const stories = (state.feed?.stories || [])
+    .filter(s => s.sector === (current?.id || state.sector))
+    .filter(s => !q || `${s.title} ${s.summary} ${s.source}`.toLowerCase().includes(q));
+  const companies = (state.feed?.companies || []).filter(c => c.sector === (current?.id || state.sector));
+  const macroItems = (state.macro?.items || []).filter(m => m.value != null).slice(0, 8);
+
+  const tabs = `<div class="sector-tabs">${sectors.map(s => {
+    const r = radars.find(x => x.id === s.id);
+    return `<button data-sector="${escapeHtml(s.id)}" class="${s.id === current?.id ? 'active' : ''}">
+      ${escapeHtml(s.name)}<span class="tiny">${r?.zone === 'LURKING' ? '✧潜伏' : r?.zone === 'HIGH_RISK' ? '▲高危' : signed(s.change)}</span>
+    </button>`;
+  }).join('')}</div>`;
+
+  const metrics = `<div class="metric-grid">
+    <div class="metric"><div class="label"><span>量化位置状态</span></div><div class="value" style="font-size:20px">${zoneBadge(radar.zone, radar.zone_label)}</div><div class="meta">位置分 ${radar.position_score ?? '—'} · 催化分 ${radar.catalyst_score ?? '—'}</div></div>
+    <div class="metric"><div class="label"><span>20日涨跌 / 超额</span></div><div class="value">${signed(radar.return_20d)}</div><div class="meta">相对沪深300 ${signed(radar.relative_20d)}</div></div>
+    <div class="metric"><div class="label"><span>60日价格 / 成交分位</span></div><div class="value">${radar.price_percentile_60d != null ? `${radar.price_percentile_60d}%` : '—'}</div><div class="meta">成交拥挤分位 ${radar.turnover_percentile_60d != null ? `${radar.turnover_percentile_60d}%` : '—'}</div></div>
+    <div class="metric"><div class="label"><span>24小时新闻与热度</span></div><div class="value">${current?.news_count_24h ?? stories.length}<small>篇</small></div><div class="meta">HeatScore ${current?.heat ?? '—'}</div></div>
+  </div>`;
+
+  const rangeButtons = `<div class="range">${[30, 90, 180].map(d => `<button data-range="${d}" class="${state.range === d ? 'active' : ''}">${d}D</button>`).join('')}</div>`;
+  const newsList = stories.length
+    ? stories.slice(0, 30).map(s => `<div class="news-row">
+        <div class="news-marker">▤</div>
+        <div class="news-content">
+          <button class="news-title" data-story-id="${escapeHtml(s.id)}">${escapeHtml(s.title)}</button>
+          <div class="news-meta">
+            <span>${escapeHtml(s.source || '公开源')}</span>
+            <span>${date(s.published_at)}</span>
+            ${s.url ? `<a href="${escapeHtml(s.url)}" target="_blank" rel="noopener">查看原文 ↗</a>` : ''}
+          </div>
+        </div>
+      </div>`).join('')
+    : '<div class="empty">当前行业暂无匹配新闻。</div>';
+
+  const companyList = companies.length
+    ? `<div class="panel-body">${companies.slice(0, 8).map(c => `<div class="company-mini">
+        <div class="company-logo">${escapeHtml((c.name || '?')[0])}</div>
+        <div><h3>${escapeHtml(c.name)}</h3><small>${escapeHtml(c.symbol || c.focus || '')}</small></div>
+        <div class="${(c.change ?? 0) >= 0 ? 'positive' : 'negative'}">${signed(c.change)}</div>
+      </div>`).join('')}</div>`
+    : '<div class="empty">暂无关联公司或 ETF 数据。</div>';
+
+  const macroPanel = macroItems.length
+    ? panel('核心宏观底座指标', `<div class="panel-body macro-grid">${macroItems.map(m => `<div class="macro-cell">
+        <small>${escapeHtml(m.name)}</small>
+        <b>${escapeHtml(m.value)}<i>${escapeHtml(m.unit || '')}</i></b>
+        <em>${escapeHtml(m.period || '')}</em>
+      </div>`).join('')}</div>`, '', 'MACRO CONTEXT')
+    : '';
+
+  return `
+    <div class="page-heading">
+      <div><p class="eyebrow">SECTOR DEEP DIVE</p><h1>${escapeHtml(current?.name || '行业透视')}<span> · 新闻原文与量化标尺</span></h1></div>
+    </div>
+    ${tabs}
+    ${metrics}
+    <div class="two-col">
+      ${panel('行业指数走势与基准对比', `<div class="panel-body">${trendSvg(current?.trend || [])}</div>`, rangeButtons, 'TREND')}
+      ${panel('重点龙头与标的', companyList, '', 'COMPANIES')}
+    </div>
+    <div class="two-col">
+      ${panel(`行业最新资讯 (${stories.length})`, newsList, '', 'ORIGINAL NEWS')}
+      <div class="stack">
+        ${panel('量化风险与位置提示', `<div class="panel-body">${(radar.risk_flags || []).length ? radar.risk_flags.map(f => `<p class="notice">${escapeHtml(f)}</p>`).join('') : '<p class="muted">暂无极端风险标志。</p>'}</div>`, '', 'QUANT SIGNALS')}
+        ${macroPanel}
+      </div>
+    </div>
+  `;
+}
+
+// ------------------------------------------------------------------ Page 3: 机构动向
+function renderSmartMoney() {
+  const sm = state.smartMoney || { institutions: [], entries: [], sync_errors: {} };
+  const sectors = state.feed?.sectors || [];
+  const instCards = (sm.institutions || []).map(inst => {
+    const filing = inst.latest_filing;
+    return `<div class="sm-inst-card">
+      <div class="signal-top">
+        <b>${escapeHtml(inst.name)}</b>
+        <span class="pill ${inst.region === 'US' ? 'demo' : ''}">${escapeHtml(inst.region)} · 常规滞后 ${inst.disclosure_lag_days}天</span>
+      </div>
+      <p class="muted" style="font-size:12px;margin:6px 0">${escapeHtml(inst.style)} — ${escapeHtml(inst.notes)}</p>
+      <div style="font-size:11px;color:#9aa7b9">
+        ${filing
+          ? `最新 13F-HR：${escapeHtml(filing.filing_date)}（报告期 ${escapeHtml(filing.report_date)}） · <a href="${escapeHtml(filing.url)}" target="_blank" rel="noopener">EDGAR 原件 ↗</a>`
+          : (inst.cik ? '尚未同步 SEC 13F 状态' : '国内/产业渠道（支持手动录入笔记）')}
+      </div>
+    </div>`;
+  }).join('');
+
+  const entryForm = `<form id="sm-form" class="panel-body stack-sm">
+    <div class="form-row">
+      <label class="wb-field">选择机构
+        <select name="institution_id" required>${(sm.institutions || []).map(i => `<option value="${escapeHtml(i.id)}">${escapeHtml(i.name)}</option>`).join('')}</select>
+      </label>
+      <label class="wb-field">关联行业
+        <select name="sector" required>${sectors.map(s => `<option value="${escapeHtml(s.id)}">${escapeHtml(s.name)}</option>`).join('')}</select>
+      </label>
+      <label class="wb-field">动向方向
+        <select name="direction">
+          <option value="INCREASE">增配 / 建仓</option>
+          <option value="REDUCE">减配 / 撤退</option>
+          <option value="VIEW">公开观点 / 纪要</option>
+          <option value="HOLD">维持重仓</option>
+        </select>
+      </label>
+      <label class="wb-field">披露日期
+        <input type="date" name="disclosed_at" value="${new Date().toISOString().slice(0, 10)}" required>
+      </label>
+    </div>
+    <label class="wb-field">标题 / 核心事件
+      <input name="title" placeholder="例如：Q3 13F 增持某半导体设备 / 公开演讲看好电网出海" required>
+    </label>
+    <label class="wb-field">逻辑摘要与细节
+      <textarea name="summary" rows="3" placeholder="记录核心依据、变化幅度或原文要点…" required></textarea>
+    </label>
+    <label class="wb-field">来源链接（可选）
+      <input name="source_url" placeholder="https://...">
+    </label>
+    <div><button type="submit" class="control primary">保存机构动向（将参与 AI 推演）</button></div>
+  </form>`;
+
+  const entryList = (sm.entries || []).length
+    ? sm.entries.map(e => `<div class="news-row">
+        <div class="news-content">
+          <div class="signal-top">
+            <div><b>${escapeHtml(e.institution_name)}</b> · <span class="tag">${escapeHtml(e.sector)}</span> · <span class="tag">${escapeHtml(e.direction)}</span></div>
+            <button class="control" data-sm-delete="${escapeHtml(e.id)}">删除</button>
+          </div>
+          <p style="margin:6px 0 4px;font-weight:500">${escapeHtml(e.title)}</p>
+          <p class="muted" style="font-size:12px">${escapeHtml(e.summary)}</p>
+          <div class="news-meta">
+            <span style="color:#e8c88d">${escapeHtml(e.lag_warning)}</span>
+            ${e.source_url ? `<a href="${escapeHtml(e.source_url)}" target="_blank" rel="noopener">来源 ↗</a>` : ''}
+          </div>
+        </div>
+      </div>`).join('')
+    : '<div class="empty">暂无手动录入的机构持仓或观点笔记。</div>';
+
+  return `
+    <div class="page-heading">
+      <div><p class="eyebrow">SMART MONEY / 滞后性提醒</p><h1>国内外知名机构动向<span> · 中长期风向与拥挤校验</span></h1></div>
+      <div class="toolbar">
+        <button class="control" data-action="sync-sec" ${state.smSyncBusy ? 'disabled' : ''}>${state.smSyncBusy ? '同步中…' : '↻ 同步海外 SEC 13F 状态'}</button>
+      </div>
+    </div>
+    <div class="notice">提示：13F 与国内公募季报披露存在 15~45 天滞后，切勿直接作短线追高依据；重点看资本跨季度迁徙方向，以及机构极度一致扎堆时的高危反向信号。</div>
+    <div class="two-col">
+      ${panel('录入机构动态 / 大佬观点', entryForm, '', 'ADD OBSERVATION')}
+      ${panel('已跟踪机构名录', `<div class="panel-body stack-sm">${instCards}</div>`, '', 'WATCHED INSTITUTIONS')}
+    </div>
+    ${panel(`机构动向时间线 (${(sm.entries || []).length})`, entryList, '', 'TIMELINE')}
+  `;
+}
+
+// ------------------------------------------------------------------ Page 4: 投喂核验 & 回看
+function renderVerify() {
+  const sectors = state.feed?.sectors || [];
+  const vr = state.verifyResult;
+  const history = state.history?.items || [];
+
+  const verifyForm = `<form id="verify-form" class="panel-body stack-sm">
+    <label class="wb-field">对应行业（不选则自动识别）
+      <select name="sector">
+        <option value="">自动识别行业</option>
+        ${sectors.map(s => `<option value="${escapeHtml(s.id)}">${escapeHtml(s.name)}</option>`).join('')}
+      </select>
+    </label>
+    <label class="wb-field">粘贴研报摘录 / 会议纪要 / 新闻原文
+      <textarea name="text" rows="5" placeholder="把你在外部看到的线索贴到这里，AI 会立刻对照本地近 30 天新闻、量化位置分位和机构风向做交叉核验：到底是早期认知差，还是已充分定价的冷饭？" required></textarea>
+    </label>
+    <div><button type="submit" class="control primary" ${state.verifyBusy ? 'disabled' : ''}>${state.verifyBusy ? '交叉核验中…' : '⌕ 交叉核验这条线索'}</button></div>
+  </form>`;
+
+  const verifyResultBox = vr
+    ? `<div class="panel-body">
+        <div class="signal-top">
+          <h3>${escapeHtml(vr.sector_name)} · ${escapeHtml(vr.verdict_label)}</h3>
+          <span class="pill ${vr.verdict === 'EARLY_ALPHA' ? '' : 'demo'}">${escapeHtml(vr.verdict)}</span>
+        </div>
+        <p style="margin:12px 0">${escapeHtml(vr.reasoning)}</p>
+        <p class="disproof"><b>支持点：</b>${(vr.supporting_signals || []).map(escapeHtml).join('；') || '—'}</p>
+        <p class="disproof"><b>反证/风险：</b>${(vr.counter_evidence || []).map(escapeHtml).join('；') || '—'}</p>
+        <p class="muted" style="font-size:12px;margin-top:8px"><b>实操建议：</b>${escapeHtml(vr.action_hint || '')}</p>
+      </div>`
+    : '<div class="empty">提交一条线索后，这里会显示交叉核验报告。</div>';
+
+  const historyRows = history.length
+    ? `<div class="panel-body table-wrap"><table class="radar-table">
+        <thead><tr><th>日期</th><th>行业</th><th>立场</th><th>核心逻辑</th><th>当时位置分</th><th>发出以来涨跌</th><th>结果对照</th></tr></thead>
+        <tbody>${history.map(h => `<tr>
+          <td>${date(h.created_at)}</td>
+          <td><b>${escapeHtml(h.sector_name)}</b></td>
+          <td>${zoneBadge(h.stance === 'LURKING' ? 'LURKING' : 'HIGH_RISK', h.stance === 'LURKING' ? '潜伏关注' : '高危警示')}</td>
+          <td style="max-width:340px">${escapeHtml(h.thesis)}</td>
+          <td>${h.position_score_at_call ?? '—'}</td>
+          <td class="${(h.actual_return_pct ?? 0) >= 0 ? 'positive' : 'negative'}">${signed(h.actual_return_pct)}</td>
+          <td>${escapeHtml(h.outcome_label)}</td>
+        </tr>`).join('')}</tbody>
+      </table></div>`
+    : '<div class="empty">正式运行 AI 雷达扫描后，会自动在此记录每次核心判断及后续真实涨跌对照。</div>';
+
+  return `
+    <div class="page-heading">
+      <div><p class="eyebrow">CROSS VERIFY &amp; REVIEW</p><h1>随手投喂核验 &amp; 判断回看</h1></div>
+    </div>
+    <div class="two-col">
+      ${panel('投喂一条外部线索', verifyForm, '', 'FEED A LEAD')}
+      ${panel('交叉核验结论', verifyResultBox, '', 'VERIFICATION RESULT')}
+    </div>
+    ${panel(`AI 历史判断回看 (${history.length})`, historyRows, '', 'OUTCOME REVIEW')}
+  `;
+}
+
+// ------------------------------------------------------------------ Page 5: 设置
+function renderSettings() {
+  return `
+    <div class="page-heading">
+      <div><p class="eyebrow">SETTINGS / 模型与数据源</p><h1>模型与数据源设置</h1></div>
+    </div>
+    <div class="stack">
+      ${typeof modelPanel === 'function' ? modelPanel() : ''}
+      ${typeof sourceSettingsPanel === 'function' ? sourceSettingsPanel() : ''}
+    </div>
+  `;
+}
+
+// ------------------------------------------------------------------ 主渲染与数据加载
+function render() {
+  $$('#nav button, .settings-button').forEach(b => b.classList.toggle('active', b.dataset.page === state.page));
+  $('#breadcrumb').textContent = pageNames[state.page] || state.page;
+  const main = $('#main');
+  if (!state.feed && state.error) {
+    main.innerHTML = `<div class="panel empty"><p class="negative">${escapeHtml(state.error)}</p><button class="control" onclick="load()">重试</button></div>`;
+    return;
+  }
+  if (!state.feed) {
+    main.innerHTML = '<div class="loading">正在载入工作台数据…</div>';
+    return;
+  }
+  const views = {
+    radar: renderRadar,
+    sector: renderSector,
+    smart: renderSmartMoney,
+    verify: renderVerify,
+    settings: renderSettings
+  };
+  main.innerHTML = (views[state.page] || renderRadar)();
+  if (state.page === 'settings') {
+    if (typeof loadModelSettings === 'function' && !modelSettings.loaded && !modelSettings.loading) {
+      loadModelSettings();
+    }
+    if (typeof loadNewsCatalog === 'function' && !newsLibrary.catalog && !newsLibrary.loading) {
+      loadNewsCatalog();
+    }
+  }
+}
+
+async function load() {
+  try {
+    const [feed, radar, macro, smartMoney, history] = await Promise.all([
+      request('/api/dashboard/feed'),
+      request('/api/radar/overview'),
+      request('/api/dashboard/macro').catch(() => ({ items: [] })),
+      request('/api/smart-money').catch(() => ({ institutions: [], entries: [] })),
+      request('/api/ai/history').catch(() => ({ items: [] }))
+    ]);
+    state.feed = feed;
+    state.radar = radar;
+    state.macro = macro;
+    state.smartMoney = smartMoney;
+    state.history = history;
+    state.error = '';
+    if (!state.sector && feed.sectors?.length) state.sector = feed.sectors[0].id;
+    $('#connection').textContent = '本地服务已连接';
+    $('#footer-status').textContent = `最近同步 ${date(feed.updated_at)}`;
+  } catch (err) {
+    state.error = err.message;
+    $('#connection').textContent = '连接异常';
+  }
+  render();
+}
+
+document.addEventListener('click', async event => {
+  const navBtn = event.target.closest('[data-page]');
+  if (navBtn) {
+    state.page = navBtn.dataset.page;
+    render();
+    return;
+  }
+  const jump = event.target.closest('[data-jump-sector]');
+  if (jump) {
+    state.sector = jump.dataset.jumpSector;
+    state.page = 'sector';
+    render();
+    return;
+  }
+  const sectorBtn = event.target.closest('[data-sector]');
+  if (sectorBtn) {
+    state.sector = sectorBtn.dataset.sector;
+    render();
+    return;
+  }
+  const rangeBtn = event.target.closest('[data-range]');
+  if (rangeBtn) {
+    state.range = Number(rangeBtn.dataset.range);
+    render();
+    return;
+  }
+  const storyBtn = event.target.closest('[data-story-id]');
+  if (storyBtn) {
+    const story = (state.feed?.stories || []).find(s => String(s.id) === storyBtn.dataset.storyId);
+    if (story) {
+      $('#detail-body').innerHTML = `
+        <p class="eyebrow">${escapeHtml(story.source || '公开新闻')}</p>
+        <h2>${escapeHtml(story.title)}</h2>
+        <p class="muted">${date(story.published_at)}</p>
+        <p>${escapeHtml(story.summary || '暂无摘要，请打开原文查看全文。')}</p>
+        <div class="actions">
+          ${story.url ? `<a class="control primary" href="${escapeHtml(story.url)}" target="_blank" rel="noopener">打开原始网页 ↗</a>` : ''}
+          <button type="button" class="control" id="story-ai-analyze">✦ 使用默认模型解读</button>
+        </div>
+        <div id="story-ai-result" class="help" style="margin-top:14px;white-space:pre-wrap"></div>
+      `;
+      $('#story-ai-analyze').onclick = async e => {
+        const btn = e.currentTarget;
+        const out = $('#story-ai-result');
+        btn.disabled = true;
+        out.textContent = '正在用当前默认模型解读…';
+        try {
+          const res = await modelRequest('/analyze', {
+            text: `请分析这条新闻是否存在潜在产业传导（蝴蝶效应）、核心受益或受损环节及后续验证信号。\n标题：${story.title}\n来源：${story.source}\n时间：${story.published_at}\n内容：${story.summary || ''}`
+          });
+          if (out.isConnected) out.textContent = `${res.model}\n\n${res.text}`;
+        } catch (err) {
+          if (out.isConnected) out.textContent = err.message;
+        } finally {
+          if (btn.isConnected) btn.disabled = false;
+        }
+      };
+      $('#detail').showModal();
+    }
+    return;
+  }
+  const actionBtn = event.target.closest('[data-action]');
+  if (actionBtn) {
+    const act = actionBtn.dataset.action;
+    if (act === 'run-butterfly') {
+      state.aiBusy = true; render();
+      try {
+        await request('/api/ai/butterfly/run', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ use_ai: true, refresh_news: false })
+        });
+        toast('蝴蝶效应扫描完成');
+        await load();
+      } catch (e) { toast(e.message); }
+      finally { state.aiBusy = false; render(); }
+    } else if (act === 'sync-sec') {
+      state.smSyncBusy = true; render();
+      try {
+        await request('/api/smart-money/sync', { method: 'POST' });
+        toast('已更新 SEC 13F 申报状态');
+        await load();
+      } catch (e) { toast(e.message); }
+      finally { state.smSyncBusy = false; render(); }
+    }
+    return;
+  }
+  const delBtn = event.target.closest('[data-sm-delete]');
+  if (delBtn) {
+    try {
+      await request(`/api/smart-money/entries/${encodeURIComponent(delBtn.dataset.smDelete)}`, { method: 'DELETE' });
+      toast('已删除机构记录');
+      await load();
+    } catch (e) { toast(e.message); }
+  }
+});
+
+document.addEventListener('submit', async event => {
+  if (event.target.id === 'sm-form') {
+    event.preventDefault();
+    const fd = new FormData(event.target);
+    const body = Object.fromEntries(fd.entries());
+    try {
+      await request('/api/smart-money/entries', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      toast('已保存机构动态');
+      event.target.reset();
+      await load();
+    } catch (e) { toast(e.message); }
+  } else if (event.target.id === 'verify-form') {
+    event.preventDefault();
+    const fd = new FormData(event.target);
+    state.verifyBusy = true; render();
+    try {
+      state.verifyResult = await request('/api/ai/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: fd.get('text'), sector: fd.get('sector') || null })
+      });
+      toast('交叉核验完成');
+    } catch (e) { toast(e.message); }
+    finally { state.verifyBusy = false; render(); }
+  }
+});
+
+$('#search')?.addEventListener('input', e => {
+  state.search = e.target.value;
+  if (state.page === 'sector') render();
+});
+$('#close-detail')?.addEventListener('click', () => $('#detail').close());
+$('#refresh').onclick = () => load();
+window.addEventListener('keydown', e => {
+  if (e.key === '/' && document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA') {
+    e.preventDefault(); $('#search')?.focus();
+  }
+});
+
 load();

@@ -1,0 +1,75 @@
+# 国内外知名投资机构与投资人跟踪配置
+# 注意：机构持仓披露天然存在滞后性（SEC 13F 最长滞后 45 天，国内公募季报约 15-30 天），
+# 本模块仅作“中长期资本迁移方向”与“高危扎堆拥挤度”的辅助参考，不作短线买点。
+institutions:
+  - id: berkshire
+    name: Berkshire Hathaway（巴菲特）
+    region: US
+    style: 价值长线 / 高现金流护城河
+    cik: "0001067983"
+    disclosure_lag_days: 45
+    focus_sectors: [finance, chemicals, consumer, energy]
+    notes: 关注传统能源、金融保险及消费龙头配置变动与现金储备水位
+
+  - id: bridgewater
+    name: Bridgewater Associates（桥水）
+    region: US
+    style: 全天候宏观对冲
+    cik: "0001350694"
+    disclosure_lag_days: 45
+    focus_sectors: [macro, metals, finance, consumer]
+    notes: 关注大宗商品、黄金/有色通胀对冲及宏观周期切换观点
+
+  - id: coatue
+    name: Coatue Management
+    region: US
+    style: 全球科技与 AI 产业链
+    cik: "0001135730"
+    disclosure_lag_days: 45
+    focus_sectors: [ai, semiconductor, digital, energy]
+    notes: 聚焦算力基础设施、半导体设备、数据中心电力及软件应用迁移
+
+  - id: ark
+    name: ARK Invest（木头姐）
+    region: US
+    style: 颠覆式成长与机器人/生物科技
+    cik: "0001697748"
+    disclosure_lag_days: 1
+    focus_sectors: [ai, auto, health, digital]
+    notes: 每日交易披露时效高，重点反映海外高弹性科技/智驾/创新药风险偏好
+
+  - id: himalaya
+    name: Himalaya Capital（李录）
+    region: US
+    style: 深度价值 / 中美跨市场
+    cik: "0001709323"
+    disclosure_lag_days: 45
+    focus_sectors: [finance, consumer, auto, digital]
+    notes: 关注低估值金融、消费及中国新能源车/制造业长期复利标的
+
+  - id: cn_public_funds
+    name: 国内主动偏股公募（季报重仓）
+    region: CN
+    style: 公募机构主流共识
+    cik: ""
+    disclosure_lag_days: 20
+    focus_sectors: [semiconductor, ai, energy, health, auto, consumer]
+    notes: 极强反向风向标：公募抱团极度一致往往提示高危拥挤，低配拐点提示潜伏
+
+  - id: northbound_capital
+    name: 北向/外资配置风向
+    region: CN
+    style: 跨市场外资审美
+    cik: ""
+    disclosure_lag_days: 7
+    focus_sectors: [consumer, finance, health, metals, semiconductor]
+    notes: 观察外资对汇率、宏观预期及顺周期核心资产的连续流入/流出节奏
+
+  - id: industrial_capex
+    name: 产业资本与链主（CapEx 跟踪）
+    region: GLOBAL
+    style: 产业链真实订单与资本开支
+    cik: ""
+    disclosure_lag_days: 15
+    focus_sectors: [ai, semiconductor, energy, metals, chemicals]
+    notes: 微软/谷歌/英伟达/宁德时代等链主资本开支转向往往早于财务利润兑现

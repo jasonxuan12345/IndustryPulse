@@ -1,5 +1,5 @@
-"""FastAPI 服务（前缀 /v1，见任务书 §14 接口清单）。"""
+"""FastAPI application factory for IndustryPulse."""
 
-from .app import ApiFailure, create_app
+from .app import create_app
 
-__all__ = ["ApiFailure", "create_app"]
+__all__ = ["create_app"]
