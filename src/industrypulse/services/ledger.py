@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import Any
 
 from industrypulse.contracts import TZ_SHANGHAI
+from industrypulse.core.files import replace_file
 from industrypulse.services.etf_audit import MAX_DIVIDEND_YIELD, find_barriers
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -178,7 +179,7 @@ def _append(path: Path, history: list[dict[str, Any]], drafts: list[dict[str, An
         json.dump({"count": len(history) + len(completed), "hash": previous}, stream)
         stream.flush()
         os.fsync(stream.fileno())
-    temporary.replace(head)
+    replace_file(temporary, head)
     return len(completed)
 
 

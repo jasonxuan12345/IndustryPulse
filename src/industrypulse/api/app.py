@@ -51,6 +51,30 @@ def create_app(
     application.include_router(create_sources_router(news_service))
     application.include_router(create_events_router(news_service))
 
+    @application.middleware("http")
+    async def protect_local_writes(request: Request, call_next: Any) -> Any:
+        host = (request.url.hostname or "").lower().rstrip(".")
+        test_transport = (
+            host == "testserver"
+            and request.scope.get("server", (None,))[0] == "testserver"
+            and request.client is not None
+            and request.client.host == "testclient"
+        )
+        if host not in {"127.0.0.1", "localhost", "::1"} and not test_transport:
+            return JSONResponse(
+                status_code=403, content={"detail": "请通过127.0.0.1或localhost访问本机工作台"}
+            )
+        if request.url.path.startswith("/api/") and request.method not in {
+            "GET",
+            "HEAD",
+        }:
+            origin = request.headers.get("origin")
+            if origin and origin.rstrip("/") != str(request.base_url).rstrip("/"):
+                return JSONResponse(
+                    status_code=403, content={"detail": "请从本机工作台页面执行此操作"}
+                )
+        return await call_next(request)
+
     @application.on_event("shutdown")
     def close_news_sources() -> None:
         news_service.close()

@@ -20,7 +20,12 @@ def bindings() -> dict[str, Any]:
     if not service.path.exists():
         return {}
     repository = service.repository()
-    snapshot = service.snapshot(repository)
+    try:
+        snapshot = service.snapshot(repository)
+    except ValueError:
+        # An initialized database may legitimately have no publication yet.
+        # Product/news routes must remain available before the first data import.
+        return {}
     handlers = build_handlers(
         observations=repository,
         taxonomy=service.taxonomy(),

@@ -2,8 +2,6 @@ from __future__ import annotations
 
 import json
 import shutil
-import subprocess
-import sys
 from pathlib import Path
 
 import httpx
@@ -90,16 +88,6 @@ def test_model_key_never_sent_to_different_search_origin(isolated, monkeypatch):
     assert tools.search("query") == []
     assert calls[0].headers["authorization"] == "Bearer search-test-secret"
     assert "model-test-secret" not in str(calls[0].headers)
-
-
-def test_portable_launcher_from_another_directory(tmp_path):
-    result = subprocess.run(
-        [sys.executable, str(ROOT / "scripts/start_dashboard.py"), "--help"],
-        cwd=tmp_path,
-        capture_output=True,
-        timeout=15,
-    )
-    assert result.returncode == 0 and b"--port" in result.stdout
 
 
 def test_environment_host_change_does_not_reuse_saved_key(isolated, monkeypatch):

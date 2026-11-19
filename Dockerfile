@@ -8,4 +8,4 @@ RUN python -m pip install --no-cache-dir -e . \
     && chown -R industrypulse:industrypulse data artifacts
 USER industrypulse
 EXPOSE 8765
-CMD ["python", "scripts/start_dashboard.py", "--host", "0.0.0.0", "--port", "8765"]
+CMD ["uvicorn", "industrypulse.api.runtime:app", "--host", "0.0.0.0", "--port", "8765"]

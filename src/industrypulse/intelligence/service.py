@@ -14,6 +14,7 @@ from uuid import uuid4
 
 from pydantic import BaseModel, Field
 
+from industrypulse.core.files import replace_file
 from industrypulse.intelligence.catalog import ROOT, Catalog, Source, load_catalog, supports
 from industrypulse.intelligence.feeds import NewsItem, fetch_source
 
@@ -34,9 +35,9 @@ class SourceCache(BaseModel):
 
 def write_json(path: Path, payload: Any) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    temporary = path.with_name(f".{path.name}.{uuid4().hex}.tmp")
+    temporary = path.with_name(f".{uuid4().hex}.tmp")
     temporary.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
-    temporary.replace(path)
+    replace_file(temporary, path)
 
 
 def matches(text: str, keywords: list[str]) -> bool:
@@ -282,8 +283,8 @@ class NewsService:
             return []
         return fetch_source(source, rsshub_base, datetime.now(UTC))
 
-    def feed(self) -> dict[str, Any]:
-        if os.getenv("INDUSTRYPULSE_NEWS_AUTO_FETCH", "1") != "0":
+    def feed(self, *, auto_refresh: bool = True) -> dict[str, Any]:
+        if auto_refresh and os.getenv("INDUSTRYPULSE_NEWS_AUTO_FETCH", "1") != "0":
             self.refresh()
             with self.lock:
                 if self.timer is None:

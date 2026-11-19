@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import argparse
 import json
 from pathlib import Path
 from types import SimpleNamespace
@@ -16,6 +17,9 @@ def read(path: Path):
 
 
 def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--output", type=Path, default=ROOT / "artifacts/research-mvp/verification")
+    args = parser.parse_args()
     sample = ROOT / "examples/research-mvp"
     inputs = read(sample / "frozen_inputs.json")
     queue = read(sample / "opportunity_queue.json")
@@ -44,10 +48,10 @@ def main() -> None:
 
     # A missing archive entry must degrade, never escape to the network.
     mvp.httpx.Client = no_network
-    output = ROOT / "artifacts/research-mvp/verification"
+    output = args.output
     ledger_path = output / "ledger.jsonl"
     service = SimpleNamespace(root=ROOT)
-    captured_ids = [[f["evidence_id"] for f in p["facts"]] for p in packets]
+    captured_ids = {p["opportunity_id"]: [f["evidence_id"] for f in p["facts"]] for p in packets}
     for index in range(3):
         kwargs = dict(
             as_of=mvp.moment(inputs["as_of"]),
@@ -61,7 +65,9 @@ def main() -> None:
         manifest = mvp.run(service, **kwargs)
         directory = Path(manifest["directory"])
         replayed = read(directory / "evidence_packet.json")["packets"]
-        assert [[f["evidence_id"] for f in p["facts"]] for p in replayed] == captured_ids
+        assert {
+            p["opportunity_id"]: [f["evidence_id"] for f in p["facts"]] for p in replayed
+        } == captured_ids
         before = ledger_path.read_bytes()
         assert mvp.run(service, **kwargs) == manifest
         assert ledger_path.read_bytes() == before
@@ -115,7 +121,7 @@ def main() -> None:
         "other_sectors_continued": True,
         "network_disabled_during_replay": True,
     }
-    write_json(ROOT / "artifacts/mvp-delivery-verification.json", report)
+    write_json(output / "verification.json", report)
     print(json.dumps(report, ensure_ascii=False, indent=2))
 
 

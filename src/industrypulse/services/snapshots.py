@@ -13,6 +13,7 @@ from pathlib import Path
 from uuid import uuid4
 
 from industrypulse.contracts import ContractBaseModel, PredictionFrame
+from industrypulse.core.files import replace_file
 
 
 class SnapshotView(ContractBaseModel):
@@ -91,7 +92,7 @@ class ForecastSnapshotStore:
                 json.dump(envelope, handle, ensure_ascii=False)
                 handle.flush()
                 os.fsync(handle.fileno())
-            os.replace(temporary, self.path)
+            replace_file(temporary, self.path)
         finally:
             temporary.unlink(missing_ok=True)
 

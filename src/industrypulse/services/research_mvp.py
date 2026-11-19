@@ -16,6 +16,7 @@ import yaml
 
 from industrypulse.ai_research import model_gateway
 from industrypulse.contracts import TZ_SHANGHAI
+from industrypulse.economy.price_check import adjacent_periods
 from industrypulse.services import ledger, opportunity_risk, research_forecast, research_loop
 from industrypulse.services.chain_demo import EvidenceReplay
 from industrypulse.services.workbench import ROOT, Workbench, write_json
@@ -251,6 +252,17 @@ def scan(
             score = quality * 10 + (3 if spec.get("fit") == "对口" else 0) + 1 / (1 + age)
             priority = spec["industry_id"] in config.get("priority_sectors", [])
             score += 100 if priority else 0
+            improvement = None
+            if len(profits) >= 2 and adjacent_periods(
+                profits[-2].observation_start, profits[-1].observation_start
+            ):
+                previous_value, latest_value = profits[-2].value, profits[-1].value
+                if previous_value is not None and latest_value is not None:
+                    improvement = float(latest_value - previous_value)
+            impact = min(15, max(0, improvement)) if improvement is not None else 0
+            reaction = max(-10, min(10, (features.get("relative_20d") or 0) * 100))
+            volatility_penalty = min(10, (features.get("volatility_20d") or 0) * 252**0.5 * 10)
+            score += impact + reaction - volatility_penalty
             candidates[identity] = {
                 **base,
                 "opportunity_id": identity,
@@ -268,7 +280,17 @@ def scan(
                     "explicit_case_priority": priority,
                     "mapping_fit": spec.get("fit"),
                     "novelty_days": age,
-                    "formula": "case_priority*100 + official*10 + exact_fit*3 + 1/(1+age_days)",
+                    "fundamental_change_percentage_points": improvement,
+                    "impact_score": impact,
+                    "price_reaction_score": reaction,
+                    "volatility_penalty": volatility_penalty,
+                    "risk_input_status": "calculated"
+                    if features.get("volatility_20d") is not None
+                    else "unknown",
+                    "formula": (
+                        "priority*100+official*10+fit*3+freshness+impact"
+                        "+relative_reaction-volatility"
+                    ),
                 },
                 "data_quality": {
                     "mode": "RECONSTRUCTED",

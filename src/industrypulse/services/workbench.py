@@ -23,6 +23,7 @@ from industrypulse.contracts import (
     PredictionFrame,
     ResearchMode,
 )
+from industrypulse.core.files import replace_file
 from industrypulse.economy import EconomyEngine, RobustScaler
 from industrypulse.jobs.runner import JobRunner
 from industrypulse.repositories import DuckDBMarketRepository, DuckDBObservationRepository
@@ -44,11 +45,11 @@ MODEL_NAMES = {
 
 def write_json(path: Path, payload: Any) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    temporary = path.with_name(f".{path.name}.{uuid4().hex}.tmp")
+    temporary = path.with_name(f".{uuid4().hex}.tmp")
     temporary.write_text(
         json.dumps(payload, ensure_ascii=False, indent=2, default=str), encoding="utf-8"
     )
-    temporary.replace(path)
+    replace_file(temporary, path)
 
 
 class Workbench:
