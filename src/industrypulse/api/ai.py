@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field
 
 from industrypulse.ai.butterfly import load_latest_report, run_butterfly_analysis
 from industrypulse.ai.history import JudgmentHistory
+from industrypulse.ai.leads import INDUSTRY_END, LeadLedger
 from industrypulse.ai.verify import verify_lead
 from industrypulse.api.dashboard import market_service
 from industrypulse.api.radar import collect_sector_radars
@@ -137,6 +138,21 @@ def create_ai_router(
             },
         )
 
+        def lead_close(symbol: str) -> tuple[float | None, str | None]:
+            if market is not None:
+                try:
+                    bars = market.cached_bars(symbol, limit=1)
+                    if bars:
+                        return float(bars[-1]["close"]), str(bars[-1]["date"])
+                except Exception:  # noqa: BLE001 - no quote leaves the market track pending
+                    pass
+            return None, None
+
+        lead_symbols = (
+            {sid: str(item["board"]) for sid, item in market.sectors_config["domains"].items()}
+            if market
+            else {}
+        )
         report = run_butterfly_analysis(
             radars=radars,
             stories=stories,
@@ -145,6 +161,8 @@ def create_ai_router(
             smart_money_summary=sm.sector_summary(),
             use_ai=body.use_ai,
             data_status=data_status,
+            lead_price_lookup=lead_close if market is not None else None,
+            lead_sector_symbols=lead_symbols,
         )
         radar_map = {str(r["id"]): r for r in radars}
         journal.record_run(report, radar_map, prices)
@@ -172,6 +190,15 @@ def create_ai_router(
             "items": items,
             "count": len(items),
             "summary": JudgmentHistory.summarize(items),
+        }
+
+    @router.get("/leads")
+    def list_leads() -> dict[str, Any]:
+        items = LeadLedger().list()
+        return {
+            "items": items,
+            "count": len(items),
+            "active_count": sum(item["industry_status"] not in INDUSTRY_END for item in items),
         }
 
     return router

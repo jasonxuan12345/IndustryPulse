@@ -6,6 +6,7 @@ from pathlib import Path
 
 from industrypulse.ai import butterfly
 from industrypulse.ai.gateway import ModelConnection
+from industrypulse.ai.leads import LeadLedger
 from industrypulse.core import TZ_SHANGHAI
 from industrypulse.signals.anomalies import SignalService
 from industrypulse.signals.industry_chains import assess_chains
@@ -82,6 +83,11 @@ def test_lithium_run_has_distinct_impacts_and_freezes_baskets(tmp_path, monkeypa
         "sz300750": 0.5,
         "sz300014": 0.5,
     }
+    assert not report["watch_list"] and not report["early_opportunities"]
+    ledger = {lead["node"]: lead for lead in LeadLedger().list()}
+    assert ledger["lithium:battery"]["industry_status"] == "待验证"
+    assert ledger["lithium:battery"]["market_members"] == basket["members"]
+    assert ledger["lithium:salt"]["market_status"] == "暂无市场参照"
     # The same published event can drive the trial without a futures quote.
     news_only = assess_chains(ROOT, [], [article], as_of=AS_OF)
     assert news_only[0]["shock"]["evidence"]["type"] == "news_event"

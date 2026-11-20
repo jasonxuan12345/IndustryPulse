@@ -11,6 +11,7 @@ const state = {
   macro: null,
   smartMoney: null,
   history: null,
+  leads: null,
   health: null,
   verifyResult: null,
   aiBusy: false,
@@ -599,6 +600,35 @@ function renderSmartMoney() {
 }
 
 // ------------------------------------------------------------------ Page 4: 投喂核验 & 回看
+function renderLeadLedger(ledger) {
+  if (ledger?.error) return `<div class="empty">${escapeHtml(ledger.error)}</div>`;
+  const items = ledger?.items || [];
+  if (!items.length) return '<div class="empty">蝴蝶效应扫描发现待验证线索后，会在这里记录。</div>';
+  const labels = { discovery: '首次发现', observation: '报告期观察', evidence: '新增证据',
+    industry: '产业验证', market: '市场确认' };
+  return `<div class="panel-body stack-sm">${items.map(lead => `<details class="sm-inst-card">
+    <summary><strong>${escapeHtml(lead.title)}</strong>
+      <span class="tag">产业 · ${escapeHtml(lead.industry_status)}</span>
+      <span class="tag">市场 · ${escapeHtml(lead.market_status)}</span>
+      ${lead.provisional ? '<span class="tag">待补环节或报告期</span>' : ''}</summary>
+    <p class="muted">首次发现 ${date(lead.first_seen_at)} · 核验截止 ${escapeHtml(lead.check_by)}</p>
+    ${lead.validation ? `<p><b>核验条件</b> · ${escapeHtml(lead.validation)}</p>` : ''}
+    ${lead.market_members?.length ? `<p class="muted">市场参照 · ${lead.market_members.map(
+      member => escapeHtml(member.symbol)
+    ).join('、')}</p>` : ''}
+    <ol class="stack-sm">${(lead.timeline || []).map(entry => `<li>
+        <small class="muted">${date(entry.at)}</small>
+        <b>${escapeHtml(labels[entry.type] || entry.type)}</b>
+        ${entry.period ? ` · ${escapeHtml(entry.period)}` : ''}
+        ${entry.from ? ` · ${escapeHtml(entry.from)} → ${escapeHtml(entry.to)}` : ''}
+        ${entry.detail ? `<div>${escapeHtml(entry.detail)}</div>` : ''}
+        ${entry.quote ? `<div>「${escapeHtml(entry.quote)}」
+          ${entry.source?.url ? `<a href="${escapeHtml(entry.source.url)}" target="_blank" rel="noopener">${escapeHtml(entry.source.title || '来源')}</a>` : ''}
+        </div>` : ''}
+      </li>`).join('')}</ol>
+  </details>`).join('')}</div>`;
+}
+
 function renderVerify() {
   const sectors = state.feed?.sectors || [];
   const vr = state.verifyResult;
@@ -653,6 +683,7 @@ function renderVerify() {
       ${panel('投喂一条外部线索', verifyForm, '', 'FEED A LEAD')}
       ${panel('交叉核验结论', verifyResultBox, '', 'VERIFICATION RESULT')}
     </div>
+    ${panel(`跨天线索账本 (${state.leads?.count || 0})`, renderLeadLedger(state.leads))}
     ${panel(`AI 历史判断回看 (${history.length})`, historyRows, '', 'OUTCOME REVIEW')}
   `;
 }
@@ -703,18 +734,20 @@ function render() {
 
 async function load() {
   try {
-    const [feed, radar, macro, smartMoney, history] = await Promise.all([
+    const [feed, radar, macro, smartMoney, history, leads] = await Promise.all([
       request('/api/dashboard/feed'),
       request('/api/radar/overview'),
       request('/api/dashboard/macro').catch(() => ({ indicators: [], unavailable: [] })),
       request('/api/smart-money').catch(() => ({ institutions: [], entries: [] })),
-      request('/api/ai/history').catch(() => ({ items: [] }))
+      request('/api/ai/history').catch(() => ({ items: [] })),
+      request('/api/ai/leads').catch(() => ({ error: '线索账本读取失败' }))
     ]);
     state.feed = feed;
     state.radar = radar;
     state.macro = macro;
     state.smartMoney = smartMoney;
     state.history = history;
+    state.leads = leads;
     state.error = '';
     if (!state.sector && feed.sectors?.length) state.sector = feed.sectors[0].id;
     $('#connection').textContent = '本地服务已连接';

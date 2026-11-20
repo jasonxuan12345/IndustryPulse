@@ -21,6 +21,7 @@ from industrypulse.ai.evidence import (
     twse_evidence,
 )
 from industrypulse.ai.gateway import ModelConnection, complete_json, load_connection
+from industrypulse.ai.leads import CATALYST_TYPES, LeadLedger, PriceLookup, tracking_nodes
 from industrypulse.core import TZ_SHANGHAI, replace_file
 from industrypulse.signals.industry_chains import assess_chains
 
@@ -174,6 +175,12 @@ def _rule_fallback_report(
                     "sector_name": r["name"],
                     "status": r.get("zone_label"),
                     "note": "趋势已启动或偏拥挤，留意位置风险",
+                    "anchor": {
+                        "node": sid,
+                        "catalyst_type": "market_setup",
+                        "report_period": (market_refs.get(f"market:{sid}") or {}).get("date")
+                        or generated_at[:10],
+                    },
                 }
             )
 
@@ -225,6 +232,8 @@ def run_butterfly_analysis(
     root: Path | None = None,
     max_workers: int = 4,
     data_status: dict[str, Any] | None = None,
+    lead_price_lookup: PriceLookup | None = None,
+    lead_sector_symbols: dict[str, str] | None = None,
 ) -> dict[str, Any]:
     """执行两阶段分析：并行行业新闻筛查 → 跨行业蝴蝶效应与量化位置联合推演。"""
     run_id = uuid4().hex[:12]
@@ -232,6 +241,7 @@ def run_butterfly_analysis(
     generated_at = as_of.isoformat()
     base = root or Path(os.getenv("INDUSTRYPULSE_ROOT", str(ROOT)))
     chains = assess_chains(base, commodities, stories, as_of=as_of)
+    ledger = LeadLedger(root=base)
     stories_by_sector: dict[str, list[dict[str, Any]]] = {}
     for story in stories:
         sid = str(story.get("sector") or "")
@@ -287,6 +297,9 @@ def run_butterfly_analysis(
                 "report": report,
             },
             root=root,
+        )
+        ledger.record_run(
+            report, sector_symbols=lead_sector_symbols or {}, lookup=lead_price_lookup
         )
         save_latest_report(report, root=root)
         return report
@@ -460,6 +473,11 @@ def run_butterfly_analysis(
             "sector_quant_hard_signals": compact_radars,
             "sector_news_weak_signals": compact_signals,
             "pilot_chains": chains,
+            "lead_tracking": {
+                "active": ledger.active_context(),
+                "nodes": tracking_nodes(base),
+                "catalyst_types": list(CATALYST_TYPES),
+            },
             "evidence_catalog": list(catalog.values()),
         },
         ensure_ascii=False,
@@ -485,6 +503,14 @@ def run_butterfly_analysis(
         "5. macro_data_gaps 中列出的停更指标只说明数据缺口，不用于判断当期方向。\n"
         "6. 碳酸锂和集运欧线异动按 pilot_chains 逐环节判断，不作为宽行业统一加分或证伪。"
         "条件缺失时只描述可能的成本或售价变化，并保留利润待验证。\n"
+        "7. watch_list 中的长期线索填写 anchor（node 用 lead_tracking.nodes 中的 ID，"
+        "catalyst_type 用目录中的类型，report_period 用原始报告期 "
+        "YYYY-MM、YYYY-Qn 或 YYYY-MM-DD）。"
+        "当天没有早期机会时，仍在 watch_list 中保留值得跨日跟踪的未确认线索。"
+        "缺报告期时留空。为它写 validation（核验依据）和 check_by（预计核验截止日 YYYY-MM-DD）。"
+        "即使没有早期机会，也可用 lead_updates 更新已有线索；沿用节点和催化类型，用新的报告期。"
+        "industry_outcome 仅在有新产业原文满足或否定原核验条件时填写已兑现或已证伪。"
+        "股价、估值和期货价格只用于市场观察。market_direction 如有明确市场假设可填 up 或 down。\n"
         "必须输出合法 JSON：\n"
         "{\n"
         '  "macro_regime": {"summary": "宏观与商品周期总判断", '
@@ -505,8 +531,12 @@ def run_butterfly_analysis(
         '    "disproof_signal": "解除警示条件",\n'
         '    "facts": [], "gaps": []\n'
         "  }],\n"
-        '  "watch_list": [{"sector": "领域id", "sector_name": "中文名", '
-        '"status": "左侧待企稳/观察", "inference": "一句话原因", "facts": [], "gaps": []}]\n'
+        '  "watch_list": [{"sector": "领域id", "title": "待核验线索", "status": "观察", '
+        '"inference": "一句话原因", "facts": [], "gaps": [], '
+        '"anchor": {"node": "环节id", "catalyst_type": "催化类型", "report_period": null}, '
+        '"validation": "需要确认的产业指标", "check_by": null, '
+        '"industry_outcome": null, "market_direction": null}],\n'
+        '  "lead_updates": []\n'
         "}"
     )
 
@@ -528,7 +558,9 @@ def run_butterfly_analysis(
         fallback["sector_signals"] = sector_signals
         return finish(fallback, fallback_reason=reason)
 
-    def attach_evidence(items: Any, *, limit: int, reasoning_key: str) -> list[dict[str, Any]]:
+    def attach_evidence(
+        items: Any, *, limit: int, reasoning_key: str, track: bool = False
+    ) -> list[dict[str, Any]]:
         cleaned: list[dict[str, Any]] = []
         if not isinstance(items, list):
             return cleaned
@@ -543,6 +575,19 @@ def run_butterfly_analysis(
             hard_tags = [
                 ref["source"] for ref in audited["evidence"] if ref["id"].startswith("signal:")
             ]
+            tracking = {}
+            if track:
+                tracking = {
+                    key: item[key]
+                    for key in ("validation", "check_by", "industry_outcome", "market_direction")
+                    if isinstance(item.get(key), str)
+                }
+                if isinstance(anchor := item.get("anchor"), dict):
+                    tracking["anchor"] = {
+                        key: anchor[key]
+                        for key in ("node", "catalyst_type", "report_period")
+                        if isinstance(anchor.get(key), str)
+                    }
             cleaned.append(
                 {
                     **{
@@ -558,6 +603,7 @@ def run_butterfly_analysis(
                         if isinstance(item.get(key), str)
                     },
                     **audited,
+                    **tracking,
                     "sector": sid,
                     "sector_name": radar["name"],
                     reasoning_key: audited["inference"],
@@ -593,6 +639,11 @@ def run_butterfly_analysis(
         "high_risk_warnings": attach_evidence(
             parsed.get("high_risk_warnings"), limit=5, reasoning_key="reason"
         ),
-        "watch_list": attach_evidence(parsed.get("watch_list"), limit=6, reasoning_key="note"),
+        "watch_list": attach_evidence(
+            parsed.get("watch_list"), limit=6, reasoning_key="note", track=True
+        ),
+        "lead_updates": attach_evidence(
+            parsed.get("lead_updates"), limit=12, reasoning_key="note", track=True
+        ),
     }
     return finish(report)
