@@ -32,6 +32,8 @@ def collect_sector_radars(
             {
                 **r,
                 "hard_signals": (by_sector.get(str(r["id"])) or {}).get("hard_signals") or [],
+                "commodity_warnings": (by_sector.get(str(r["id"])) or {}).get("commodity_warnings")
+                or [],
                 "twse_pulse": (by_sector.get(str(r["id"])) or {}).get("twse_pulse"),
                 "overseas_proxies": (by_sector.get(str(r["id"])) or {}).get("overseas_proxies")
                 or [],
@@ -50,6 +52,7 @@ def collect_sector_radars(
             hard_signal_count=int(anom.get("hard_signal_count") or 0),
             overseas_lead_20d=anom.get("overseas_lead_20d"),
             overseas_avg_20d=anom.get("overseas_avg_20d"),
+            commodity_warnings=anom.get("commodity_warnings") or None,
         )
         radars_fallback.append(
             {
@@ -62,6 +65,7 @@ def collect_sector_radars(
                 "heat": None,
                 "news_count_24h": len(domain_stories),
                 "hard_signals": anom.get("hard_signals") or [],
+                "commodity_warnings": anom.get("commodity_warnings") or [],
                 "twse_pulse": anom.get("twse_pulse"),
                 "overseas_proxies": anom.get("overseas_proxies") or [],
                 **radar,
@@ -101,6 +105,14 @@ def create_radar_router(
     def refresh_signals() -> dict[str, Any]:
         radars, _, _ = collect_sector_radars(news_service, sig_service)
         a_rets = {str(r["id"]): r.get("return_20d") for r in radars}
-        return sig_service.refresh(a_share_returns_20d=a_rets)
+        commodities: list[dict[str, Any]] | None = None
+        market = market_service()
+        if market is not None:
+            try:
+                overview, _ = market._overview_snapshot()
+                commodities = list((overview or {}).get("commodities") or []) or None
+            except Exception:  # noqa: BLE001
+                commodities = None
+        return sig_service.refresh(a_share_returns_20d=a_rets, commodities=commodities)
 
     return router

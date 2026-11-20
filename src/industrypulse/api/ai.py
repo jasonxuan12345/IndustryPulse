@@ -34,15 +34,19 @@ def _sector_latest_prices(
     market = market_service()
     if market is None:
         return {}
+    overview, _ = market._overview_snapshot()
+    source_by_id = {
+        str(item["id"]): item.get("index_source")
+        for item in (overview or {}).get("sectors", [])
+        if "id" in item
+    }
     prices: dict[str, tuple[float | None, str | None]] = {}
     for item in radars:
         sid = str(item["id"])
-        cfg = market.sectors_config["domains"].get(sid)
-        if not cfg:
+        if sid not in market.sectors_config["domains"]:
             continue
-        bars = market.cached_bars(str(cfg["board"]), limit=1) or market.cached_bars(
-            str(cfg["etfs"]["primary"]), limit=1
-        )
+        pref = source_by_id.get(sid)
+        bars = market.latest_sector_bars(sid, preferred_source=str(pref) if pref else None, limit=1)
         if bars:
             prices[sid] = (float(bars[-1]["close"]), str(bars[-1]["date"]))
     return prices
@@ -70,15 +74,6 @@ def create_ai_router(
     def run_butterfly(body: ButterflyRunRequest) -> dict[str, Any]:
         if body.refresh_news:
             news_service.refresh(force=True)
-        radars, stories, _ = collect_sector_radars(news_service, sig_svc)
-        if body.refresh_signals:
-            try:
-                a_rets = {str(r["id"]): r.get("return_20d") for r in radars}
-                sig_svc.refresh(a_share_returns_20d=a_rets)
-                radars, stories, _ = collect_sector_radars(news_service, sig_svc)
-            except Exception:  # noqa: BLE001 - 硬异动抓取失败不阻断 AI 分析
-                pass
-
         market = market_service()
         macro_items: list[dict[str, Any]] = []
         commodities: list[dict[str, Any]] = []
@@ -96,6 +91,15 @@ def create_ai_router(
                 commodities = list((overview or {}).get("commodities") or [])
             except Exception:  # noqa: BLE001
                 commodities = []
+
+        radars, stories, _ = collect_sector_radars(news_service, sig_svc)
+        if body.refresh_signals:
+            try:
+                a_rets = {str(r["id"]): r.get("return_20d") for r in radars}
+                sig_svc.refresh(a_share_returns_20d=a_rets, commodities=commodities or None)
+                radars, stories, _ = collect_sector_radars(news_service, sig_svc)
+            except Exception:  # noqa: BLE001 - 硬异动抓取失败不阻断 AI 分析
+                pass
 
         report = run_butterfly_analysis(
             radars=radars,
@@ -127,6 +131,10 @@ def create_ai_router(
     def list_history() -> dict[str, Any]:
         radars, _, _ = collect_sector_radars(news_service, sig_svc)
         items = journal.list_with_outcomes(_sector_latest_prices(radars))
-        return {"items": items, "count": len(items)}
+        return {
+            "items": items,
+            "count": len(items),
+            "summary": JudgmentHistory.summarize(items),
+        }
 
     return router

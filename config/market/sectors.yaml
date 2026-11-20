@@ -111,7 +111,7 @@ domains:
       - { symbol: sh600036, name: 招商银行 }
   macro:
     name: 宏观与政策
-    board: BK0475
+    board: sh000300
     etfs: { primary: sh510300, alternatives: [] }
     sina_flow: [hangye_ZI01]
     companies:

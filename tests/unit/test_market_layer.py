@@ -179,7 +179,10 @@ class TestService:
     def test_etf_map_primary_present(self, service: MarketService) -> None:
         for domain_id, config in service.sectors_config["domains"].items():
             assert config["etfs"]["primary"], domain_id
-            assert config["board"].startswith("BK"), domain_id
+            if domain_id == "macro":
+                assert config["board"] == "sh000300"
+            else:
+                assert config["board"].startswith("BK"), domain_id
 
     def test_macro_endpoint_reports_missing(self, service: MarketService) -> None:
         payload = service.macro()
@@ -419,3 +422,26 @@ class TestPublicFallbacks:
         for domain_id, config in service.sectors_config["domains"].items():
             assert config.get("sina_flow"), domain_id
         assert len(service.sectors_config["commodities"]) >= 12
+        assert service.sectors_config["domains"]["macro"]["board"] == "sh000300"
+
+    def test_latest_sector_bars_prefers_fresher_etf_over_stale_board(
+        self, service: MarketService
+    ) -> None:
+        etf = str(service.sectors_config["domains"]["chemicals"]["etfs"]["primary"])
+        board = str(service.sectors_config["domains"]["chemicals"]["board"])
+        base = date.today() - timedelta(days=40)
+        with service._db_lock:
+            service._db.execute("DELETE FROM ui_bar WHERE symbol IN (?, ?)", [board, etf])
+            for i in range(15):
+                service._db.execute(
+                    "INSERT INTO ui_bar VALUES (?, ?, ?, ?, ?, ?)",
+                    [board, base + timedelta(days=i), 1000.0 + i, 1e6, 1e8, "eastmoney"],
+                )
+                service._db.execute(
+                    "INSERT INTO ui_bar VALUES (?, ?, ?, ?, ?, ?)",
+                    [etf, base + timedelta(days=20 + i), 1.0 + i * 0.01, 1e6, 1e8, "tencent"],
+                )
+        bars = service.latest_sector_bars("chemicals")
+        assert bars[-1]["close"] == pytest.approx(1.14)
+        bars_pref = service.latest_sector_bars("chemicals", preferred_source="etf")
+        assert bars_pref[-1]["close"] == pytest.approx(1.14)

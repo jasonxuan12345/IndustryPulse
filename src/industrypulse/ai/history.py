@@ -154,3 +154,28 @@ class JudgmentHistory:
             item["outcome_label"] = outcome_label
             out.append(item)
         return out
+
+    @staticmethod
+    def summarize(items: list[dict[str, Any]]) -> dict[str, Any]:
+        """统计历史判断的到期可验证样本数与胜率（仅统计已满 3 日且有收益结果的记录）。"""
+        evaluated = [
+            row
+            for row in items
+            if row.get("days_elapsed", 0) >= 3
+            and isinstance(row.get("actual_return_pct"), (int, float))
+        ]
+        lurking = [row for row in evaluated if row.get("stance") == "LURKING"]
+        high_risk = [row for row in evaluated if row.get("stance") == "HIGH_RISK"]
+        lurking_hits = sum(1 for row in lurking if float(row["actual_return_pct"]) >= 3.0)
+        high_risk_hits = sum(1 for row in high_risk if float(row["actual_return_pct"]) <= -3.0)
+        total_hits = lurking_hits + high_risk_hits
+        win_rate = round(total_hits / len(evaluated) * 100.0, 1) if evaluated else None
+        return {
+            "total_calls": len(items),
+            "evaluated_calls": len(evaluated),
+            "lurking_evaluated": len(lurking),
+            "lurking_hits": lurking_hits,
+            "high_risk_evaluated": len(high_risk),
+            "high_risk_hits": high_risk_hits,
+            "win_rate_pct": win_rate,
+        }

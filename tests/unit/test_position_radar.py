@@ -104,3 +104,21 @@ def test_negative_overseas_avg_does_not_award_lead_bonus() -> None:
     )
     assert res_neg["catalyst_score"] == 0.0
     assert res_pos["catalyst_score"] == 12.0
+
+
+def test_commodity_crash_warning_blocks_lurking() -> None:
+    closes = (
+        [120.0 - i * 0.4 for i in range(50)] + [100.0, 100.2, 100.1, 100.4, 100.6] + [100.8] * 5
+    )
+    amounts = [100.0 for _ in range(55)] + [45.0, 46.0, 44.0, 47.0, 48.0]
+    bench = [100.0 for _ in range(60)]
+    res = compute_position_radar(
+        closes=closes,
+        amounts=amounts,
+        benchmark_closes=bench,
+        hard_signal_count=2,
+        commodity_warnings=[{"title": "沪铜(CU0) -5.07%"}],
+    )
+    assert res["zone"] != "LURKING"
+    assert res["commodity_warning_count"] == 1
+    assert any("大宗期货大跌证伪" in flag for flag in res["risk_flags"])

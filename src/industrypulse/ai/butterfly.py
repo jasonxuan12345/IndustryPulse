@@ -284,6 +284,10 @@ def run_butterfly_analysis(
                 {"tag": h.get("tag"), "title": h.get("title"), "detail": h.get("detail")}
                 for h in (r.get("hard_signals") or [])[:4]
             ],
+            "commodity_warnings": [
+                {"tag": w.get("tag"), "title": w.get("title"), "detail": w.get("detail")}
+                for w in (r.get("commodity_warnings") or [])[:3]
+            ],
             "twse_pulse": r.get("twse_pulse"),
             "overseas_proxies": r.get("overseas_proxies") or [],
             "overseas_avg_20d": r.get("overseas_avg_20d"),

@@ -91,7 +91,34 @@ def test_signal_service_collects_and_degrades_gracefully(tmp_path, monkeypatch) 
     )
 
     svc = SignalService()
-    res = svc.refresh(a_share_returns_20d={"semiconductor": -2.0})
+    res = svc.refresh(
+        a_share_returns_20d={"semiconductor": -2.0},
+        commodities=[
+            {
+                "id": "cu",
+                "name": "沪铜",
+                "symbol": "CU0",
+                "unit": "元/吨",
+                "sectors": ["metals"],
+                "price": 72000.0,
+                "change_pct": -5.07,
+            },
+            {
+                "id": "sc",
+                "name": "原油",
+                "symbol": "SC0",
+                "unit": "元/桶",
+                "sectors": ["chemicals"],
+                "price": 560.0,
+                "change_pct": 3.2,
+            },
+        ],
+    )
+    assert res["channels"]["commodities"] == {"status": "ok", "count": 1, "warning_count": 1}
+    assert any(
+        s["kind"] == "commodity_surge" for s in res["by_sector"]["chemicals"]["hard_signals"]
+    )
+    assert res["by_sector"]["metals"]["commodity_warnings"][0]["kind"] == "commodity_crash"
     assert res["channels"]["eastmoney_forecast"]["status"] == "ok"
     assert res["channels"]["cninfo_ann"]["status"] == "ok"
     assert res["channels"]["twse_monthly_rev"]["status"] == "ok"
@@ -238,7 +265,34 @@ def test_signal_service_hygiene_filters_stale_duplicates_and_boilerplate(
     )
 
     svc = SignalService()
-    res = svc.refresh(a_share_returns_20d={"semiconductor": -2.0})
+    res = svc.refresh(
+        a_share_returns_20d={"semiconductor": -2.0},
+        commodities=[
+            {
+                "id": "cu",
+                "name": "沪铜",
+                "symbol": "CU0",
+                "unit": "元/吨",
+                "sectors": ["metals"],
+                "price": 72000.0,
+                "change_pct": -5.07,
+            },
+            {
+                "id": "sc",
+                "name": "原油",
+                "symbol": "SC0",
+                "unit": "元/桶",
+                "sectors": ["chemicals"],
+                "price": 560.0,
+                "change_pct": 3.2,
+            },
+        ],
+    )
+    assert res["channels"]["commodities"] == {"status": "ok", "count": 1, "warning_count": 1}
+    assert any(
+        s["kind"] == "commodity_surge" for s in res["by_sector"]["chemicals"]["hard_signals"]
+    )
+    assert res["by_sector"]["metals"]["commodity_warnings"][0]["kind"] == "commodity_crash"
     assert res["channels"]["eastmoney_forecast"] == {"status": "ok", "count": 1}
     assert res["channels"]["cninfo_ann"] == {"status": "ok", "count": 0}
     assert res["channels"]["openfda"] == {"status": "ok", "count": 1}

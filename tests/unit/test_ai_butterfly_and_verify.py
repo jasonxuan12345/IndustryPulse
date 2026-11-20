@@ -220,3 +220,9 @@ def test_butterfly_ai_parallel_and_verify_and_history(tmp_path, monkeypatch) -> 
     assert "命中" in by_sector["energy"]["outcome_label"]
     assert by_sector["ai"]["actual_return_pct"] == -6.0
     assert "有效" in by_sector["ai"]["outcome_label"]
+
+    summary = JudgmentHistory.summarize(outcomes)
+    assert summary["evaluated_calls"] == 2
+    assert summary["lurking_hits"] == 1
+    assert summary["high_risk_hits"] == 1
+    assert summary["win_rate_pct"] == 100.0

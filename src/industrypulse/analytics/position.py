@@ -60,6 +60,7 @@ def compute_position_radar(
     hard_signal_count: int = 0,
     overseas_lead_20d: float | None = None,
     overseas_avg_20d: float | None = None,
+    commodity_warnings: list[dict[str, Any]] | None = None,
     extra_catalyst_boost: float = 0.0,
 ) -> dict[str, Any]:
     """根据 180 日行情、量价结构与真实硬异动计算量化状态与四象限坐标。"""
@@ -149,8 +150,17 @@ def compute_position_radar(
         else 0.0
     )
     anti_drop_score = 22.0 if anti_drop else 0.0
+    warnings = list(commodity_warnings or [])
+    commodity_penalty = min(24.0, len(warnings) * 14.0)
     catalyst_score = round(
-        _clamp(news_anomaly + hard_score + overseas_score + anti_drop_score + extra_catalyst_boost),
+        _clamp(
+            news_anomaly
+            + hard_score
+            + overseas_score
+            + anti_drop_score
+            + extra_catalyst_boost
+            - commodity_penalty
+        ),
         1,
     )
 
@@ -184,6 +194,9 @@ def compute_position_radar(
         flags.append(f"20日年化波动率偏高（{vol_20d}%）")
     if ret_20d is not None and ret_20d >= 18:
         flags.append(f"近20日涨幅已达 {ret_20d}%，短期不宜追高")
+    if warnings:
+        titles = "、".join(str(w.get("title") or w.get("tag") or "") for w in warnings[:2])
+        flags.append(f"关联大宗期货大跌证伪（{titles}），谨防逻辑破坏")
 
     # 6 档硬门槛 CheckList 判定
     weak_market = bench_ret_20d is not None and bench_ret_20d <= -2.5
@@ -197,7 +210,7 @@ def compute_position_radar(
     ) or (stall_divergence and position_score >= 70)
 
     has_real_catalyst = hard_signal_count >= 1 or anti_drop or catalyst_score >= 52.0
-    low_and_stable = position_score <= 48.0 and not falling_knife
+    low_and_stable = position_score <= 48.0 and not falling_knife and not warnings
     if weak_market:
         low_and_stable = low_and_stable and (
             anti_drop or (relative_20d is not None and relative_20d >= 0.0)
@@ -241,5 +254,6 @@ def compute_position_radar(
         "hard_signal_count": hard_signal_count,
         "overseas_lead_20d": overseas_lead_20d,
         "overseas_avg_20d": overseas_avg_20d,
+        "commodity_warning_count": len(warnings),
         "risk_flags": flags,
     }

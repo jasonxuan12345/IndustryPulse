@@ -286,11 +286,13 @@ class MarketService:
         etf_symbol = config["etfs"]["primary"]
         snapshot: dict[str, Any] = {"id": domain_id, "name": config["name"], "board": board}
 
-        # 行业指数主源（东财板块），失败自动降级为该行业 ETF 真实 K 线（§8/§24）
+        # 行业指数主源（东财板块或宽基指数），失败自动降级为该行业 ETF 真实 K 线（§8/§24）
         bars: list[Bar] | None = None
         try:
             bars = self._kline(board)
-            snapshot["index_source"] = "eastmoney_board"
+            snapshot["index_source"] = (
+                "eastmoney_board" if board.startswith("BK") else "broad_index"
+            )
         except Exception as exc:  # noqa: BLE001
             self.health.record_failure("eastmoney:kline", str(exc)[:120])
             try:
@@ -308,8 +310,13 @@ class MarketService:
             snapshot["amount"] = round(metric / 1e8, 2) if metric else None
             snapshot["amount_metric"] = "成交额(亿)" if last.amount else "成交量(亿份)"
             snapshot["trend"] = self._trend(bars)
-            snapshot["trend_label"] = (
-                "行业板块指数" if snapshot["index_source"] == "eastmoney_board" else "行业 ETF 净值"
+            source_labels = {
+                "eastmoney_board": "行业板块指数",
+                "broad_index": "宽基指数",
+                "etf": "行业 ETF 净值",
+            }
+            snapshot["trend_label"] = source_labels.get(
+                str(snapshot["index_source"]), "行业 ETF 净值"
             )
             amounts = [
                 (bar.amount if bar.amount is not None else bar.volume) or 0.0 for bar in bars
@@ -595,6 +602,32 @@ class MarketService:
             for r in rows
         ]
 
+    def latest_sector_bars(
+        self,
+        domain_id: str,
+        *,
+        preferred_source: str | None = None,
+        limit: int = 180,
+    ) -> list[dict[str, Any]]:
+        """与当前总览口径一致的行业K线：ETF降级或主源陈旧时自动取最新可用序列。"""
+        config = self.sectors_config["domains"].get(domain_id)
+        if config is None:
+            raise KeyError(domain_id)
+        board = str(config["board"])
+        etf_symbol = str(config["etfs"]["primary"])
+        board_bars = self.cached_bars(board, limit=limit)
+        etf_bars = self.cached_bars(etf_symbol, limit=limit)
+        min_required = min(10, limit)
+        if preferred_source == "etf" and len(etf_bars) >= min_required:
+            return etf_bars
+        if len(board_bars) < min_required:
+            return etf_bars or board_bars
+        if len(etf_bars) >= min_required and str(board_bars[-1]["date"]) < str(
+            etf_bars[-1]["date"]
+        ):
+            return etf_bars
+        return board_bars
+
     def sector_position(
         self,
         domain_id: str,
@@ -605,13 +638,15 @@ class MarketService:
         hard_signal_count: int = 0,
         overseas_lead_20d: float | None = None,
         overseas_avg_20d: float | None = None,
+        commodity_warnings: list[dict[str, Any]] | None = None,
     ) -> dict[str, Any]:
         config = self.sectors_config["domains"].get(domain_id)
         if config is None:
             raise KeyError(domain_id)
-        board = str(config["board"])
-        etf_symbol = str(config["etfs"]["primary"])
-        bars = self.cached_bars(board) or self.cached_bars(etf_symbol)
+        preferred = (
+            str(snapshot["index_source"]) if snapshot and snapshot.get("index_source") else None
+        )
+        bars = self.latest_sector_bars(domain_id, preferred_source=preferred)
         closes = [b["close"] for b in bars]
         amounts = [
             float(b["amount"] if b["amount"] is not None else (b["volume"] or 0.0)) for b in bars
@@ -645,6 +680,7 @@ class MarketService:
             hard_signal_count=hard_signal_count,
             overseas_lead_20d=overseas_lead_20d,
             overseas_avg_20d=overseas_avg_20d,
+            commodity_warnings=commodity_warnings,
         )
         return {
             "id": domain_id,
@@ -684,6 +720,7 @@ class MarketService:
                     hard_signal_count=int(anom.get("hard_signal_count") or 0),
                     overseas_lead_20d=anom.get("overseas_lead_20d"),
                     overseas_avg_20d=anom.get("overseas_avg_20d"),
+                    commodity_warnings=anom.get("commodity_warnings") or None,
                 )
             )
         return out

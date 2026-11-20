@@ -451,9 +451,74 @@ class SignalService:
         ranked.sort(key=lambda pair: pair[0], reverse=True)
         return [item for _, item in ranked[:2]]
 
+    def _cached_commodities(self) -> list[dict[str, Any]]:
+        market_dir = Path(os.getenv("INDUSTRYPULSE_MARKET_DIR", str(self.root / "data/market")))
+        overview_path = market_dir / "overview.json"
+        if not overview_path.exists():
+            return []
+        try:
+            raw = json.loads(overview_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            return []
+        return list(raw.get("commodities") or []) if isinstance(raw, dict) else []
+
+    def extract_commodity_anomalies(
+        self, commodities: list[dict[str, Any]] | None = None
+    ) -> tuple[list[dict[str, Any]], dict[str, list[dict[str, Any]]]]:
+        rows = commodities if commodities is not None else self._cached_commodities()
+        surges: list[dict[str, Any]] = []
+        warnings_by_sector: dict[str, list[dict[str, Any]]] = {}
+        today_iso = datetime.now(TZ_SHANGHAI).date().isoformat()
+        for item in rows:
+            chg = item.get("change_pct")
+            if chg is None:
+                continue
+            try:
+                pct = float(chg)
+            except (TypeError, ValueError):
+                continue
+            sectors = [str(s) for s in (item.get("sectors") or []) if s]
+            if not sectors or abs(pct) < 2.5:
+                continue
+            name = str(item.get("name") or item.get("id") or "")
+            symbol = str(item.get("symbol") or "")
+            price = item.get("price")
+            unit = str(item.get("unit") or "")
+            date_str = str(item.get("date") or today_iso)
+            base_detail = f"最新价 {price} {unit}".strip() if price is not None else ""
+            if pct >= 2.5:
+                for sid in sectors:
+                    surges.append(
+                        {
+                            "kind": "commodity_surge",
+                            "tag": "大宗强势异动",
+                            "sector": sid,
+                            "title": f"{name}({symbol}) {pct:+.2f}%",
+                            "detail": base_detail,
+                            "date": date_str,
+                            "url": "",
+                        }
+                    )
+            else:
+                for sid in sectors:
+                    warnings_by_sector.setdefault(sid, []).append(
+                        {
+                            "kind": "commodity_crash",
+                            "tag": "大宗大跌证伪",
+                            "sector": sid,
+                            "title": f"{name}({symbol}) {pct:+.2f}%",
+                            "detail": base_detail,
+                            "date": date_str,
+                        }
+                    )
+        return surges, warnings_by_sector
+
     # ------------------------------------------------------------ 汇总刷新
     def refresh(
-        self, *, a_share_returns_20d: dict[str, float | None] | None = None
+        self,
+        *,
+        a_share_returns_20d: dict[str, float | None] | None = None,
+        commodities: list[dict[str, Any]] | None = None,
     ) -> dict[str, Any]:
         cfg = self._config()
         domains = _load_domain_keywords(self.root)
@@ -461,6 +526,7 @@ class SignalService:
         by_sector: dict[str, dict[str, Any]] = {
             str(d["id"]): {
                 "hard_signals": [],
+                "commodity_warnings": [],
                 "twse_pulse": None,
                 "overseas_proxies": [],
                 "overseas_avg_20d": None,
@@ -475,6 +541,7 @@ class SignalService:
                 sid,
                 {
                     "hard_signals": [],
+                    "commodity_warnings": [],
                     "twse_pulse": None,
                     "overseas_proxies": [],
                     "overseas_avg_20d": None,
@@ -572,6 +639,22 @@ class SignalService:
                     "status": "failed",
                     "error": f"{type(exc).__name__}: {str(exc)[:100]}",
                 }
+
+        surges, warnings_by_sector = self.extract_commodity_anomalies(commodities)
+        for item in surges:
+            bucket = ensure_sector(str(item["sector"]))
+            if len(bucket["hard_signals"]) < 8:
+                bucket["hard_signals"].append(item)
+        total_warnings = 0
+        for sid, warns in warnings_by_sector.items():
+            bucket = ensure_sector(sid)
+            bucket["commodity_warnings"] = warns
+            total_warnings += len(warns)
+        channels["commodities"] = {
+            "status": "ok",
+            "count": len(surges),
+            "warning_count": total_warnings,
+        }
 
         highlights: list[dict[str, Any]] = []
         for bucket in by_sector.values():
