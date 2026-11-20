@@ -8,7 +8,7 @@ from fastapi import APIRouter
 
 from industrypulse.ai.butterfly import load_latest_report
 from industrypulse.analytics.position import compute_position_radar
-from industrypulse.api.dashboard import market_service
+from industrypulse.api.dashboard import market_service, optional_market
 from industrypulse.intelligence.events import radar_events
 from industrypulse.intelligence.service import NewsService
 from industrypulse.signals.anomalies import SignalService
@@ -21,14 +21,27 @@ def collect_sector_radars(
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]], dict[str, Any]]:
     """收集去重后的行业事件、硬异动缓存和量化位置。"""
     feed = news_service.feed()
-    stories = radar_events(
-        feed.get("stories") or [], news_service.directory / "event-clusters.json"
+    raw_stories = feed.get("stories") or []
+    cluster_path = news_service.directory / "event-clusters.json"
+    cache_key = (
+        getattr(news_service, "_feed_version", 0),
+        len(raw_stories),
+        str(raw_stories[0].get("id") or "") if raw_stories else "",
+        str(raw_stories[-1].get("id") or "") if raw_stories else "",
+        str(cluster_path),
+        cluster_path.exists(),
     )
+    cached_events = getattr(news_service, "_events_cache", None)
+    if isinstance(cached_events, tuple) and cached_events[0] == cache_key:
+        stories = cached_events[1]
+    else:
+        stories = radar_events(raw_stories, cluster_path)
+        news_service._events_cache = (cache_key, stories)  # type: ignore[attr-defined]
     sig_svc = signal_service or SignalService()
     anomalies = sig_svc.load_cached()
     by_sector = dict(anomalies.get("by_sector") or {})
 
-    market = market_service()
+    market = optional_market(market_service)
     if market is not None:
         radars = market.position_radars(stories, anomalies_by_sector=by_sector)
         enriched_radars = [
@@ -110,7 +123,7 @@ def create_radar_router(
         radars, _, _ = collect_sector_radars(news_service, sig_service)
         a_rets = {str(r["id"]): r.get("return_20d") for r in radars}
         commodities: list[dict[str, Any]] | None = None
-        market = market_service()
+        market = optional_market(market_service)
         if market is not None:
             try:
                 overview, _ = market._overview_snapshot()

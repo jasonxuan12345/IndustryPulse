@@ -50,4 +50,27 @@
 .wb-field{display:grid;gap:6px;font-size:12px;color:#b2bfd0}
 .wb-field input,.wb-field select,.wb-field textarea{border:1px solid var(--line);border-radius:6px;background:#0e131b;padding:8px 10px;color:var(--text);font:inherit;width:100%}
 .wb-error{padding:10px 12px;border-left:2px solid var(--red);background:#2a171c;color:#f3a3ab;font-size:12px}
+.summary-hero{padding:22px 24px;margin-bottom:20px;border:1px solid var(--line);border-radius:10px;background:linear-gradient(135deg,#151e29,#10151d)}
+.summary-hero-top{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:12px}
+.decision-badge{display:inline-flex;align-items:center;gap:8px;padding:6px 12px;border-radius:6px;font-size:13px;font-weight:600}
+.decision-badge.buy{background:#15382e;color:var(--green);border:1px solid #2b6e5a}
+.decision-badge.wait{background:#2d2418;color:#e8c88d;border:1px solid #594425}
+.decision-badge.idle{background:#1b222d;color:#9eb0c7;border:1px solid #2d3848}
+.summary-main{font-size:16px;line-height:1.8;color:#edf2f8;margin-bottom:10px}
+.summary-sub{font-size:13px;line-height:1.75;color:#a8b6c9;margin-bottom:12px}
+.compact-list{display:grid;gap:10px}
+.compact-item{padding:12px 14px;border:1px solid var(--line);border-radius:8px;background:#10151d}
+.compact-item.early{border-left:3px solid var(--green)}
+.compact-item.risk{border-left:3px solid var(--red)}
+.compact-item.watch{border-left:3px solid #7d8da6}
+.compact-title{font-size:13.5px;font-weight:600;color:#e8eef6;margin:6px 0 4px}
+.compact-note{font-size:12.5px;line-height:1.65;color:#a9b7c9}
+.subtle-details{margin-top:10px;font-size:12px;color:var(--muted)}
+.subtle-details summary{cursor:pointer;color:#93a5bd;user-select:none}
+.subtle-details[open] summary{margin-bottom:8px;color:var(--green)}
+.fold-panel{margin-top:16px;padding:0}
+.fold-panel>summary{list-style:none;cursor:pointer;padding:16px 20px;font-size:14px;font-weight:600;color:#cfd9e6;display:flex;align-items:center;justify-content:space-between}
+.fold-panel>summary::-webkit-details-marker{display:none}
+.fold-panel>summary::after{content:'展开 ▾';font-size:11px;font-weight:400;color:var(--muted)}
+.fold-panel[open]>summary::after{content:'收起 ▴';color:var(--green)}
 @media(max-width:800px){.form-row{grid-template-columns:1fr}}

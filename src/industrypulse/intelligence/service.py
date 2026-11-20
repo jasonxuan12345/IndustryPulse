@@ -103,6 +103,8 @@ class NewsService:
         self.settings = self.defaults()
         self.warning = ""
         self.cache: dict[str, SourceCache] = {}
+        self._feed_version = 0
+        self._feed_cache: tuple[tuple[Any, ...], dict[str, Any]] | None = None
         try:
             if self.settings_path.exists():
                 self.settings = NewsSettings.model_validate_json(
@@ -152,6 +154,7 @@ class NewsService:
             write_json(self.settings_path, settings.model_dump(mode="json"))
             self.settings = settings
             self.warning = ""
+            self._feed_version += 1
 
     def selected(self) -> set[str]:
         return {
@@ -265,6 +268,7 @@ class NewsService:
                     old.last_attempt, old.error = now, error
                     self.cache[identifier] = old
                     self.completed += 1
+                    self._feed_version += 1
                     try:
                         write_json(
                             self.cache_path,
@@ -277,11 +281,21 @@ class NewsService:
                         self.warning = f"资讯已抓取，但缓存保存失败：{exception}"
         with self.lock:
             self.last_finished = datetime.now(UTC)
+            self._feed_version += 1
 
     def _fetch(self, source: Source, rsshub_base: str) -> list[NewsItem]:
         if self.closed.is_set():
             return []
         return fetch_source(source, rsshub_base, datetime.now(UTC))
+
+    @staticmethod
+    def _copy_feed(payload: dict[str, Any], collection: dict[str, Any]) -> dict[str, Any]:
+        return {
+            **payload,
+            "sectors": [dict(s) for s in payload["sectors"]],
+            "companies": [dict(c) for c in payload["companies"]],
+            "collection": collection,
+        }
 
     def feed(self, *, auto_refresh: bool = True) -> dict[str, Any]:
         if auto_refresh and os.getenv("INDUSTRYPULSE_NEWS_AUTO_FETCH", "1") != "0":
@@ -293,6 +307,15 @@ class NewsService:
                     )
                     self.timer.start()
         with self.lock:
+            cache_sig = (
+                self._feed_version,
+                tuple(
+                    (key, id(val), len(val.items), val.last_success)
+                    for key, val in self.cache.items()
+                ),
+            )
+            if self._feed_cache is not None and self._feed_cache[0] == cache_sig:
+                return self._copy_feed(self._feed_cache[1], self.status())
             stories: dict[str, dict[str, Any]] = {}
             for domain in self.catalog.domains:
                 for industry in domain.industries:
@@ -359,7 +382,7 @@ class NewsService:
                 for key, cache in self.cache.items()
                 if key in self.selected() and cache.last_success
             ]
-            return {
+            payload: dict[str, Any] = {
                 "mode": "live",
                 "updated_at": (max(successes) if successes else datetime.now(UTC)).isoformat(),
                 "source": "内置公开资讯源 · 保留原文链接与来源",
@@ -384,8 +407,9 @@ class NewsService:
                         if story.get("company")
                     }.values()
                 ),
-                "collection": self.status(),
             }
+            self._feed_cache = (cache_sig, payload)
+            return self._copy_feed(payload, self.status())
 
     def close(self) -> None:
         self.closed.set()

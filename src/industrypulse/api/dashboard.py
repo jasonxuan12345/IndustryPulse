@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import json
 import os
+import threading
+from collections.abc import Callable
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal
@@ -202,6 +204,7 @@ def demo_feed() -> Feed:
 
 
 _market_service: MarketService | None = None
+_market_service_lock = threading.Lock()
 
 
 def market_service() -> MarketService | None:
@@ -210,10 +213,39 @@ def market_service() -> MarketService | None:
     if os.getenv("INDUSTRYPULSE_MARKET_DATA", "1") == "0":
         return None
     if _market_service is None:
-        from industrypulse.market.service import MarketService
+        with _market_service_lock:
+            if _market_service is None:
+                from industrypulse.market.service import MarketService
 
-        _market_service = MarketService()
+                _market_service = MarketService()
     return _market_service
+
+
+def optional_market(
+    getter: Callable[[], MarketService | None] | None = None,
+) -> MarketService | None:
+    """获取行情服务；停用或底层 DuckDB 正被其他进程占用时返回 None。"""
+    import duckdb
+
+    try:
+        return (getter or market_service)()
+    except (OSError, RuntimeError, duckdb.Error):
+        return None
+
+
+def _require_market_service(disabled_detail: str) -> MarketService:
+    import duckdb
+
+    try:
+        market = market_service()
+    except (OSError, RuntimeError, duckdb.Error) as exc:
+        raise HTTPException(
+            503,
+            "行情数据库暂不可用（可能正被其他进程占用），请关闭占用程序后刷新重试",
+        ) from exc
+    if market is None:
+        raise HTTPException(404, disabled_detail)
+    return market
 
 
 def create_dashboard_router(service: NewsService | None = None) -> APIRouter:
@@ -311,16 +343,12 @@ def create_dashboard_router(service: NewsService | None = None) -> APIRouter:
 
     @router.get("/market/overview")
     def market_overview(refresh: str = "") -> dict[str, object]:
-        market = market_service()
-        if market is None:
-            raise HTTPException(404, "行情数据层已停用（INDUSTRYPULSE_MARKET_DATA=0）")
+        market = _require_market_service("行情数据层已停用（INDUSTRYPULSE_MARKET_DATA=0）")
         return market.overview(wait=refresh == "1")
 
     @router.get("/sectors/{domain_id}")
     def sector_detail(domain_id: str) -> dict[str, object]:
-        market = market_service()
-        if market is None:
-            raise HTTPException(404, "行情数据层已停用")
+        market = _require_market_service("行情数据层已停用")
         try:
             return market.sector_detail(domain_id)
         except KeyError as exc:
@@ -328,17 +356,13 @@ def create_dashboard_router(service: NewsService | None = None) -> APIRouter:
 
     @router.get("/macro")
     def macro() -> dict[str, object]:
-        market = market_service()
-        if market is None:
-            raise HTTPException(404, "行情数据层已停用")
+        market = _require_market_service("行情数据层已停用")
         market.ensure_macro_sync()
         return market.macro()
 
     @router.get("/data-health")
     def data_health() -> dict[str, object]:
-        market = market_service()
-        if market is None:
-            raise HTTPException(404, "行情数据层已停用")
+        market = _require_market_service("行情数据层已停用")
         return {
             "updated_at": datetime.now(TZ_SHANGHAI).isoformat(),
             "sources": market.data_health(),

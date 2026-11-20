@@ -80,6 +80,7 @@ class MarketService:
         self._cache_lock = threading.Lock()
         self._macro_sync_started = False
         self._review_refreshing = threading.Lock()
+        self._quotes_refreshing = threading.Lock()
         self._refreshing = threading.Event()
         self._overview_path = base / "data/market/overview.json"
         self._config_fingerprint = (
@@ -985,18 +986,42 @@ class MarketService:
             return None
 
     # -------------------------------------------------------------- companies
-    def company_quotes(self) -> list[dict[str, Any]]:
+    def _cached_quotes_nonblocking(self, symbols: list[str]) -> dict[str, QuoteSnapshot]:
+        key = "quotes:" + ",".join(sorted(symbols))
+        now = time.monotonic()
+        with self._cache_lock:
+            hit = self._cache.get(key)
+        if hit and now - hit[0] < _TTL_QUOTES:
+            return cast(dict[str, QuoteSnapshot], hit[1])
+        if self._quotes_refreshing.acquire(blocking=False):
+
+            def warm() -> None:
+                try:
+                    self.quotes(symbols)
+                    self.health.record_success("tencent:quotes", 0)
+                except Exception as exc:  # noqa: BLE001
+                    self.health.record_failure("tencent:quotes", str(exc)[:160])
+                finally:
+                    self._quotes_refreshing.release()
+
+            threading.Thread(target=warm, daemon=True, name="company-quotes-warm").start()
+        return cast(dict[str, QuoteSnapshot], hit[1]) if hit else {}
+
+    def company_quotes(self, *, wait: bool = True) -> list[dict[str, Any]]:
         rows: list[dict[str, Any]] = []
         for domain_id, config in self.sectors_config["domains"].items():
             for company in config.get("companies", []):
                 rows.append({**company, "sector": domain_id})
         symbols = [row["symbol"] for row in rows]
-        try:
-            snapshots = self.quotes(symbols)
-            self.health.record_success("tencent:quotes", 0)
-        except Exception as exc:  # noqa: BLE001
-            self.health.record_failure("tencent:quotes", str(exc)[:160])
-            snapshots = {}
+        if not wait:
+            snapshots = self._cached_quotes_nonblocking(symbols)
+        else:
+            try:
+                snapshots = self.quotes(symbols)
+                self.health.record_success("tencent:quotes", 0)
+            except Exception as exc:  # noqa: BLE001
+                self.health.record_failure("tencent:quotes", str(exc)[:160])
+                snapshots = {}
         enriched = []
         for row in rows:
             quote = snapshots.get(row["symbol"])
@@ -1056,7 +1081,7 @@ def enrich_sector_trends(feed: dict[str, Any], market: MarketService) -> dict[st
             feed.get("stories") or [],
             snapshot=snapshot,
         )
-    leaders = market.company_quotes()
+    leaders = market.company_quotes(wait=False)
     quotes_by_name = {row["name"]: row for row in leaders}
     for company in feed.get("companies", []):
         leader = quotes_by_name.get(company.get("name") or "")

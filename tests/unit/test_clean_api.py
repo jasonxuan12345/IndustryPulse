@@ -1,10 +1,15 @@
 from __future__ import annotations
 
+import threading
+import time
+from concurrent.futures import ThreadPoolExecutor
 from datetime import date
 
+import duckdb
 import pytest
 from fastapi.testclient import TestClient
 
+from industrypulse.api import dashboard
 from industrypulse.api.app import create_app
 
 
@@ -67,3 +72,35 @@ def test_clean_api_end_to_end() -> None:
         hist_res = client.get("/api/ai/history")
         assert hist_res.status_code == 200
         assert hist_res.json()["count"] == 0
+
+
+def test_market_service_lock_and_busy_db_degradation(monkeypatch) -> None:
+    calls = 0
+    counter_lock = threading.Lock()
+
+    class SlowMarketService:
+        def __init__(self) -> None:
+            nonlocal calls
+            time.sleep(0.05)
+            with counter_lock:
+                calls += 1
+
+    monkeypatch.setenv("INDUSTRYPULSE_MARKET_DATA", "1")
+    monkeypatch.setattr(dashboard, "_market_service", None)
+    monkeypatch.setattr("industrypulse.market.service.MarketService", SlowMarketService)
+    with ThreadPoolExecutor(max_workers=4) as pool:
+        results = list(pool.map(lambda _: dashboard.market_service(), range(4)))
+    assert calls == 1
+    assert len({id(item) for item in results}) == 1
+
+    def locked_db() -> None:
+        raise duckdb.IOException("File is already open in another process")
+
+    monkeypatch.setattr(dashboard, "_market_service", None)
+    monkeypatch.setattr("industrypulse.market.service.MarketService", locked_db)
+    with TestClient(create_app()) as client:
+        macro_res = client.get("/api/dashboard/macro")
+        assert macro_res.status_code == 503
+        assert client.get("/api/radar/overview").status_code == 200
+        assert client.get("/api/dashboard/feed").status_code == 200
+    monkeypatch.setattr(dashboard, "_market_service", None)

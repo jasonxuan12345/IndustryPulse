@@ -18,7 +18,7 @@ from industrypulse.ai.review import (
     universe_symbols,
 )
 from industrypulse.ai.verify import verify_lead
-from industrypulse.api.dashboard import market_service
+from industrypulse.api.dashboard import market_service, optional_market
 from industrypulse.api.radar import collect_sector_radars
 from industrypulse.core import TZ_SHANGHAI
 from industrypulse.intelligence.service import NewsService
@@ -40,7 +40,7 @@ class VerifyLeadRequest(BaseModel):
 def _sector_latest_prices(
     radars: list[dict[str, Any]],
 ) -> dict[str, tuple[float | None, str | None]]:
-    market = market_service()
+    market = optional_market(market_service)
     if market is None:
         return {}
     overview, _ = market._overview_snapshot()
@@ -84,7 +84,7 @@ def create_ai_router(
     def run_butterfly(body: ButterflyRunRequest) -> dict[str, Any]:
         if body.refresh_news:
             news_service.refresh(force=True)
-        market = market_service()
+        market = optional_market(market_service)
         macro_items: list[dict[str, Any]] = []
         macro_unavailable: list[dict[str, Any]] = []
         commodities: list[dict[str, Any]] = []
@@ -229,8 +229,8 @@ def create_ai_router(
 
     @router.get("/history")
     def list_history() -> dict[str, Any]:
-        radars, _, _ = collect_sector_radars(news_service, sig_svc)
-        items = journal.list_with_outcomes(_sector_latest_prices(radars))
+        domains = [{"id": domain.id} for domain in news_service.catalog.domains]
+        items = journal.list_with_outcomes(_sector_latest_prices(domains))
         return {
             "items": items,
             "count": len(items),
@@ -248,7 +248,7 @@ def create_ai_router(
 
     @router.get("/review")
     def review(day: str | None = None) -> dict[str, Any]:
-        market = market_service()
+        market = optional_market(market_service)
         symbols = reviews.symbols()
         if market is not None and symbols:
             market.refresh_review_bars(symbols)
