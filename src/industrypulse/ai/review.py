@@ -21,6 +21,7 @@ from industrypulse.signals.industry_chains import active_baskets
 ROOT = Path(__file__).resolve().parents[3]
 WINDOWS = (5, 20, 60)
 MISSING = "数据不足"
+NO_MARKET_REF = "未设市场参照"
 WAITING = "待到期"
 _CLOSE = time(15)
 _LOCK = Lock()
@@ -238,10 +239,11 @@ def _market_result(
                 break
     start = locked.get("start")
     windows = dict(locked.get("windows") or {})
-    if not start or start["date"] not in sessions:
-        status = (
-            MISSING if not members or sessions or start or not item["visible_at_scan"] else WAITING
-        )
+    if not members:
+        for days in WINDOWS:
+            windows.setdefault(str(days), {"status": NO_MARKET_REF})
+    elif not start or start["date"] not in sessions:
+        status = MISSING if sessions or start or not item["visible_at_scan"] else WAITING
         for days in WINDOWS:
             windows.setdefault(str(days), {"status": status})
     else:
@@ -416,6 +418,8 @@ class ReviewHistory:
                     if node in watched
                     else "没发现"
                     if prices and benchmark_visible and prices["date"] == benchmark_visible["date"]
+                    else NO_MARKET_REF
+                    if not item["members"]
                     else "缺数据"
                 )
                 subjects[node] = {

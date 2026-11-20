@@ -190,8 +190,9 @@ def test_fixed_horizons_industry_confirmation_and_omissions(tmp_path, monkeypatc
     assert rows["digital"]["market"]["windows"]["20"]["interpretation"] == "与大盘同步下跌"
     assert rows["consumer"]["market"]["windows"]["5"]["status"] == "数据不足"
     assert rows["consumer"]["market"]["windows"]["5"]["date"] == dates[5]
-    assert rows["lithium:salt"]["market"]["windows"]["20"]["status"] == "数据不足"
+    assert rows["lithium:salt"]["market"]["windows"]["20"]["status"] == "未设市场参照"
     misses = {item["node"]: item for item in selected["omissions"]}
+    assert "lithium:salt" not in misses
     assert misses["energy"]["classification"] == "在观察未升级"
     assert misses["metals"]["classification"] == "没发现"
     assert misses["consumer"]["classification"] == "缺数据"
@@ -236,7 +237,8 @@ def test_scan_keeps_legacy_history_bytes_and_saves_full_universe(tmp_path, monke
         items = response.json()["selected"]["items"]
         assert len(items) == 12 + 30 + 6
         assert (
-            next(item for item in items if item["node"] == "lithium:salt")["coverage"] == "缺数据"
+            next(item for item in items if item["node"] == "lithium:salt")["coverage"]
+            == "未设市场参照"
         )
         assert client.get("/api/ai/history").json()["count"] == 13
     assert legacy.read_bytes() == original

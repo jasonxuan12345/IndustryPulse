@@ -634,10 +634,10 @@ function renderDualReview(review) {
   if (review?.error) return `<div class="empty">${escapeHtml(review.error)}</div>`;
   const day = review?.selected;
   if (!day) return '<div class="empty">运行蝴蝶效应扫描后生成每日参评快照。</div>';
-  const closing = value => value
+  const closing = (value, hasMembers = true) => value
     ? `<small>${escapeHtml(value.date)}<br>${Object.entries(value.closes).map(
         ([symbol, price]) => `${escapeHtml(symbol)} ${escapeHtml(price)}`).join('<br>')}</small>`
-    : '数据不足';
+    : (hasMembers ? '数据不足' : '未设市场参照');
   const windowCell = value => value.status === '已锁定'
     ? `<b>${escapeHtml(value.interpretation)}</b><br>标的 ${signed(value.return_pct)} · 基准 ${signed(value.benchmark_return_pct)}
        <br>超额 ${signed(value.excess_pp, ' 个百分点')}
@@ -653,7 +653,7 @@ function renderDualReview(review) {
     <thead><tr><th>环节</th><th>产业核验</th><th>生成时可见价</th><th>发布后起点</th>${[5, 20, 60].map(period => `<th>T+${period}</th>`).join('')}</tr></thead>
     <tbody>${rows.map(item => `<tr><td><b>${escapeHtml(item.name)}</b><br><small>${escapeHtml(item.decision?.stance || item.coverage)}</small>
       ${item.published_at ? `<br><small>${date(item.published_at)} · ${escapeHtml(item.benchmark.name)}</small>` : ''}</td>
-      <td>${industry(item)}</td><td>${closing(item.visible_at_scan)}</td><td>${closing(item.market.start)}</td>
+      <td>${industry(item)}</td><td>${closing(item.visible_at_scan, (item.members || []).length > 0)}</td><td>${closing(item.market.start, (item.members || []).length > 0)}</td>
       ${[5, 20, 60].map(period => `<td>${windowCell(item.market.windows[period])}</td>`).join('')}</tr>`).join('')}</tbody>
     </table></div>`;
   const calls = day.calls || [];
