@@ -79,6 +79,7 @@ class MarketService:
         self._cache: dict[str, tuple[float, Any]] = {}
         self._cache_lock = threading.Lock()
         self._macro_sync_started = False
+        self._review_refreshing = threading.Lock()
         self._refreshing = threading.Event()
         self._overview_path = base / "data/market/overview.json"
         self._config_fingerprint = (
@@ -609,6 +610,13 @@ class MarketService:
         preferred_source: str | None = None,
         limit: int = 180,
     ) -> list[dict[str, Any]]:
+        return self.latest_sector_series(domain_id, preferred_source=preferred_source, limit=limit)[
+            1
+        ]
+
+    def latest_sector_series(
+        self, domain_id: str, *, preferred_source: str | None = None, limit: int = 180
+    ) -> tuple[str, list[dict[str, Any]]]:
         """与当前总览口径一致的行业K线：ETF降级或主源陈旧时自动取最新可用序列。"""
         config = self.sectors_config["domains"].get(domain_id)
         if config is None:
@@ -619,14 +627,53 @@ class MarketService:
         etf_bars = self.cached_bars(etf_symbol, limit=limit)
         min_required = min(10, limit)
         if preferred_source == "etf" and len(etf_bars) >= min_required:
-            return etf_bars
+            return etf_symbol, etf_bars
         if len(board_bars) < min_required:
-            return etf_bars or board_bars
+            return (etf_symbol, etf_bars) if etf_bars else (board, board_bars)
         if len(etf_bars) >= min_required and str(board_bars[-1]["date"]) < str(
             etf_bars[-1]["date"]
         ):
-            return etf_bars
-        return board_bars
+            return etf_symbol, etf_bars
+        return board, board_bars
+
+    def review_closes(
+        self, symbols: set[str], start: date, end: date
+    ) -> dict[str, dict[str, float]]:
+        if not symbols or end < start:
+            return {}
+        placeholders = ",".join("?" for _ in symbols)
+        with self._db_lock:
+            rows = self._db.execute(
+                f"SELECT symbol, trade_date, close FROM ui_bar WHERE symbol IN ({placeholders}) "
+                "AND trade_date BETWEEN ? AND ? ORDER BY trade_date",
+                [*sorted(symbols), start, end],
+            ).fetchall()
+        closes: dict[str, dict[str, float]] = {}
+        for symbol, day, close in rows:
+            if close is not None:
+                closes.setdefault(symbol, {})[day.isoformat()] = float(close)
+        return closes
+
+    def refresh_review_bars(self, symbols: set[str]) -> None:
+        """Use the existing daily-bar providers without blocking the review page."""
+        if not symbols or not self._review_refreshing.acquire(blocking=False):
+            return
+
+        def fetch(symbol: str) -> None:
+            try:
+                self._kline(symbol)
+            except Exception as exc:  # noqa: BLE001 - preserve whatever history is cached
+                self.health.record_failure("market:review", f"{symbol}: {exc}"[:120])
+
+        def refresh() -> None:
+            try:
+                with ThreadPoolExecutor(max_workers=4) as executor:
+                    list(executor.map(fetch, sorted(symbols)))
+                self._flush_bars()
+            finally:
+                self._review_refreshing.release()
+
+        threading.Thread(target=refresh, name="review-bars", daemon=True).start()
 
     def sector_position(
         self,

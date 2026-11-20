@@ -150,6 +150,30 @@ def _basket(node: dict[str, Any], today: date, symbols: dict[str, str]) -> dict[
     return {"effective_from": version["effective_from"], "members": members}
 
 
+def _market_symbols(root: Path) -> dict[str, str]:
+    sectors = _load(root / "config/market/sectors.yaml")["domains"]
+    symbols = {
+        item["symbol"]: item["name"] for domain in sectors.values() for item in domain["companies"]
+    }
+    for domain in sectors.values():
+        for symbol in [domain["etfs"]["primary"], *domain["etfs"]["alternatives"]]:
+            symbols[symbol] = f"{domain['name']} ETF"
+    return symbols
+
+
+def active_baskets(root: Path, today: date) -> dict[str, dict[str, Any]]:
+    path = root / "config/industry_chains.yaml"
+    if not path.exists():
+        return {}
+    symbols = _market_symbols(root)
+    return {
+        f"{chain['id']}:{node['id']}": basket
+        for chain in _load(path)["chains"]
+        for node in chain["nodes"]
+        if (basket := _basket(node, today, symbols)) is not None
+    }
+
+
 def assess_chains(
     root: Path, markets: list[dict[str, Any]], events: list[dict[str, Any]], *, as_of: datetime
 ) -> list[dict[str, Any]]:
@@ -159,13 +183,7 @@ def assess_chains(
     today = as_of.date()
     catalog = _load(root / "config/news_sources.yaml")
     industries = {item["id"] for domain in catalog["domains"] for item in domain["industries"]}
-    sectors = _load(root / "config/market/sectors.yaml")["domains"]
-    symbols = {
-        item["symbol"]: item["name"] for domain in sectors.values() for item in domain["companies"]
-    }
-    for domain in sectors.values():
-        for symbol in [domain["etfs"]["primary"], *domain["etfs"]["alternatives"]]:
-            symbols[symbol] = f"{domain['name']} ETF"
+    symbols = _market_symbols(root)
     pilots = pilot_commodities(root)
     current = sorted(
         (

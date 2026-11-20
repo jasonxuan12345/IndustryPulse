@@ -34,6 +34,9 @@ def test_cross_day_leads_in_api_with_no_early_opportunities(tmp_path, monkeypatc
         _overview_snapshot=lambda: ({}, None),
         cached_bars=bars,
         latest_sector_bars=bars,
+        latest_sector_series=lambda *_args, **_kwargs: ("BK1036", bars(None)),
+        review_closes=lambda *_args: {},
+        refresh_review_bars=lambda _symbols: None,
     )
 
     def radars(*_args):
@@ -180,6 +183,18 @@ def test_archives_when_due_and_records_refutation_separately(tmp_path, monkeypat
         sector_symbols={},
         lookup=None,
     )
+    ledger.record_run(
+        {
+            "generated_at": "2026-11-21T08:00:00+08:00",
+            "run_id": "wrong-period",
+            "lead_updates": [{**refutation, "anchor": pending["anchor"]}],
+        },
+        sector_symbols={},
+        lookup=None,
+    )
+    order_lead = next(item for item in ledger.list() if item["catalyst_type"] == "orders")
+    assert order_lead["industry_status"] == "验证中"
+    assert order_lead["expected_period"] == "2026-11"
     ledger.record_run(
         {
             "generated_at": "2026-11-23T08:00:00+08:00",

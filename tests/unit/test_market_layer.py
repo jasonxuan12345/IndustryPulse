@@ -461,3 +461,13 @@ class TestPublicFallbacks:
         assert bars[-1]["close"] == pytest.approx(1.14)
         bars_pref = service.latest_sector_bars("chemicals", preferred_source="etf")
         assert bars_pref[-1]["close"] == pytest.approx(1.14)
+        assert service.latest_sector_series("chemicals")[0] == etf
+        dated = service.review_closes(
+            {board, etf}, base + timedelta(days=30), base + timedelta(days=31)
+        )
+        assert dated == {
+            etf: {
+                (base + timedelta(days=30)).isoformat(): pytest.approx(1.10),
+                (base + timedelta(days=31)).isoformat(): pytest.approx(1.11),
+            }
+        }

@@ -83,6 +83,33 @@ def _period_start(period: str) -> date:
     return date.fromisoformat(period if len(period) == 10 else f"{period}-01")
 
 
+def target_period(metric: str, first_period: str | None) -> str | None:
+    next_period = re.search(r"下一期|下期|下月|下季度|下一季度", metric)
+    for match in re.finditer(
+        r"\d{4}-(?:[Qq][1-4]|\d{2}(?:-\d{2})?)(?!\d)|"
+        r"(\d{4})年\s*(?:第?([1-4])季(?:度)?|(\d{1,2})月(?:\s*(\d{1,2})[日号])?)",
+        metric,
+    ):
+        year, quarter, month, day = match.groups()
+        value = match.group() if not year else str(year)
+        if quarter:
+            value += f"-Q{quarter}"
+        if month:
+            value += f"-{int(month):02d}"
+        if day:
+            value += f"-{int(day):02d}"
+        if (period := _period(value)) and (not next_period or period != first_period):
+            return period
+    if first_period and next_period:
+        if "-Q" in first_period:
+            year, quarter = first_period.split("-Q")
+            return f"{int(year) + 1}-Q1" if quarter == "4" else f"{year}-Q{int(quarter) + 1}"
+        if len(first_period) == 7:
+            month_start = date.fromisoformat(first_period + "-01")
+            return (month_start.replace(day=28) + timedelta(days=4)).isoformat()[:7]
+    return None
+
+
 def _facts(item: dict[str, Any]) -> list[dict[str, Any]]:
     sources = {ref["id"]: ref for ref in item.get("evidence") or []}
     return [
@@ -379,10 +406,11 @@ class LeadLedger:
                 current_period = max(
                     lead["observations"], key=_period_start, default=candidate["report_period"]
                 )
+                expected = target_period(lead["validation"], next(iter(lead["observations"])))
                 if (
                     latest
                     and industrial
-                    and candidate["report_period"] == current_period
+                    and candidate["report_period"] in {current_period, expected}
                     and lead["industry_status"] not in INDUSTRY_END
                 ):
                     outcome = candidate["industry_outcome"]
@@ -391,6 +419,7 @@ class LeadLedger:
                         or candidate["provisional"]
                         or not lead["validation"]
                         or at <= lead["first_seen_at"]
+                        or (expected is not None and candidate["report_period"] != expected)
                     ):
                         outcome = "验证中"
                     _transition(lead, "industry", outcome, at, run_id, candidate["hypothesis"])
@@ -442,6 +471,9 @@ class LeadLedger:
             items.append(
                 {
                     **lead,
+                    "expected_period": target_period(
+                        lead["validation"], next(iter(lead["observations"]), None)
+                    ),
                     "observations": sorted(
                         observations, key=lambda item: _period_start(item["period"])
                     ),

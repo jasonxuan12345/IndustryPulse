@@ -11,6 +11,7 @@ const state = {
   macro: null,
   smartMoney: null,
   history: null,
+  review: null,
   leads: null,
   health: null,
   verifyResult: null,
@@ -629,6 +630,52 @@ function renderLeadLedger(ledger) {
   </details>`).join('')}</div>`;
 }
 
+function renderDualReview(review) {
+  if (review?.error) return `<div class="empty">${escapeHtml(review.error)}</div>`;
+  const day = review?.selected;
+  if (!day) return '<div class="empty">运行蝴蝶效应扫描后生成每日参评快照。</div>';
+  const closing = value => value
+    ? `<small>${escapeHtml(value.date)}<br>${Object.entries(value.closes).map(
+        ([symbol, price]) => `${escapeHtml(symbol)} ${escapeHtml(price)}`).join('<br>')}</small>`
+    : '数据不足';
+  const windowCell = value => value.status === '已锁定'
+    ? `<b>${escapeHtml(value.interpretation)}</b><br>标的 ${signed(value.return_pct)} · 基准 ${signed(value.benchmark_return_pct)}
+       <br>超额 ${signed(value.excess_pp, ' 个百分点')}
+       <br><small>最大涨幅 ${escapeHtml(value.max_gain_pct)}% · 最大回撤 ${escapeHtml(value.max_drawdown_pct)}% · ${escapeHtml(value.date)}</small>`
+    : escapeHtml(value.status);
+  const industry = item => item.industry.map(check => `<div><b>${escapeHtml(check.status)}</b>
+    <small>${escapeHtml(check.period || check.expected_period || check.observed_period || '')}</small>
+    ${check.metric ? `<br>${escapeHtml(check.metric)}` : ''}
+    ${(check.evidence || []).map(fact => `<br><small>「${escapeHtml(fact.quote)}」
+      ${fact.source?.url ? `<a href="${escapeHtml(fact.source.url)}" target="_blank" rel="noopener">来源</a>` : ''}</small>`).join('')}
+    </div>`).join('') || '—';
+  const table = rows => `<div class="table-wrap"><table>
+    <thead><tr><th>环节</th><th>产业核验</th><th>生成时可见价</th><th>发布后起点</th>${[5, 20, 60].map(period => `<th>T+${period}</th>`).join('')}</tr></thead>
+    <tbody>${rows.map(item => `<tr><td><b>${escapeHtml(item.name)}</b><br><small>${escapeHtml(item.decision?.stance || item.coverage)}</small>
+      ${item.published_at ? `<br><small>${date(item.published_at)} · ${escapeHtml(item.benchmark.name)}</small>` : ''}</td>
+      <td>${industry(item)}</td><td>${closing(item.visible_at_scan)}</td><td>${closing(item.market.start)}</td>
+      ${[5, 20, 60].map(period => `<td>${windowCell(item.market.windows[period])}</td>`).join('')}</tr>`).join('')}</tbody>
+    </table></div>`;
+  const calls = day.calls || [];
+  const calledNodes = new Set(calls.map(item => item.node));
+  const focus = [...calls, ...day.items.filter(item => item.industry.length && !calledNodes.has(item.node))];
+  const misses = day.omissions || [];
+  const omitted = misses.length ? `<div class="table-wrap"><table>
+    <thead><tr><th>环节</th><th>分类</th><th>T+20 超额</th><th>复核依据</th></tr></thead>
+    <tbody>${misses.map(item => `<tr><td>${escapeHtml(item.name)}</td><td>${escapeHtml(item.classification)}</td>
+      <td>${signed(item.excess_pp, ' 个百分点')}</td><td>${item.reasons.map(escapeHtml).join(' · ')}
+      ${item.announcements.map(ann => `<br><small>${escapeHtml(ann.date)}
+        ${ann.url ? `<a href="${escapeHtml(ann.url)}" target="_blank" rel="noopener">${escapeHtml(ann.title)}</a>` : escapeHtml(ann.title)}</small>`).join('')}</td></tr>`).join('')}</tbody>
+    </table></div>` : '<p class="muted">这一天暂无到期漏报复核项。</p>';
+  return `<div class="panel-body stack-sm"><div class="toolbar">
+    <label>参评日 <select id="review-day">${review.days.map(value => `<option value="${escapeHtml(value)}" ${day.day === value ? 'selected' : ''}>${escapeHtml(value)}</option>`).join('')}</select></label>
+    <span class="muted">基准 ${escapeHtml(day.benchmark.name)} · 发布 ${date(day.published_at)} · 新版判断样本 ${review.summary.samples}</span>
+    </div>
+    ${focus.length ? table(focus) : '<p class="muted">这一天没有正式判断或带核验条件的观察。</p>'}
+    <details><summary>全量参评环节 (${day.items.length})</summary>${table(day.items)}</details>
+    <h3>到期漏报复核 (${misses.length})</h3>${omitted}</div>`;
+}
+
 function renderVerify() {
   const sectors = state.feed?.sectors || [];
   const vr = state.verifyResult;
@@ -684,6 +731,7 @@ function renderVerify() {
       ${panel('交叉核验结论', verifyResultBox, '', 'VERIFICATION RESULT')}
     </div>
     ${panel(`跨天线索账本 (${state.leads?.count || 0})`, renderLeadLedger(state.leads))}
+    ${panel('双轨复盘与漏报评估', renderDualReview(state.review))}
     ${panel(`AI 历史判断回看 (${history.length})`, historyRows, '', 'OUTCOME REVIEW')}
   `;
 }
@@ -734,13 +782,14 @@ function render() {
 
 async function load() {
   try {
-    const [feed, radar, macro, smartMoney, history, leads] = await Promise.all([
+    const [feed, radar, macro, smartMoney, history, leads, review] = await Promise.all([
       request('/api/dashboard/feed'),
       request('/api/radar/overview'),
       request('/api/dashboard/macro').catch(() => ({ indicators: [], unavailable: [] })),
       request('/api/smart-money').catch(() => ({ institutions: [], entries: [] })),
       request('/api/ai/history').catch(() => ({ items: [] })),
-      request('/api/ai/leads').catch(() => ({ error: '线索账本读取失败' }))
+      request('/api/ai/leads').catch(() => ({ error: '线索账本读取失败' })),
+      request('/api/ai/review').catch(() => ({ error: '新版复盘读取失败' }))
     ]);
     state.feed = feed;
     state.radar = radar;
@@ -748,6 +797,7 @@ async function load() {
     state.smartMoney = smartMoney;
     state.history = history;
     state.leads = leads;
+    state.review = review;
     state.error = '';
     if (!state.sector && feed.sectors?.length) state.sector = feed.sectors[0].id;
     $('#connection').textContent = '本地服务已连接';
@@ -869,6 +919,14 @@ document.addEventListener('click', async event => {
       await load();
     } catch (e) { toast(e.message); }
   }
+});
+
+document.addEventListener('change', async event => {
+  if (event.target.id !== 'review-day') return;
+  try {
+    state.review = await request(`/api/ai/review?day=${encodeURIComponent(event.target.value)}`);
+    render();
+  } catch (error) { toast(error.message); }
 });
 
 document.addEventListener('submit', async event => {

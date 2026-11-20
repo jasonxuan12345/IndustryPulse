@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import datetime, timedelta
 from typing import Any
 
 from fastapi import APIRouter, HTTPException
@@ -10,9 +11,16 @@ from pydantic import BaseModel, Field
 from industrypulse.ai.butterfly import load_latest_report, run_butterfly_analysis
 from industrypulse.ai.history import JudgmentHistory
 from industrypulse.ai.leads import INDUSTRY_END, LeadLedger
+from industrypulse.ai.review import (
+    ReviewHistory,
+    closed_through,
+    universe_for_day,
+    universe_symbols,
+)
 from industrypulse.ai.verify import verify_lead
 from industrypulse.api.dashboard import market_service
 from industrypulse.api.radar import collect_sector_radars
+from industrypulse.core import TZ_SHANGHAI
 from industrypulse.intelligence.service import NewsService
 from industrypulse.signals.anomalies import SignalService
 from industrypulse.smart_money.service import SmartMoneyService
@@ -61,6 +69,7 @@ def create_ai_router(
 ) -> APIRouter:
     sm = smart_money or SmartMoneyService()
     journal = history or JudgmentHistory()
+    reviews = ReviewHistory()
     sig_svc = signal_service or SignalService()
     router = APIRouter(prefix="/api/ai", tags=["ai-butterfly"])
 
@@ -153,6 +162,32 @@ def create_ai_router(
             if market
             else {}
         )
+        captured_at = datetime.now(TZ_SHANGHAI)
+        benchmark = {"symbol": "sh000300", "name": "沪深300"}
+        review_symbols = dict(lead_symbols)
+        visible = {}
+        if market is not None:
+            benchmark.update(market.sectors_config.get("benchmarks", {}).get("csi300", {}))
+            try:
+                overview, _ = market._overview_snapshot()
+                preferred = {
+                    row["id"]: row.get("index_source")
+                    for row in (overview or {}).get("sectors", [])
+                }
+                for sid in lead_symbols:
+                    review_symbols[sid] = market.latest_sector_series(
+                        sid, preferred_source=preferred.get(sid)
+                    )[0]
+            except Exception:  # noqa: BLE001 - fall back to the configured market references
+                pass
+        universe = universe_for_day(reviews.root, review_symbols, captured_at.date())
+        symbols = universe_symbols(universe) | {benchmark["symbol"]}
+        if market is not None:
+            try:
+                end = closed_through(captured_at)
+                visible = market.review_closes(symbols, end - timedelta(days=14), end)
+            except Exception:  # noqa: BLE001 - no cached bars leaves review prices unavailable
+                pass
         report = run_butterfly_analysis(
             radars=radars,
             stories=stories,
@@ -164,8 +199,18 @@ def create_ai_router(
             lead_price_lookup=lead_close if market is not None else None,
             lead_sector_symbols=lead_symbols,
         )
-        radar_map = {str(r["id"]): r for r in radars}
-        journal.record_run(report, radar_map, prices)
+        reviews.record_run(
+            report,
+            universe,
+            benchmark,
+            visible,
+            signals,
+            LeadLedger().list(),
+            published_at=datetime.now(TZ_SHANGHAI).isoformat(),
+            visible_captured_at=captured_at.isoformat(),
+        )
+        if market is not None:
+            market.refresh_review_bars(symbols)
         return report
 
     @router.post("/verify")
@@ -200,5 +245,19 @@ def create_ai_router(
             "count": len(items),
             "active_count": sum(item["industry_status"] not in INDUSTRY_END for item in items),
         }
+
+    @router.get("/review")
+    def review(day: str | None = None) -> dict[str, Any]:
+        market = market_service()
+        symbols = reviews.symbols()
+        if market is not None and symbols:
+            market.refresh_review_bars(symbols)
+        return reviews.evaluate(
+            market.review_closes if market is not None else lambda *_: {},
+            LeadLedger().list(),
+            as_of=datetime.now(TZ_SHANGHAI),
+            selected=day,
+            signals=sig_svc.load_cached(),
+        )
 
     return router
