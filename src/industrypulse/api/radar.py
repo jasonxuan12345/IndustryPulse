@@ -9,6 +9,7 @@ from fastapi import APIRouter
 from industrypulse.ai.butterfly import load_latest_report
 from industrypulse.analytics.position import compute_position_radar
 from industrypulse.api.dashboard import market_service
+from industrypulse.intelligence.events import radar_events
 from industrypulse.intelligence.service import NewsService
 from industrypulse.signals.anomalies import SignalService
 from industrypulse.smart_money.service import SmartMoneyService
@@ -18,9 +19,11 @@ def collect_sector_radars(
     news_service: NewsService,
     signal_service: SignalService | None = None,
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]], dict[str, Any]]:
-    """收集 12 行业当前新闻、硬异动缓存与量化位置/高危雷达；停用行情时优雅降级。"""
+    """收集去重后的行业事件、硬异动缓存和量化位置。"""
     feed = news_service.feed()
-    stories = list(feed.get("stories") or [])
+    stories = radar_events(
+        feed.get("stories") or [], news_service.directory / "event-clusters.json"
+    )
     sig_svc = signal_service or SignalService()
     anomalies = sig_svc.load_cached()
     by_sector = dict(anomalies.get("by_sector") or {})
@@ -97,6 +100,7 @@ def create_radar_router(
                 "updated_at": anomalies.get("updated_at"),
                 "channels": anomalies.get("channels") or {},
                 "highlights": anomalies.get("highlights") or [],
+                "disclosures": anomalies.get("disclosures") or [],
             },
             "latest_ai_report": load_latest_report(),
         }

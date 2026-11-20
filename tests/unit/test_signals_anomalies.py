@@ -307,3 +307,91 @@ def test_signal_service_hygiene_filters_stale_duplicates_and_boilerplate(
     assert "NEWDRUG" in res["by_sector"]["health"]["hard_signals"][0]["title"]
     assert res["by_sector"]["semiconductor"]["overseas_avg_20d"] is not None
     assert len(res["by_sector"]["semiconductor"]["overseas_proxies"]) == 3
+
+
+def test_sec_disclosure_needs_a_substantive_excerpt_to_score(tmp_path, monkeypatch) -> None:
+    monkeypatch.setenv("INDUSTRYPULSE_SIGNALS_DIR", str(tmp_path))
+    svc = SignalService()
+    leaders = [
+        {"cik": "101", "name": "Headline Corp", "sector": "semiconductor"},
+        {"cik": "102", "name": "Detailed Corp", "sector": "ai"},
+        {"cik": "103", "name": "Fallback Corp", "sector": "auto"},
+    ]
+    monkeypatch.setattr(svc, "_config", lambda: {"sec_chain_leaders": leaders})
+    today = datetime.now(TZ_SHANGHAI).date().isoformat()
+    revenue = "Detailed Corp reported revenue of $8.2 billion for the third quarter."
+    fallback = "Fallback Corp reported net income of $40 million for the period."
+
+    def document(kind: str, filename: str, html: str) -> str:
+        return f"<DOCUMENT>\n<TYPE>{kind}\n<FILENAME>{filename}\n<TEXT>{html}</TEXT>\n</DOCUMENT>"
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.host == "data.sec.gov":
+            accession = f"{request.url.path[-15:-5]}-26-000001"
+            return httpx.Response(
+                200,
+                json={
+                    "filings": {
+                        "recent": {
+                            "form": ["8-K"],
+                            "filingDate": [today],
+                            "accessionNumber": [accession],
+                            "items": ["2.02,9.01"],
+                            "primaryDocDescription": ["Reports revenue growth"],
+                        }
+                    }
+                },
+            )
+        if request.url.host != "www.sec.gov":
+            return httpx.Response(404)
+        if "/101/" in request.url.path:
+            return httpx.Response(
+                200,
+                text=document(
+                    "8-K",
+                    "primary.htm",
+                    "<p>Item 2.02. Results of Operations and Financial Condition.</p>",
+                ),
+            )
+        preferred = (
+            document("8-K", "primary.htm", '<p>See <a href="specific.htm">Exhibit 99.2</a>.</p>')
+            + document("EX-99.1", "wrong.htm", f"<p>{fallback}</p>")
+            + document("EX-99.2", "specific.htm", f"<p>{revenue}</p>")
+        )
+        other = document("8-K", "primary.htm", "<p>Item 2.02.</p>") + document(
+            "EX-99.1", "earnings.htm", f"<p>{fallback}</p>"
+        )
+        return httpx.Response(200, text=preferred if "/102/" in request.url.path else other)
+
+    original = httpx.Client
+    monkeypatch.setattr(
+        httpx,
+        "Client",
+        lambda **kw: original(**kw, transport=httpx.MockTransport(handler)),
+    )
+    result = svc.refresh(commodities=[])
+    assert result["channels"]["sec_chain"] == {"status": "ok", "count": 2, "disclosure_count": 3}
+    assert result["by_sector"]["semiconductor"]["hard_signal_count"] == 0
+    assert result["disclosures"][0]["items"] == ["2.02", "9.01"]
+    assert result["disclosures"][0]["content_verified"] is False
+    actual = result["by_sector"]["ai"]["hard_signals"][0]
+    assert actual["quote"] == revenue and actual["url"].endswith("/specific.htm")
+    assert result["by_sector"]["auto"]["hard_signals"][0]["quote"] == fallback
+    assert svc.load_cached()["by_sector"]["semiconductor"]["hard_signal_count"] == 0
+
+    legacy = {
+        "kind": "sec_chain_filing",
+        "sector": "ai",
+        "title": "旧版仅标题",
+        "url": "https://sec.gov",
+    }
+    svc._save_cache(
+        {
+            "by_sector": {"ai": {"hard_signals": [legacy], "hard_signal_count": 1}},
+            "highlights": [legacy],
+            "channels": {"sec_chain": {"status": "ok", "count": 1}},
+        }
+    )
+    old = svc.load_cached()
+    assert not old["highlights"] and old["by_sector"]["ai"]["hard_signal_count"] == 0
+    assert old["disclosures"][0]["title"] == "旧版仅标题"

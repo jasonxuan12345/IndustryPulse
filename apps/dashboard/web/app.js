@@ -159,6 +159,27 @@ function trendSvg(points) {
 }
 
 // ------------------------------------------------------------------ Page 1: 早期雷达
+function renderJudgment(item, fallback = '', label = 'AI 推断') {
+  const types = { news_event: '报道事件', sec_filing: 'SEC 公告', cninfo_ann: '巨潮公告',
+    twse_pulse: '台股营收', market_metric: '数据快照', announcement: '公告或披露' };
+  const sources = new Map((item.evidence || []).map(ref => [ref.id, ref]));
+  const facts = (item.facts || []).filter(fact => sources.has(fact.evidence_id));
+  const inference = item.inference || fallback;
+  return `${facts.length ? `<div class="stack-sm"><b>原文或数据确认的事实</b>
+    <ul>${facts.map(fact => {
+      const source = sources.get(fact.evidence_id);
+      const description = `${types[source.type] || '来源'} · ${source.title || ''}`;
+      return `<li>「${escapeHtml(fact.quote)}」 <small>
+        ${source.url ? `<a href="${escapeHtml(source.url)}" target="_blank" rel="noopener">${escapeHtml(description)}</a>` : escapeHtml(description)}
+        ${source.date ? ` · ${escapeHtml(String(source.date).slice(0, 10))}` : ''}
+        ${source.reprints ? ` · ${source.reprints} 篇相关报道` : ''}
+      </small></li>`;
+    }).join('')}</ul></div>` : ''}
+    ${inference ? `<p class="signal-body"><b>${escapeHtml(label)}</b> · ${escapeHtml(inference)}</p>` : ''}
+    ${(item.gaps || []).length ? `<div class="muted"><b>待验证缺口</b>
+      <ul>${item.gaps.map(gap => `<li>${escapeHtml(gap)}</li>`).join('')}</ul></div>` : ''}`;
+}
+
 function renderRadar() {
   const radarData = state.radar || {};
   const sectors = radarData.sectors || [];
@@ -167,7 +188,7 @@ function renderRadar() {
   const macro = report.macro_regime || {};
   const early = report.early_opportunities || [];
   const highRisk = report.high_risk_warnings || [];
-  const storiesById = new Map((state.feed?.stories || []).map(s => [String(s.id), s]));
+  const judgmentLabel = report.mode === 'rule_fallback' ? '规则判断' : 'AI 推断';
 
   const aiHeaderRight = `
     <div class="toolbar">
@@ -178,6 +199,7 @@ function renderRadar() {
 
   const anomalies = radarData.anomalies || {};
   const highlights = anomalies.highlights || [];
+  const disclosures = anomalies.disclosures || [];
   const anomalyBar = highlights.length
     ? `<div class="panel-body">
         <div class="tag-row" style="margin-bottom:12px">
@@ -192,9 +214,18 @@ function renderRadar() {
       </div>`
     : '<div class="panel-body"><p class="muted">尚未拉取全网硬异动（业绩预增簇 / 巨潮公告 / 台股月度营收 / 海外映射）。点击「刷新硬异动源」或直接运行扫描即可自动采集。</p></div>';
 
+  const disclosureList = disclosures.length ? `<details class="panel-body">
+    <summary>SEC 披露记录 (${disclosures.length})</summary>
+    ${disclosures.map(item => `<p>
+      <a href="${escapeHtml(item.url)}" target="_blank" rel="noopener">${escapeHtml(item.title)}</a>
+      <span class="tag">${item.content_verified ? '有原文摘录' : '待核对正文'}</span>
+      ${(item.items || []).length ? `<small>事项 ${escapeHtml(item.items.join('、'))}</small>` : ''}
+    </p>`).join('')}
+  </details>` : '';
+
   const macroSummary = hasReport
     ? `<div class="panel-body">
-        <p class="macro-lead">${escapeHtml(macro.summary || '暂无宏观研判')}</p>
+        ${renderJudgment(macro, macro.summary || '暂无宏观研判', judgmentLabel)}
         <div class="tag-row">
           ${(macro.favored_styles || []).map(t => `<span class="pill">有利方向：${escapeHtml(t)}</span>`).join('')}
           ${(macro.key_risks || []).map(t => `<span class="pill warn-pill">关注风险：${escapeHtml(t)}</span>`).join('')}
@@ -203,11 +234,7 @@ function renderRadar() {
     : `<div class="panel-body"><p class="muted">尚未运行过扫描。点击右上角「运行 AI 蝴蝶效应扫描」，系统会先抓取硬异动并结合 180 日止跌位置与机构共识做严苛筛选。</p></div>`;
 
   const earlyCards = early.length
-    ? early.map(item => {
-        const evs = (item.evidence_stories || []).length
-          ? item.evidence_stories
-          : (item.evidence_story_ids || []).map(id => storiesById.get(String(id))).filter(Boolean);
-        return `<article class="signal-card early-card">
+    ? early.map(item => `<article class="signal-card early-card">
           <div class="signal-top">
             <div>
               <strong>${escapeHtml(item.sector_name || item.sector)}</strong>
@@ -218,15 +245,13 @@ function renderRadar() {
           <h3>${escapeHtml(item.title)}</h3>
           ${(item.hard_triggers || []).length ? `<div class="tag-row" style="margin-bottom:8px">${item.hard_triggers.map(t => `<span class="tag">${escapeHtml(t)}</span>`).join('')}</div>` : ''}
           ${item.sub_theme_and_targets ? `<p class="disproof"><b>细分方向与标的：</b>${escapeHtml(item.sub_theme_and_targets)}</p>` : ''}
-          <p class="signal-body">${escapeHtml(item.butterfly_chain)}</p>
+          ${renderJudgment(item, item.butterfly_chain, judgmentLabel)}
           <div class="signal-meta">
             ${item.quant_alignment ? `<span>📊 ${escapeHtml(item.quant_alignment)}</span>` : ''}
             ${item.smart_money_note ? `<span>⚖ ${escapeHtml(item.smart_money_note)}</span>` : ''}
           </div>
           ${item.disproof_signal ? `<p class="disproof"><b>证伪红线：</b>${escapeHtml(item.disproof_signal)}</p>` : ''}
-          ${evs.length ? `<div class="evidence-links"><b>依据原文：</b>${evs.map(s => `<a href="${escapeHtml(s.url || '#')}" target="_blank" rel="noopener">${escapeHtml(s.title)}</a>`).join(' · ')}</div>` : ''}
-        </article>`;
-      }).join('')
+        </article>`).join('')
     : (hasReport
         ? '<div class="empty"><b>当前 0 个早期潜伏板块</b>经严审，目前暂无同时满足「真实硬异动 + 180日低位止跌企稳 + 未拥挤」的行业，建议防守观望，宁缺毋滥。</div>'
         : '<div class="empty">尚未运行过扫描。</div>');
@@ -241,7 +266,7 @@ function renderRadar() {
           <button class="control" data-jump-sector="${escapeHtml(item.sector)}">核验走势 ↗</button>
         </div>
         <h3>${escapeHtml(item.title)}</h3>
-        <p class="signal-body">${escapeHtml(item.reason)}</p>
+        ${renderJudgment(item, item.reason, judgmentLabel)}
         ${item.disproof_signal ? `<p class="disproof"><b>解除条件：</b>${escapeHtml(item.disproof_signal)}</p>` : ''}
       </article>`).join('')
     : '<div class="empty">当前没有触发高危离场警示的板块。</div>';
@@ -273,24 +298,29 @@ function renderRadar() {
         <div class="stack-sm" style="margin-top:10px">
           ${(group.signals || []).map(sig => `<div style="border-top:1px solid var(--line);padding-top:8px">
             <div style="font-size:12.5px;font-weight:500">${escapeHtml(sig.headline)} <span class="tag">${escapeHtml(sig.strength)}</span></div>
-            <div class="muted" style="font-size:11.5px;margin-top:4px">${escapeHtml(sig.chain)}</div>
+            ${renderJudgment(sig, sig.chain, 'AI 推断')}
           </div>`).join('')}
         </div>
       </article>`).join('')}</div>`
     : '';
+  const watch = (report.watch_list || []).map(item => `<article class="signal-card">
+    <h3>${escapeHtml(item.sector_name || item.sector)} · ${escapeHtml(item.status || '观察')}</h3>
+    ${renderJudgment(item, item.note, judgmentLabel)}
+  </article>`).join('');
 
   return `
     <div class="page-heading">
       <div><p class="eyebrow">EARLY RADAR / 硬异动 + AI严审 + 180日位置</p><h1>早期雷达<span> · 潜伏与离场</span></h1></div>
       ${aiHeaderRight}
     </div>
-    ${panel('全网硬异动探测器（业绩预增簇 / 公告 / 台股月营收 / 海外映射）', anomalyBar, anomalies.updated_at ? `<span class="muted" style="font-size:11px">更新于 ${date(anomalies.updated_at)}</span>` : '', 'HARD ANOMALY DETECTORS')}
+    ${panel('全网硬异动探测器（业绩预增簇 / 公告 / 台股月营收 / 海外映射）', anomalyBar + disclosureList, anomalies.updated_at ? `<span class="muted" style="font-size:11px">更新于 ${date(anomalies.updated_at)}</span>` : '', 'HARD ANOMALY DETECTORS')}
     <div style="margin-top:20px">${panel('宏观经济风向与主要矛盾', macroSummary, '', 'MACRO REGIME')}</div>
     <div class="two-col" style="margin-top:20px">
       ${panel('「异常催化 × 180日市场位置」四象限', `<div class="panel-body">${quadrantChart(sectors)}</div>`, '', 'QUANT POSITION MATRIX')}
       ${panel('高危离场警示区', `<div class="panel-body stack">${riskCards}</div>`, '', 'HIGH RISK WARNINGS')}
     </div>
     ${panel('早期潜伏重点板块（硬异动 + 止跌企稳 + 未拥挤）', `<div class="panel-body card-grid">${earlyCards}</div>`, '', 'EARLY OPPORTUNITIES')}
+    ${watch ? panel('继续观察', `<div class="panel-body card-grid">${watch}</div>`) : ''}
     ${weakSignalsHtml ? `<div style="margin-top:20px">${panel('各行业 AI 初筛弱信号与传导链', weakSignalsHtml, '', 'WEAK SIGNALS')}</div>` : ''}
     <div style="margin-top:20px">${panel('12 行业量化位置全览', quantTable, '', 'ALL SECTORS QUANT RADAR')}</div>
   `;

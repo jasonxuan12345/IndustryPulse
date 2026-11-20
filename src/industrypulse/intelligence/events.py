@@ -5,16 +5,35 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+from collections import defaultdict
 from collections.abc import Callable, Sequence
 from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
+from functools import lru_cache
+from pathlib import Path
+from threading import Lock
 from typing import Any
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from industrypulse.core import TZ_SHANGHAI
+from industrypulse.intelligence.feeds import canonical_url
+from industrypulse.intelligence.service import write_json
 
 _PUNCTUATION = re.compile(r"[\s\W_]+", re.UNICODE)
 _PREFIX = re.compile(r"^(?:【[^】]{1,12}】|快讯[：:]|独家[｜|]|突发[：:]|刚刚[｜|])+")
 _NUMBER = re.compile(r"(?<![\d.])[+-]?\d+(?:,\d{3})*(?:\.\d+)?(?![\d.])")
+_STAGES = (
+    (
+        "planned",
+        re.compile(
+            r"(?<!模)拟(?:签|与|向|收购|终止|取消|筹)|计划(?:签|与|收购|终止|取消)|筹划|意向"
+        ),
+    ),
+    ("terminated", re.compile(r"终止|取消|撤回|解除协议")),
+    ("completed", re.compile(r"正式|已签|落地|完成|签订|签署")),
+)
+_INDEX_LOCK = Lock()
+_WINDOW_SECONDS = 3 * 24 * 60 * 60
 
 
 def normalize_title(title: str) -> str:
@@ -28,9 +47,19 @@ def _bigrams(text: str) -> set[str]:
     return {text[index : index + 2] for index in range(len(text) - 1)}
 
 
+@lru_cache(maxsize=16384)
+def _stage(title: str) -> str:
+    return next((name for name, pattern in _STAGES if pattern.search(title)), "")
+
+
+def _stage_conflicts(left: str, right: str) -> bool:
+    a, b = _stage(left), _stage(right)
+    return bool(a and b and a != b)
+
+
 def same_report(left: str, right: str) -> bool:
     """标题归一化后，判断两篇报道是不是同一件事的转载。"""
-    if not left or not right:
+    if not left or not right or _stage_conflicts(left, right):
         return False
     if left == right:
         return True
@@ -45,21 +74,88 @@ def same_report(left: str, right: str) -> bool:
     return len(first & second) / len(first | second) >= 0.72
 
 
+@lru_cache(maxsize=16384)
+def _event_url(value: str) -> str:
+    url = urlsplit(canonical_url(value))
+    query = [(key, val) for key, val in parse_qsl(url.query) if (key, val) != ("f", "rss")]
+    return urlunsplit((url.scheme, url.netloc.removeprefix("www."), url.path, urlencode(query), ""))
+
+
+def _moment(value: str) -> float | None:
+    try:
+        moment = datetime.fromisoformat(value)
+    except ValueError:
+        return None
+    return (moment if moment.tzinfo else moment.replace(tzinfo=TZ_SHANGHAI)).timestamp()
+
+
+def _nearby(left: float | None, right: float | None) -> bool:
+    return left is None or right is None or abs(left - right) <= _WINDOW_SECONDS
+
+
+class _Candidates:
+    """Find possible matches without comparing every pair in the whole feed."""
+
+    def __init__(self, titles: Sequence[str]) -> None:
+        self.prefixes = {title[:8] for title in titles if len(title) >= 8}
+        self.lookup: dict[str, set[int]] = defaultdict(set)
+
+    def keys(self, title: str, urls: set[str]) -> set[str]:
+        # same_report uses a four-character prefix for fuzzy matches. For containment
+        # the shorter title's eight-character prefix appears inside the longer title.
+        return (
+            {f"url:{url}" for url in urls}
+            | {f"prefix:{title[:4]}"}
+            | {
+                f"anchor:{part}"
+                for pos in range(len(title) - 7)
+                if (part := title[pos : pos + 8]) in self.prefixes
+            }
+        )
+
+    def find(self, keys: set[str]) -> list[int]:
+        return sorted({index for key in keys for index in self.lookup.get(key, ())})
+
+    def add(self, index: int, keys: set[str]) -> None:
+        for key in keys:
+            self.lookup[key].add(index)
+
+
 def cluster_stories(stories: Sequence[dict[str, Any]]) -> list[list[dict[str, Any]]]:
     ordered = sorted(stories, key=lambda item: (item.get("published_at", ""), item.get("url", "")))
+    titles = [normalize_title(str(item.get("title") or "")) for item in ordered]
+    candidates = _Candidates(titles)
     groups: list[dict[str, Any]] = []
-    for story in ordered:
-        title = normalize_title(str(story.get("title", "")))
-        placed = False
-        for group in groups:
-            if same_report(title, group["seed"]):
+    for story, title in zip(ordered, titles, strict=True):
+        url = _event_url(str(story.get("url") or ""))
+        urls = {url} if url else set()
+        keys = candidates.keys(title, urls)
+        when = _moment(str(story.get("published_at") or ""))
+        for index in candidates.find(keys):
+            group = groups[index]
+            if not _nearby(when, group["time"]) or _stage_conflicts(title, group["stage_title"]):
+                continue
+            if (url and url in group["urls"]) or same_report(title, group["seed"]):
                 group["items"].append(story)
+                if url:
+                    group["urls"].add(url)
+                if _stage(title):
+                    group["stage_title"] = title
                 if len(title) > len(group["seed"]):
                     group["seed"] = title
-                placed = True
+                candidates.add(index, keys)
                 break
-        if not placed:
-            groups.append({"seed": title, "items": [story]})
+        else:
+            candidates.add(len(groups), keys)
+            groups.append(
+                {
+                    "seed": title,
+                    "stage_title": title,
+                    "items": [story],
+                    "time": when,
+                    "urls": urls,
+                }
+            )
     groups.sort(
         key=lambda group: max(item.get("published_at", "") for item in group["items"]), reverse=True
     )
@@ -69,6 +165,110 @@ def cluster_stories(stories: Sequence[dict[str, Any]]) -> list[list[dict[str, An
 def cluster_id(members: Sequence[dict[str, Any]]) -> str:
     urls = "|".join(sorted(str(item.get("url", "")) for item in members))
     return hashlib.sha256(urls.encode()).hexdigest()[:24]
+
+
+def identified_clusters(
+    stories: Sequence[dict[str, Any]], path: Path
+) -> list[tuple[str, list[dict[str, Any]]]]:
+    """保留首次见到的编号，后续用来源别名和标题匹配同一时间段的事件。"""
+    groups = cluster_stories(stories)
+    if not groups:
+        return []
+    titles_by_group = [
+        [normalize_title(str(member.get("title") or "")) for member in members]
+        for members in groups
+    ]
+    with _INDEX_LOCK:
+        index = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
+        registry_ids = list(index)
+        registry_slots = {key: slot for slot, key in enumerate(registry_ids)}
+        anchors = [item["title"] for item in index.values()]
+        candidates = _Candidates(anchors + [max(titles, key=len) for titles in titles_by_group])
+        for slot, item in enumerate(index.values()):
+            candidates.add(slot, candidates.keys(item["title"], set(item["urls"])))
+        result: dict[str, list[dict[str, Any]]] = {}
+        changed = False
+        for members, titles in zip(groups, titles_by_group, strict=True):
+            first = members[0]
+            published = str(first.get("published_at") or "")
+            moment = _moment(published)
+            title = max(titles, key=len)
+            stage_title = next((value for value in titles if _stage(value)), title)
+            urls = {url for member in members if (url := _event_url(str(member.get("url") or "")))}
+            keys = candidates.keys(title, urls)
+            matches = [
+                (key, item)
+                for slot in candidates.find(keys)
+                for key in [registry_ids[slot]]
+                for item in [index[key]]
+                if _nearby(moment, item["time"])
+                and not _stage_conflicts(stage_title, item.get("stage_title", item["title"]))
+            ]
+            key = next((key for key, item in matches if urls.intersection(item["urls"])), None)
+            if key is None:
+                key = next(
+                    (key for key, item in matches if same_report(title, item["title"])), None
+                )
+            if key is None:
+                key = cluster_id(members)
+                if key in index:
+                    key = hashlib.sha256(f"{key}:{title}:{published}".encode()).hexdigest()[:24]
+                index[key] = {
+                    "title": title,
+                    "stage_title": stage_title,
+                    "published_at": published,
+                    "time": moment,
+                    "urls": [],
+                }
+                registry_slots[key] = len(registry_ids)
+                registry_ids.append(key)
+                candidates.add(registry_slots[key], keys)
+                changed = True
+            item = index[key]
+            all_urls = sorted(set(item["urls"]) | urls)
+            if all_urls != item["urls"]:
+                candidates.add(registry_slots[key], candidates.keys(item["title"], urls))
+                item["urls"] = all_urls
+                changed = True
+            if not _stage(item["stage_title"]) and _stage(stage_title):
+                item["stage_title"] = stage_title
+                changed = True
+            if moment is not None and (item["time"] is None or moment < item["time"]):
+                item["published_at"], item["time"] = published, moment
+                changed = True
+            result.setdefault(key, []).extend(members)
+        if changed:
+            write_json(path, index)
+        return [
+            (
+                key,
+                [
+                    {**member, "event_published_at": index[key]["published_at"]}
+                    for member in members
+                ],
+            )
+            for key, members in result.items()
+        ]
+
+
+def radar_events(stories: Sequence[dict[str, Any]], path: Path) -> list[dict[str, Any]]:
+    events = []
+    for event_id, members in identified_clusters(stories, path):
+        sectors = dict.fromkeys(str(item["sector"]) for item in members if item.get("sector"))
+        primary = next((item for item in members if item.get("summary")), members[0])
+        sources = _sources(members)
+        for sector in sectors:
+            events.append(
+                {
+                    **primary,
+                    "sector": sector,
+                    "id": event_id,
+                    "cluster_id": event_id,
+                    "published_at": members[0]["event_published_at"],
+                    "sources": sources,
+                }
+            )
+    return events
 
 
 def fingerprint(members: Sequence[dict[str, Any]]) -> str:
@@ -279,16 +479,26 @@ def build_brief(
     sector: str,
     day: date | None,
     cached: dict[str, dict[str, Any]] | None = None,
+    *,
+    index_path: Path | None = None,
 ) -> dict[str, Any]:
     chosen, selected = stories_for_day(stories, sector, day)
     clusters = []
     saved = cached or {}
-    for members in cluster_stories(selected):
+    groups = (
+        identified_clusters(selected, index_path)
+        if index_path
+        else [(cluster_id(group), group) for group in cluster_stories(selected)]
+    )
+    for event_id, members in groups:
         view = describe_cluster(members)
-        record = saved.get(view["cluster_id"])
-        if record and record.get("fingerprint") == view["fingerprint"] and record.get("event"):
+        record = saved.get(event_id) or saved.get(view["cluster_id"])
+        if (extracted := recover_extraction(members, record)) is not None:
+            view.update(extracted)
+        elif record and record.get("fingerprint") == view["fingerprint"] and record.get("event"):
             view.update(record["event"])
             present_event(view)
+        view["cluster_id"] = event_id
         clusters.append(view)
     events = [item for item in clusters if item["status"] == "EXTRACTED"]
     label = chosen.isoformat() if chosen else ""
@@ -304,6 +514,16 @@ def build_brief(
         "clusters": clusters,
         "events": events,
     }
+
+
+def recover_extraction(
+    members: Sequence[dict[str, Any]], record: dict[str, Any] | None
+) -> dict[str, Any] | None:
+    event = (record or {}).get("event") or {}
+    if event.get("status") != "EXTRACTED":
+        return None
+    checked = validate_extraction(members, event)
+    return checked if checked["status"] == "EXTRACTED" else None
 
 
 def apply_extraction(

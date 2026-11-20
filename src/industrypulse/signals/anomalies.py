@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from collections.abc import Callable
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -23,8 +24,18 @@ import httpx
 import yaml
 
 from industrypulse.core import TZ_SHANGHAI, replace_file
+from industrypulse.signals.sec8k import extract_8k_excerpt
 
 ROOT = Path(__file__).resolve().parents[3]
+_SEC_ITEMS = {"1.01", "1.02", "2.01", "2.02", "2.03", "2.05", "2.06", "5.02", "7.01", "8.01"}
+
+
+def _scores_as_signal(item: dict[str, Any]) -> bool:
+    return item.get("kind") != "sec_chain_filing" or bool(
+        item.get("content_verified") and item.get("quote")
+    )
+
+
 _UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) IndustryPulse/2.0"
 _SEC_UA = os.getenv(
     "INDUSTRYPULSE_SEC_USER_AGENT", "IndustryPulse/2.0 (local-research-workbench@example.com)"
@@ -134,7 +145,36 @@ class SignalService:
             }
         try:
             data = json.loads(self.cache_path.read_text(encoding="utf-8"))
-            return dict(data) if isinstance(data, dict) else {}
+            if not isinstance(data, dict):
+                return {}
+            disclosures = {
+                (item.get("sector"), item.get("url"), item.get("title")): item
+                for item in (data.get("disclosures") or [])
+            }
+            for bucket in (data.get("by_sector") or {}).values():
+                signals = bucket.get("hard_signals") or []
+                for item in signals:
+                    if not _scores_as_signal(item):
+                        key = (item.get("sector"), item.get("url"), item.get("title"))
+                        disclosures.setdefault(
+                            key,
+                            {
+                                **item,
+                                "content_verified": False,
+                                "detail": "仅有旧版申报标题，正文待核对",
+                            },
+                        )
+                bucket["hard_signals"] = [item for item in signals if _scores_as_signal(item)]
+                bucket["hard_signal_count"] = len(bucket["hard_signals"])
+            data["disclosures"] = list(disclosures.values())
+            data["highlights"] = [
+                item for item in (data.get("highlights") or []) if _scores_as_signal(item)
+            ]
+            sec_channel = (data.get("channels") or {}).get("sec_chain")
+            if sec_channel and sec_channel.get("status") == "ok":
+                sec_channel["count"] = sum(_scores_as_signal(item) for item in disclosures.values())
+                sec_channel["disclosure_count"] = len(disclosures)
+            return data
         except (OSError, json.JSONDecodeError):
             return {"updated_at": None, "by_sector": {}, "channels": {}, "highlights": []}
 
@@ -370,24 +410,53 @@ class SignalService:
             recent = (resp.json().get("filings") or {}).get("recent") or {}
             forms = recent.get("form") or []
             dates = recent.get("filingDate") or []
-            descs = recent.get("primaryDocDescription") or []
             acc_nums = recent.get("accessionNumber") or []
+            item_codes = recent.get("items") or []
             for idx, form in enumerate(forms[:25]):
                 fdate = str(dates[idx]) if idx < len(dates) else ""
-                if str(form) in {"8-K", "10-Q", "10-K"} and fdate >= cutoff:
-                    acc = str(acc_nums[idx]).replace("-", "")
-                    events.append(
-                        {
-                            "kind": "sec_chain_filing",
-                            "tag": f"链主{form}",
-                            "sector": str(leader["sector"]),
-                            "title": f"{leader['name']} 披露 {form} ({fdate})",
-                            "detail": str(descs[idx] if idx < len(descs) else form),
-                            "date": fdate,
-                            "url": f"https://www.sec.gov/Archives/edgar/data/{int(cik)}/{acc}",
-                        }
-                    )
-                    break
+                if form not in {"8-K", "8-K/A"} or fdate < cutoff or idx >= len(acc_nums):
+                    continue
+                accession = str(acc_nums[idx])
+                if not re.fullmatch(r"\d{10}-\d{2}-\d{6}", accession):
+                    continue
+                codes = (
+                    re.findall(r"\b\d\.\d{2}\b", str(item_codes[idx]))
+                    if idx < len(item_codes)
+                    else []
+                )
+                compact_accession = accession.replace("-", "")
+                base = f"https://www.sec.gov/Archives/edgar/data/{int(cik)}/{compact_accession}"
+                item: dict[str, Any] = {
+                    "kind": "sec_chain_filing",
+                    "tag": f"链主{form}",
+                    "sector": str(leader["sector"]),
+                    "title": f"{leader['name']} 披露 {form} ({fdate})",
+                    "detail": "仅确认披露事项，尚无可核对的正文摘录" if codes else "事项编号缺失",
+                    "date": fdate,
+                    "url": f"{base}/{accession}-index.htm",
+                    "accessionNumber": accession,
+                    "items": codes,
+                    "content_verified": False,
+                }
+                if _SEC_ITEMS.intersection(codes):
+                    try:
+                        document = client.get(
+                            f"{base}/{accession}.txt", headers={"User-Agent": _SEC_UA}
+                        )
+                        document.raise_for_status()
+                        excerpt = extract_8k_excerpt(document.text)
+                    except (httpx.HTTPError, ValueError):
+                        excerpt = None
+                    if excerpt:
+                        filename, quote = excerpt
+                        item.update(
+                            detail=quote,
+                            quote=quote,
+                            url=f"{base}/{filename}",
+                            content_verified=True,
+                        )
+                events.append(item)
+                break
         return events
 
     def fetch_fda_approvals(self, client: httpx.Client, *, days: int = 21) -> list[dict[str, Any]]:
@@ -523,6 +592,7 @@ class SignalService:
         cfg = self._config()
         domains = _load_domain_keywords(self.root)
         channels: dict[str, dict[str, Any]] = {}
+        disclosures: list[dict[str, Any]] = []
         by_sector: dict[str, dict[str, Any]] = {
             str(d["id"]): {
                 "hard_signals": [],
@@ -560,8 +630,13 @@ class SignalService:
             for key, fn in tasks:
                 try:
                     rows = fn()
-                    channels[key] = {"status": "ok", "count": len(rows)}
+                    channels[key] = {"status": "ok", "count": sum(map(_scores_as_signal, rows))}
+                    if key == "sec_chain":
+                        disclosures.extend(rows)
+                        channels[key]["disclosure_count"] = len(rows)
                     for item in rows:
+                        if not _scores_as_signal(item):
+                            continue
                         bucket = ensure_sector(str(item["sector"]))
                         if len(bucket["hard_signals"]) < 8:
                             bucket["hard_signals"].append(item)
@@ -667,6 +742,7 @@ class SignalService:
             "channels": channels,
             "by_sector": by_sector,
             "highlights": highlights[:20],
+            "disclosures": disclosures,
         }
         self._save_cache(result)
         return result

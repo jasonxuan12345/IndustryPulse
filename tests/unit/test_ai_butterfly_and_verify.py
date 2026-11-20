@@ -28,6 +28,16 @@ def _sample_radars() -> list[dict]:
             "return_20d": -2.0,
             "relative_20d": -1.0,
             "risk_flags": [],
+            "hard_signals": [
+                {
+                    "kind": "cninfo_announcement",
+                    "title": "某设备公司中标海缆项目",
+                    "detail": "项目订单金额为 16.5 亿元",
+                    "tag": "中标公告",
+                    "url": "https://example.com/filing",
+                    "date": "2026-11-18",
+                }
+            ],
         },
         {
             "id": "ai",
@@ -85,6 +95,12 @@ def test_butterfly_rule_fallback_and_persistence(tmp_path, monkeypatch) -> None:
     assert report["mode"] == "rule_fallback"
     assert report["early_opportunities"][0]["sector"] == "energy"
     assert report["high_risk_warnings"][0]["sector"] == "ai"
+    assert "evidence_story_ids" not in report["early_opportunities"][0]
+    assert all(
+        ref["type"] == "market_metric"
+        for item in report["early_opportunities"] + report["high_risk_warnings"]
+        for ref in item["evidence"]
+    )
     assert load_latest_report()["run_id"] == report["run_id"]
     snapshot = tmp_path / "ai" / "runs" / report["run_id"] / "snapshot.json"
     saved = json.loads(snapshot.read_text(encoding="utf-8"))
@@ -114,9 +130,16 @@ def test_butterfly_ai_parallel_and_verify_and_history(tmp_path, monkeypatch) -> 
                         "signals": [
                             {
                                 "headline": "欧洲电网招标加速",
-                                "chain": "海外招标->变压器与海缆订单",
+                                "inference": "海外招标可能推高国内变压器与海缆订单",
                                 "strength": "high",
-                                "story_ids": ["story-e1", "fabricated-id"],
+                                "facts": [
+                                    {
+                                        "evidence_id": "event:story-e1",
+                                        "quote": "海缆与变压器交期延长",
+                                    },
+                                    {"evidence_id": "event:fabricated-id", "quote": "不存在"},
+                                ],
+                                "gaps": ["等待设备出口订单数据"],
                             }
                         ]
                     },
@@ -138,10 +161,16 @@ def test_butterfly_ai_parallel_and_verify_and_history(tmp_path, monkeypatch) -> 
             )
         else:
             captured.update(json.loads(user_prompt))
+            announcement = next(
+                row for row in captured["evidence_catalog"] if row["type"] == "cninfo_ann"
+            )
             content = json.dumps(
                 {
                     "macro_regime": {
                         "summary": "外需电网与制造升级出现局部先行信号",
+                        "inference": "出口需求可能领先于国内订单。",
+                        "facts": [{"evidence_id": "macro:PMI", "quote": "PMI 2026-10 50.3%"}],
+                        "gaps": ["出口订单尚待验证"],
                         "favored_styles": ["低位出口链"],
                         "key_risks": ["高拥挤算力回撤"],
                     },
@@ -150,11 +179,23 @@ def test_butterfly_ai_parallel_and_verify_and_history(tmp_path, monkeypatch) -> 
                             "sector": "energy",
                             "sector_name": "新能源",
                             "title": "电网出海出现订单传导迹象",
-                            "butterfly_chain": "海外招标加速 -> 国内设备出口订单增量",
+                            "inference": "海外招标加速可能增加国内设备出口订单",
                             "quant_alignment": "位置分 25，处于低位",
                             "smart_money_note": "暂无拥挤",
                             "disproof_signal": "连续两月出口额同比转负",
-                            "evidence_story_ids": ["story-e1", "fake-id"],
+                            "facts": [
+                                {"evidence_id": "event:story-e1", "quote": "海缆与变压器交期延长"},
+                                {
+                                    "evidence_id": announcement["id"],
+                                    "quote": "项目订单金额为 16.5 亿元",
+                                },
+                                {"evidence_id": "event:story-e1", "quote": "已确认涨价 30%"},
+                                {
+                                    "evidence_id": "event:story-a1",
+                                    "quote": "热门算力题材换手率创新高",
+                                },
+                            ],
+                            "evidence_story_ids": ["fake-id"],
                         }
                     ],
                     "high_risk_warnings": [
@@ -162,12 +203,20 @@ def test_butterfly_ai_parallel_and_verify_and_history(tmp_path, monkeypatch) -> 
                             "sector": "ai",
                             "sector_name": "人工智能",
                             "title": "交易拥挤与高位滞涨",
-                            "reason": "60日价格 95% 分位叠加放量滞涨",
+                            "inference": "放量滞涨存在回撤风险",
                             "disproof_signal": "缩量企稳并伴随新业绩超预期",
-                            "evidence_story_ids": ["story-a1"],
+                            "facts": [{"evidence_id": "market:ai", "quote": "180日价格分位 95.0%"}],
                         }
                     ],
-                    "watch_list": [],
+                    "watch_list": [
+                        {
+                            "sector": "energy",
+                            "status": "观察",
+                            "inference": "有待观察的储能资本开支",
+                            "facts": [],
+                            "evidence_story_ids": ["story-e1"],
+                        }
+                    ],
                 },
                 ensure_ascii=False,
             )
@@ -202,8 +251,17 @@ def test_butterfly_ai_parallel_and_verify_and_history(tmp_path, monkeypatch) -> 
     )
     assert report["mode"] == "ai"
     early = report["early_opportunities"][0]
-    assert early["evidence_story_ids"] == ["story-e1"]  # 伪造 id 被过滤
-    assert early["evidence_stories"][0]["url"] == "https://example.com/e1"
+    assert "evidence_story_ids" not in early
+    assert [fact["quote"] for fact in early["facts"]] == [
+        "海缆与变压器交期延长",
+        "项目订单金额为 16.5 亿元",
+    ]
+    assert early["evidence"][0]["url"] == "https://example.com/e1"
+    assert [ref["type"] for ref in early["evidence"]] == ["news_event", "cninfo_ann"]
+    assert early["gaps"] == ["部分事实无法与所引用的原文或数据快照核对"]
+    assert report["high_risk_warnings"][0]["evidence"][0]["type"] == "market_metric"
+    assert report["watch_list"][0]["evidence"] == []
+    assert report["watch_list"][0]["gaps"] == ["暂无与此判断对应的可核验事实"]
     snapshot = tmp_path / "ai" / "runs" / report["run_id"] / "snapshot.json"
     raw_snapshot = snapshot.read_text(encoding="utf-8")
     saved = json.loads(raw_snapshot)
@@ -221,6 +279,17 @@ def test_butterfly_ai_parallel_and_verify_and_history(tmp_path, monkeypatch) -> 
     assert len(synthesis["prompt_version"]) == 64
     assert [item["name"] for item in captured["macro_indicators"]] == ["PMI"]
     assert captured["macro_data_gaps"][0]["last_valid_date"] == "2024-08-16"
+    decisions = [
+        report["macro_regime"],
+        *report["early_opportunities"],
+        *report["high_risk_warnings"],
+        *report["watch_list"],
+    ]
+    for judgment in decisions:
+        assert {"facts", "inference", "gaps", "evidence"}.issubset(judgment)
+        refs = {ref["id"]: ref for ref in judgment["evidence"]}
+        for fact in judgment["facts"]:
+            assert fact["quote"] in " ".join(refs[fact["evidence_id"]]["excerpt"].split())
 
     # 测试随手投喂核验
     vr = verify_lead(

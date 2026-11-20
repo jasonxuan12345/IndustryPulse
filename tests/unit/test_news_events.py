@@ -1,13 +1,16 @@
 from datetime import date
 
+from industrypulse.api.radar import collect_sector_radars
 from industrypulse.intelligence.event_book import EventBook
 from industrypulse.intelligence.events import (
     apply_extraction,
     build_brief,
     cluster_stories,
+    radar_events,
     same_report,
     validate_extraction,
 )
+from industrypulse.intelligence.service import NewsService
 
 
 def story(title: str, summary: str, url: str, published: str = "2026-10-23T02:00:00+00:00") -> dict:
@@ -36,6 +39,53 @@ def test_reprints_merge_and_different_subjects_stay_apart() -> None:
     )
     assert len(groups) == 2
     assert {len(group) for group in groups} == {1, 2}
+
+
+def test_contract_stages_stay_separate_before_containment_shortcut() -> None:
+    planned = "甲公司拟签署十亿元储能合同"
+    signed = "甲公司正式签署十亿元储能合同"
+    stopped = "甲公司正式签署十亿元储能合同后终止协议"
+    assert not same_report(planned, signed)
+    assert not same_report(signed, stopped)
+    assert (
+        len(
+            cluster_stories(
+                [
+                    story(title, "", "https://example.com/shared")
+                    for title in (planned, signed, stopped)
+                ]
+            )
+        )
+        == 3
+    )
+
+
+def test_event_id_survives_reprint_and_radar_uses_one_event(tmp_path, monkeypatch) -> None:
+    original = story("宁德时代签订储能大单", "超过百亿元", "https://a.example/1")
+    reprint = story(
+        "【转载】宁德时代签订储能大单，金额超百亿",
+        "",
+        "https://b.example/2?f=rss",
+        published="2026-10-23T01:00:00+00:00",
+    )
+    book = EventBook(tmp_path / "events.json")
+    first_id = book.brief([original], "semiconductor", None)["clusters"][0]["cluster_id"]
+    assert (
+        EventBook(tmp_path / "events.json").brief([original, reprint], "semiconductor", None)[
+            "clusters"
+        ][0]["cluster_id"]
+        == first_id
+    )
+    assert radar_events([reprint], book.index_path)[0]["id"] == first_id
+
+    monkeypatch.setenv("INDUSTRYPULSE_MARKET_DATA", "0")
+    monkeypatch.setenv("INDUSTRYPULSE_SIGNALS_DIR", str(tmp_path / "signals"))
+    news = NewsService(directory=tmp_path)
+    monkeypatch.setattr(news, "feed", lambda: {"stories": [original, reprint]})
+    sectors, events, _ = collect_sector_radars(news)
+    assert [event["id"] for event in events] == [first_id]
+    assert len(events[0]["sources"]) == 2
+    assert next(r for r in sectors if r["id"] == "semiconductor")["news_count_24h"] == 1
 
 
 def test_unsupported_number_and_paraphrase_are_cleared() -> None:
