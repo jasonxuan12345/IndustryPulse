@@ -34,9 +34,9 @@ institutions:
     region: US
     style: 颠覆式成长与机器人/生物科技
     cik: "0001697748"
-    disclosure_lag_days: 1
+    disclosure_lag_days: 45
     focus_sectors: [ai, auto, health, digital]
-    notes: 每日交易披露时效高，重点反映海外高弹性科技/智驾/创新药风险偏好
+    notes: 此处跟踪季度 13F，ARK 日度交易在独立渠道中标记
 
   - id: himalaya
     name: Himalaya Capital（李录）
@@ -61,9 +61,9 @@ institutions:
     region: CN
     style: 跨市场外资审美
     cik: ""
-    disclosure_lag_days: 7
+    disclosure_lag_days: 0
     focus_sectors: [consumer, finance, health, metals, semiconductor]
-    notes: 观察外资对汇率、宏观预期及顺周期核心资产的连续流入/流出节奏
+    notes: 关注季度持股变化与活跃股成交，日度净买额已停更
 
   - id: industrial_capex
     name: 产业资本与链主（CapEx 跟踪）
@@ -73,3 +73,52 @@ institutions:
     disclosure_lag_days: 15
     focus_sectors: [ai, semiconductor, energy, metals, chemicals]
     notes: 微软/谷歌/英伟达/宁德时代等链主资本开支转向往往早于财务利润兑现
+
+data_channels:
+  - id: sec_13f
+    name: SEC 13F 披露持仓
+    frequency: 季度
+    coverage_basis: 报告期
+    gap: 仅包含各机构公开申报的 13F 持仓，权重以申报表内总市值为分母。未映射证券保留原名。
+  - id: ark_trades
+    name: ARK 公开交易
+    frequency: 交易日
+    coverage_basis: 交易日期
+    gap: 暂未接入日度交易记录。
+  - id: cn_public_funds
+    name: 国内公募披露持仓
+    kind: holding
+    frequency: 季度
+    coverage_basis: 手工摘录的披露日期
+    gap: 支持手工摘录，尚未自动采集，覆盖范围取决于录入。
+  - id: northbound_capital
+    name: 北向资金
+    kind: holding
+    frequency: 季度持股 / 活跃股成交
+    coverage_basis: 手工摘录的披露日期
+    gap: 季度持股和活跃股成交尚未自动接入。日度净买入历史截至 2024-08-16。
+  - id: industrial_capex
+    name: 企业 CapEx
+    kind: capex
+    frequency: 财报季度 / 披露事件
+    coverage_basis: 手工摘录的披露日期
+    gap: 支持手工摘录财报或纪要，尚未自动采集。
+
+# 人工维护的起始映射。CUSIP 保留前导零，未匹配时不推断行业。
+cusip_map:
+  "007903107": {ticker: AMD, sector: semiconductor}
+  "02079K107": {ticker: GOOG, sector: ai}
+  "02079K305": {ticker: GOOGL, sector: ai}
+  "023135106": {ticker: AMZN, sector: digital}
+  "025816109": {ticker: AXP, sector: finance}
+  "037833100": {ticker: AAPL, sector: consumer}
+  "060505104": {ticker: BAC, sector: finance}
+  "11135F101": {ticker: AVGO, sector: semiconductor}
+  "166764100": {ticker: CVX, sector: chemicals}
+  "191216100": {ticker: KO, sector: consumer}
+  "30303M102": {ticker: META, sector: ai}
+  "594918104": {ticker: MSFT, sector: ai}
+  "67066G104": {ticker: NVDA, sector: semiconductor}
+  "674599105": {ticker: OXY, sector: chemicals}
+  "874039100": {ticker: TSM, sector: semiconductor}
+  "88160R101": {ticker: TSLA, sector: auto}

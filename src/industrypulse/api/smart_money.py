@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from industrypulse.smart_money.service import SmartMoneyEntryInput, SmartMoneyService
@@ -21,6 +21,10 @@ def create_smart_money_router(service: SmartMoneyService | None = None) -> APIRo
     @router.get("")
     def overview() -> dict[str, Any]:
         return sm.overview()
+
+    @router.get("/holdings")
+    def holdings(sector: str = Query(min_length=1, max_length=64)) -> dict[str, Any]:
+        return sm.holdings(sector)
 
     @router.post("/entries")
     def add_entry(payload: SmartMoneyEntryInput) -> dict[str, Any]:

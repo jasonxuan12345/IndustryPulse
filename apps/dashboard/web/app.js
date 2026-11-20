@@ -17,6 +17,9 @@ const state = {
   sigBusy: false,
   verifyBusy: false,
   smSyncBusy: false,
+  smHoldingSector: '',
+  smHoldings: null,
+  smHoldingsError: '',
   smParseBusy: false,
   error: ''
 };
@@ -376,6 +379,60 @@ function renderSector() {
 }
 
 // ------------------------------------------------------------------ Page 3: 机构动向
+function renderHoldingComparisons(sm, sectors) {
+  const selected = state.smHoldingSector;
+  const sectorNames = Object.fromEntries(sectors.map(s => [s.id, s.name]));
+  const labels = { NEW: '本期新增披露', INCREASE: '增加', REDUCE: '减少', HOLD: '持平',
+    NOT_DISCLOSED: '本期未披露', REVIEW: '待核实' };
+  const qty = n => n == null ? '—' : n.toLocaleString('zh-CN');
+  const weight = n => n == null ? '—' : `${n.toFixed(2)}%`;
+  const filings = sources => (sources || []).map(f =>
+    `<a href="${escapeHtml(f.url)}" target="_blank" rel="noopener">${escapeHtml(f.filing_date)}</a>`).join(' · ');
+  const tabs = (sm.holding_sectors || []).map(id => `<button type="button"
+    class="control ${selected === id ? 'primary' : ''}" data-sm-sector="${escapeHtml(id)}"
+    aria-pressed="${selected === id}">${escapeHtml(sectorNames[id] || (id === 'unmapped' ? '未映射' : id))}</button>`).join(' ');
+
+  const summary = sm.sector_summary?.[selected];
+  const consensus = summary?.report_date
+    ? `<p class="muted">${escapeHtml(summary.report_date)} · 披露持仓增加 ${summary.increase_count} 家 · 减少 ${summary.reduce_count} 家 · 同行业内有增有减 ${summary.mixed_count} 家</p>`
+    : '';
+  const details = (state.smHoldings?.institutions || []).map(inst => `<details class="sm-inst-card" open>
+      <summary>${escapeHtml(inst.institution_name)} · ${escapeHtml(inst.previous_report_date)} → ${escapeHtml(inst.report_date)}</summary>
+      ${inst.sync_error ? `<p class="notice">本次同步失败，以下为上次成功的数据。</p>` : ''}
+      ${inst.confidential_omitted || inst.previous_confidential_omitted ? '<p class="muted">相关申报标注有保密持仓。</p>' : ''}
+      <p class="muted">上期申报 ${filings(inst.previous_versions)} · 本期申报 ${filings(inst.versions)}</p>
+      <div class="table-wrap"><table>
+        <thead><tr><th>证券</th><th>持仓状态</th><th>上期 → 本期数量</th><th>上期 → 本期权重</th><th>持仓披露日</th></tr></thead>
+        <tbody>${inst.rows.map(row => `<tr>
+          <td>${escapeHtml(row.issuer)} <span class="muted">${escapeHtml(row.ticker || row.cusip)} · ${escapeHtml(row.option === 'NONE' ? (row.unit === 'SH' ? '正股' : '本金') : row.option)}</span></td>
+          <td>${escapeHtml(labels[row.status] || row.status)}${row.review_reason ? `<br><small>${escapeHtml(row.review_reason)}</small>` : ''}</td>
+          <td>${qty(row.previous_quantity)} → ${qty(row.quantity)}${row.quantity_change == null ? '' : `<br><small>${row.quantity_change > 0 ? '+' : ''}${qty(row.quantity_change)}</small>`}</td>
+          <td>${weight(row.previous_weight_pct)} → ${weight(row.weight_pct)}${row.weight_change_pp == null ? '' : `<br><small>${row.weight_change_pp > 0 ? '+' : ''}${row.weight_change_pp.toFixed(2)} 个百分点</small>`}</td>
+          <td>${filings(row.previous_sources) || '—'} → ${filings(row.sources) || '—'}</td>
+        </tr>`).join('')}</tbody>
+      </table></div>
+    </details>`).join('');
+  const message = state.smHoldingsError || (selected
+    ? (state.smHoldings ? '该行业暂无可比持仓。' : '正在读取持仓…')
+    : (tabs ? '选择行业查看两季持仓变化。' : '同步 SEC 13F 后可查看两季持仓变化。'));
+  return `<div class="panel-body stack-sm">${tabs ? `<div>${tabs}</div>` : ''}${consensus}
+    ${details || `<p class="muted">${escapeHtml(message)}</p>`}</div>`;
+}
+
+async function loadHoldingSector(sector) {
+  state.smHoldingSector = sector;
+  state.smHoldings = null;
+  state.smHoldingsError = '';
+  render();
+  try {
+    const holdings = await request(`/api/smart-money/holdings?sector=${encodeURIComponent(sector)}`);
+    if (state.smHoldingSector === sector) state.smHoldings = holdings;
+  } catch (e) {
+    if (state.smHoldingSector === sector) state.smHoldingsError = e.message;
+  }
+  render();
+}
+
 function renderSmartMoney() {
   const sm = state.smartMoney || { institutions: [], entries: [], sync_errors: {} };
   const sectors = state.feed?.sectors || [];
@@ -384,14 +441,16 @@ function renderSmartMoney() {
     return `<div class="sm-inst-card">
       <div class="signal-top">
         <b>${escapeHtml(inst.name)}</b>
-        <span class="pill ${inst.region === 'US' ? 'demo' : ''}">${escapeHtml(inst.region)} · 常规滞后 ${inst.disclosure_lag_days}天</span>
+        <span class="pill ${inst.region === 'US' ? 'demo' : ''}">${escapeHtml(inst.region)}${inst.cik ? ' · 季度 13F' : ''}</span>
       </div>
       <p class="muted" style="font-size:12px;margin:6px 0">${escapeHtml(inst.style)} — ${escapeHtml(inst.notes)}</p>
       <div style="font-size:11px;color:#9aa7b9">
         ${filing
-          ? `最新 13F-HR：${escapeHtml(filing.filing_date)}（报告期 ${escapeHtml(filing.report_date)}） · <a href="${escapeHtml(filing.url)}" target="_blank" rel="noopener">EDGAR 原件 ↗</a>`
+          ? `最新 13F：${escapeHtml(filing.filing_date)}（报告期 ${escapeHtml(filing.report_date)}） · <a href="${escapeHtml(filing.url)}" target="_blank" rel="noopener">EDGAR 原件 ↗</a>
+             ${inst.holdings_report_date ? `<br>持仓明细 ${escapeHtml(inst.holdings_previous_report_date)} → ${escapeHtml(inst.holdings_report_date)}` : '<br>暂无连续两季持仓明细'}`
           : (inst.cik ? '尚未同步 SEC 13F 状态' : '国内/产业渠道（支持手动录入笔记）')}
       </div>
+      ${sm.sync_errors?.[inst.id] ? `<p class="muted">${escapeHtml(sm.sync_errors[inst.id])}</p>` : ''}
     </div>`;
   }).join('');
 
@@ -402,6 +461,13 @@ function renderSmartMoney() {
       </label>
       <label class="wb-field">关联行业
         <select name="sector" required>${sectors.map(s => `<option value="${escapeHtml(s.id)}">${escapeHtml(s.name)}</option>`).join('')}</select>
+      </label>
+      <label class="wb-field">记录类型
+        <select name="kind">
+          <option value="view">公开观点</option>
+          <option value="holding">持仓摘录</option>
+          <option value="capex">企业 CapEx</option>
+        </select>
       </label>
       <label class="wb-field">动向方向
         <select name="direction">
@@ -424,11 +490,10 @@ function renderSmartMoney() {
     <label class="wb-field">来源链接（可选）
       <input name="source_url" placeholder="https://...">
     </label>
-    <div><button type="submit" class="control primary">保存机构动向（将参与 AI 推演）</button></div>
+    <div><button type="submit" class="control primary">保存机构动向</button></div>
   </form>`;
 
-  const entryList = (sm.entries || []).length
-    ? sm.entries.map(e => `<div class="news-row">
+  const entryList = kind => (sm.entries || []).filter(e => e.kind === kind).map(e => `<div class="news-row">
         <div class="news-content">
           <div class="signal-top">
             <div><b>${escapeHtml(e.institution_name)}</b> · <span class="tag">${escapeHtml(e.sector)}</span> · <span class="tag">${escapeHtml(e.direction)}</span></div>
@@ -437,12 +502,19 @@ function renderSmartMoney() {
           <p style="margin:6px 0 4px;font-weight:500">${escapeHtml(e.title)}</p>
           <p class="muted" style="font-size:12px">${escapeHtml(e.summary)}</p>
           <div class="news-meta">
+            <span>${escapeHtml(e.disclosed_at)}</span>
             <span style="color:#e8c88d">${escapeHtml(e.lag_warning)}</span>
             ${e.source_url ? `<a href="${escapeHtml(e.source_url)}" target="_blank" rel="noopener">来源 ↗</a>` : ''}
           </div>
         </div>
-      </div>`).join('')
-    : '<div class="empty">暂无手动录入的机构持仓或观点笔记。</div>';
+      </div>`).join('') || '<div class="empty">暂无记录。</div>';
+
+  const coverage = (sm.coverage || []).map(c => `<div class="sm-inst-card">
+    <b>${escapeHtml(c.name)}</b> <span class="tag">${escapeHtml(c.frequency)}</span>
+    <p class="muted">${escapeHtml(c.coverage_basis)} · ${c.covered_from
+      ? `${escapeHtml(c.covered_from)} → ${escapeHtml(c.covered_to)}` : '暂无已录数据'}</p>
+    <p>${escapeHtml(c.gap)}</p>
+  </div>`).join('');
 
   const parseForm = `<form id="sm-parse-form" class="panel-body stack-sm">
     <label class="wb-field">直接粘贴一段机构季报摘要 / 13F 新闻 / 知名投资人访谈，AI 自动提取结构化条目并入库：
@@ -455,16 +527,21 @@ function renderSmartMoney() {
     <div class="page-heading">
       <div><p class="eyebrow">SMART MONEY / 滞后性提醒</p><h1>国内外知名机构动向<span> · 中长期风向与拥挤校验</span></h1></div>
       <div class="toolbar">
-        <button class="control" data-action="sync-sec" ${state.smSyncBusy ? 'disabled' : ''}>${state.smSyncBusy ? '同步中…' : '↻ 同步海外 SEC 13F 状态'}</button>
+        <button class="control" data-action="sync-sec" ${state.smSyncBusy ? 'disabled' : ''}>${state.smSyncBusy ? '同步中…' : '同步 SEC 13F 持仓'}</button>
       </div>
     </div>
-    <div class="notice">提示：13F 与国内公募季报披露存在 15~45 天滞后，切勿直接作短线追高依据；重点看资本跨季度迁徙方向，以及机构极度一致扎堆时的高危反向信号。</div>
+    ${panel('实际持仓', renderHoldingComparisons(sm, sectors))}
+    <div class="two-col">
+      ${panel('公开观点', entryList('view'))}
+      ${panel('企业 CapEx', entryList('capex'))}
+    </div>
+    ${panel('持仓摘录', entryList('holding'))}
+    ${panel('数据覆盖', `<div class="panel-body stack-sm">${coverage}</div>`)}
     ${panel('AI 快捷解析机构动向（免手填）', parseForm, '', 'AI AUTO PARSE')}
     <div class="two-col" style="margin-top:20px">
       ${panel('手动录入机构动态 / 大佬观点', entryForm, '', 'ADD OBSERVATION')}
       ${panel('已跟踪机构名录', `<div class="panel-body stack-sm">${instCards}</div>`, '', 'WATCHED INSTITUTIONS')}
     </div>
-    ${panel(`机构动向时间线 (${(sm.entries || []).length})`, entryList, '', 'TIMELINE')}
   `;
 }
 
@@ -683,12 +760,19 @@ document.addEventListener('click', async event => {
     } else if (act === 'sync-sec') {
       state.smSyncBusy = true; render();
       try {
-        await request('/api/smart-money/sync', { method: 'POST' });
-        toast('已更新 SEC 13F 申报状态');
+        const result = await request('/api/smart-money/sync', { method: 'POST' });
+        const errors = Object.keys(result.errors || {}).length;
+        toast(errors ? `有 ${errors} 家未完成持仓对比，详情见机构名录` : '已同步 SEC 13F 持仓');
         await load();
+        if (state.smHoldingSector) await loadHoldingSector(state.smHoldingSector);
       } catch (e) { toast(e.message); }
       finally { state.smSyncBusy = false; render(); }
     }
+    return;
+  }
+  const holdingBtn = event.target.closest('[data-sm-sector]');
+  if (holdingBtn) {
+    await loadHoldingSector(holdingBtn.dataset.smSector);
     return;
   }
   const delBtn = event.target.closest('[data-sm-delete]');
