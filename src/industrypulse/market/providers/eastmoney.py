@@ -7,7 +7,7 @@ push2his（K 线）在部分网络下间歇失败，调用方需配合镜像与�
 from __future__ import annotations
 
 import time
-from datetime import date, datetime
+from datetime import datetime
 from typing import Any, cast
 
 import httpx
@@ -29,7 +29,6 @@ _CLIST_MIRRORS = [
 ]
 _ANN_URL = "https://np-anotice-stock.eastmoney.com/api/security/ann"
 _DATACENTER = "https://datacenter-web.eastmoney.com/api/data/v1/get"
-_NORTHBOUND_REPORT = "RPT_MUTUAL_DEAL_HISTORY"
 
 
 def _get_json(client: httpx.Client, mirrors: list[str], params: dict[str, str]) -> dict[str, Any]:
@@ -232,18 +231,3 @@ def fetch_macro_report(
                 break
             page += 1
     return rows
-
-
-def fetch_northbound(days: int = 120) -> list[dict[str, Any]]:
-    """沪深港通北向历史（RPT_MUTUAL_DEAL_HISTORY，全市场口径）。"""
-    rows = fetch_macro_report(_NORTHBOUND_REPORT, max_rows=days)
-    date_key = next((key for key in rows[0] if "DATE" in key.upper()), None) if rows else None
-    if date_key is None:
-        raise ValueError("北向报表缺少日期列")
-    normalized: list[dict[str, Any]] = []
-    for row in rows:
-        raw = row.get(date_key)
-        if isinstance(raw, str) and len(raw) >= 10:
-            row = {**row, "_date": date.fromisoformat(raw[:10])}
-            normalized.append(row)
-    return normalized

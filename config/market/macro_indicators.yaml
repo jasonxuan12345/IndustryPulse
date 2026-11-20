@@ -36,8 +36,6 @@ indicators:
       date_field: REPORT_DATE, field: IMPORT_BASE_SAME, unit: "%", freq: monthly }
   - { id: industrial_value_added_yoy, name: 工业增加值同比, provider: eastmoney, source: RPT_ECONOMY_INDUS_GROW,
       date_field: REPORT_DATE, field: BASE_SAME, unit: "%", freq: monthly }
-  - { id: northbound_net, name: 北向资金累计净买入, provider: eastmoney, source: RPT_MUTUAL_DEAL_HISTORY,
-      date_field: _date, field: ACCUM_DEAL_AMT, unit: 万元, freq: daily }
 
   # —— 中国货币网（官方发布，免登录 JSON） ——
   - { id: lpr_1y, name: LPR 1 年, provider: chinamoney, source: lpr,
@@ -52,3 +50,13 @@ indicators:
       date_field: date, field: value, unit: "", freq: daily }
   - { id: cn_gov_bond_10y, name: 中国国债收益率 10 年, provider: chinamoney, source: cn_yield,
       date_field: date, field: value, unit: "%", freq: daily }
+
+unavailable:
+  # 东方财富 001/003 为沪股通/深股通，005 为北向合计。002/004/006 为南向。
+  # ACCUM_DEAL_AMT 是累计净买额；北向在 2024-08-19 起为空，成交总额仍有值。
+  - id: northbound_net
+    name: 北向资金净买入
+    source: eastmoney:RPT_MUTUAL_DEAL_HISTORY
+    status: retired
+    last_valid_date: "2024-08-16"
+    message: 日度净买入已停止披露，历史数据截至 2024-08-16。

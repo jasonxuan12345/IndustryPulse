@@ -86,6 +86,11 @@ def test_butterfly_rule_fallback_and_persistence(tmp_path, monkeypatch) -> None:
     assert report["early_opportunities"][0]["sector"] == "energy"
     assert report["high_risk_warnings"][0]["sector"] == "ai"
     assert load_latest_report()["run_id"] == report["run_id"]
+    snapshot = tmp_path / "ai" / "runs" / report["run_id"] / "snapshot.json"
+    saved = json.loads(snapshot.read_text(encoding="utf-8"))
+    assert saved["report"] == report
+    assert saved["fallback_reason"]
+    assert saved["model_calls"] == []
 
 
 def test_butterfly_ai_parallel_and_verify_and_history(tmp_path, monkeypatch) -> None:
@@ -96,6 +101,7 @@ def test_butterfly_ai_parallel_and_verify_and_history(tmp_path, monkeypatch) -> 
         api_key="secret",
         enabled=True,
     )
+    captured = {}
 
     def reply(request: httpx.Request) -> httpx.Response:
         body = json.loads(request.content)
@@ -117,7 +123,7 @@ def test_butterfly_ai_parallel_and_verify_and_history(tmp_path, monkeypatch) -> 
                     ensure_ascii=False,
                 )
             else:
-                content = json.dumps({"signals": []})
+                content = "无法解析的模型响应"
         elif "交叉核验员" in sys_prompt:
             content = json.dumps(
                 {
@@ -131,6 +137,7 @@ def test_butterfly_ai_parallel_and_verify_and_history(tmp_path, monkeypatch) -> 
                 ensure_ascii=False,
             )
         else:
+            captured.update(json.loads(user_prompt))
             content = json.dumps(
                 {
                     "macro_regime": {
@@ -174,16 +181,46 @@ def test_butterfly_ai_parallel_and_verify_and_history(tmp_path, monkeypatch) -> 
     report = run_butterfly_analysis(
         radars=_sample_radars(),
         stories=_sample_stories(),
-        macro_items=[{"name": "PMI", "value": 50.3, "unit": "%", "period": "2026-10"}],
+        macro_items=[
+            {"name": "PMI", "value": 50.3, "unit": "%", "period": "2026-10"},
+            {"id": "northbound_net", "name": "北向资金累计净买入", "value": 99.0},
+        ],
         commodities=[],
         smart_money_summary={},
         connection=conn,
         use_ai=True,
+        data_status={
+            "macro_unavailable": [
+                {
+                    "id": "northbound_net",
+                    "name": "北向资金净买入",
+                    "status": "retired",
+                    "last_valid_date": "2024-08-16",
+                }
+            ]
+        },
     )
     assert report["mode"] == "ai"
     early = report["early_opportunities"][0]
     assert early["evidence_story_ids"] == ["story-e1"]  # 伪造 id 被过滤
     assert early["evidence_stories"][0]["url"] == "https://example.com/e1"
+    snapshot = tmp_path / "ai" / "runs" / report["run_id"] / "snapshot.json"
+    raw_snapshot = snapshot.read_text(encoding="utf-8")
+    saved = json.loads(raw_snapshot)
+    assert saved["report"] == report
+    assert saved["model"]["name"] == "test-reasoner"
+    assert conn.api_key.get_secret_value() not in raw_snapshot
+    assert saved["sector_status"]["energy"]["screening"] == "ok"
+    assert saved["sector_status"]["ai"]["screening"] == "failed"
+    assert any(
+        call["sector"] == "ai" and call["status"] == "failed" for call in saved["model_calls"]
+    )
+    assert [call["stage"] for call in saved["model_calls"]].count("screening") == 2
+    synthesis = saved["model_calls"][-1]
+    assert synthesis["input"] == captured
+    assert len(synthesis["prompt_version"]) == 64
+    assert [item["name"] for item in captured["macro_indicators"]] == ["PMI"]
+    assert captured["macro_data_gaps"][0]["last_valid_date"] == "2024-08-16"
 
     # 测试随手投喂核验
     vr = verify_lead(

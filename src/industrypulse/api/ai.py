@@ -76,30 +76,66 @@ def create_ai_router(
             news_service.refresh(force=True)
         market = market_service()
         macro_items: list[dict[str, Any]] = []
+        macro_unavailable: list[dict[str, Any]] = []
         commodities: list[dict[str, Any]] = []
+        data_status: dict[str, Any] = {
+            "request": body.model_dump(),
+            "market": "available" if market else "unavailable",
+        }
         if market is not None:
             try:
-                macro_items = list(market.macro().get("items") or [])
+                macro = market.macro()
+                macro_items = list(macro.get("indicators") or [])
+                macro_unavailable = list(macro.get("unavailable") or [])
                 valid_macro = [m for m in macro_items if m.get("value") is not None]
                 if len(valid_macro) < 5:
                     market.sync_macro()
-                    macro_items = list(market.macro().get("items") or [])
-            except Exception:  # noqa: BLE001
-                macro_items = []
+                    macro_items = list(market.macro().get("indicators") or [])
+            except Exception as exc:  # noqa: BLE001
+                data_status["macro_error"] = type(exc).__name__
             try:
                 overview, _ = market._overview_snapshot()
                 commodities = list((overview or {}).get("commodities") or [])
-            except Exception:  # noqa: BLE001
-                commodities = []
+            except Exception as exc:  # noqa: BLE001
+                data_status["commodities_error"] = type(exc).__name__
 
-        radars, stories, _ = collect_sector_radars(news_service, sig_svc)
+        radars, stories, signals = collect_sector_radars(news_service, sig_svc)
+        data_status["signals_refresh"] = "not_requested"
         if body.refresh_signals:
             try:
                 a_rets = {str(r["id"]): r.get("return_20d") for r in radars}
                 sig_svc.refresh(a_share_returns_20d=a_rets, commodities=commodities or None)
-                radars, stories, _ = collect_sector_radars(news_service, sig_svc)
-            except Exception:  # noqa: BLE001 - 硬异动抓取失败不阻断 AI 分析
-                pass
+                radars, stories, signals = collect_sector_radars(news_service, sig_svc)
+                data_status["signals_refresh"] = "ok"
+            except Exception as exc:  # noqa: BLE001 - 硬异动抓取失败不阻断 AI 分析
+                data_status["signals_refresh"] = "failed"
+                data_status["signals_error"] = type(exc).__name__
+
+        prices: dict[str, tuple[float | None, str | None]] = {}
+        try:
+            prices = _sector_latest_prices(radars)
+        except Exception as exc:  # noqa: BLE001
+            data_status["sector_prices_error"] = type(exc).__name__
+        data_status.update(
+            macro_count=len(macro_items),
+            macro_unavailable=macro_unavailable,
+            macro_missing=[
+                {key: item.get(key) for key in ("id", "status", "period", "message")}
+                for item in macro_items
+                if item.get("value") is None
+            ],
+            commodity_count=len(commodities),
+            commodities_missing_price=[
+                item.get("id") for item in commodities if item.get("price") is None
+            ],
+            signals_updated_at=signals.get("updated_at"),
+            signal_channels=signals.get("channels", {}),
+            sector_prices={
+                str(r["id"]): {"close": price, "date": price_date}
+                for r in radars
+                for price, price_date in [prices.get(str(r["id"]), (None, None))]
+            },
+        )
 
         report = run_butterfly_analysis(
             radars=radars,
@@ -108,9 +144,10 @@ def create_ai_router(
             commodities=commodities,
             smart_money_summary=sm.sector_summary(),
             use_ai=body.use_ai,
+            data_status=data_status,
         )
         radar_map = {str(r["id"]): r for r in radars}
-        journal.record_run(report, radar_map, _sector_latest_prices(radars))
+        journal.record_run(report, radar_map, prices)
         return report
 
     @router.post("/verify")

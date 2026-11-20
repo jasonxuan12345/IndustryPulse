@@ -304,7 +304,8 @@ function renderSector() {
     .filter(s => s.sector === (current?.id || state.sector))
     .filter(s => !q || `${s.title} ${s.summary} ${s.source}`.toLowerCase().includes(q));
   const companies = (state.feed?.companies || []).filter(c => c.sector === (current?.id || state.sector));
-  const macroItems = (state.macro?.items || []).filter(m => m.value != null).slice(0, 8);
+  const macroItems = (state.macro?.indicators || []).filter(m => m.value != null).slice(0, 8);
+  const macroUnavailable = state.macro?.unavailable || [];
 
   const tabs = `<div class="sector-tabs">${sectors.map(s => {
     const r = radars.find(x => x.id === s.id);
@@ -343,11 +344,14 @@ function renderSector() {
       </div>`).join('')}</div>`
     : '<div class="empty">暂无关联公司或 ETF 数据。</div>';
 
-  const macroPanel = macroItems.length
+  const macroPanel = macroItems.length || macroUnavailable.length
     ? panel('核心宏观底座指标', `<div class="panel-body macro-grid">${macroItems.map(m => `<div class="macro-cell">
         <small>${escapeHtml(m.name)}</small>
         <b>${escapeHtml(m.value)}<i>${escapeHtml(m.unit || '')}</i></b>
         <em>${escapeHtml(m.period || '')}</em>
+      </div>`).join('')}${macroUnavailable.map(m => `<div class="macro-cell">
+        <small>${escapeHtml(m.name)}</small>
+        <em>${escapeHtml(m.message)}</em>
       </div>`).join('')}</div>`, '', 'MACRO CONTEXT')
     : '';
 
@@ -572,7 +576,7 @@ async function load() {
     const [feed, radar, macro, smartMoney, history] = await Promise.all([
       request('/api/dashboard/feed'),
       request('/api/radar/overview'),
-      request('/api/dashboard/macro').catch(() => ({ items: [] })),
+      request('/api/dashboard/macro').catch(() => ({ indicators: [], unavailable: [] })),
       request('/api/smart-money').catch(() => ({ institutions: [], entries: [] })),
       request('/api/ai/history').catch(() => ({ items: [] }))
     ]);

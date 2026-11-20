@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
+from functools import partial
 from pathlib import Path
 from typing import Any
 from uuid import uuid4
@@ -40,6 +42,21 @@ def save_latest_report(report: dict[str, Any], *, root: Path | None = None) -> N
     temp = path.with_name(f".{uuid4().hex}.tmp")
     temp.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
     replace_file(temp, path)
+
+
+def _save_run_snapshot(snapshot: dict[str, Any], *, root: Path | None) -> None:
+    path = _default_report_path(root).parent / "runs" / snapshot["run_id"] / "snapshot.json"
+    serialized = json.dumps(snapshot, ensure_ascii=False, indent=2)
+    # Reserving the directory prevents a repeated run_id from replacing a snapshot.
+    path.parent.mkdir(parents=True, exist_ok=False)
+    temp = path.with_suffix(".tmp")
+    try:
+        temp.write_text(serialized, encoding="utf-8")
+        replace_file(temp, path)
+    except OSError:
+        temp.unlink(missing_ok=True)
+        path.parent.rmdir()
+        raise
 
 
 def _screen_sector_stories(
@@ -200,6 +217,7 @@ def run_butterfly_analysis(
     use_ai: bool = True,
     root: Path | None = None,
     max_workers: int = 4,
+    data_status: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """执行两阶段分析：并行行业新闻筛查 → 跨行业蝴蝶效应与量化位置联合推演。"""
     run_id = uuid4().hex[:12]
@@ -211,10 +229,50 @@ def run_butterfly_analysis(
             stories_by_sector.setdefault(sid, []).append(story)
 
     stories_by_id = {str(s["id"]): s for s in stories if s.get("id")}
-    conn = connection if connection is not None else load_connection()
+    connection_error = None
+    try:
+        conn = connection if connection is not None else load_connection()
+    except (OSError, ValueError) as exc:
+        conn = None
+        connection_error = type(exc).__name__
+
+    model_calls: list[dict[str, Any]] = []
+    sector_status = {
+        str(r["id"]): {
+            "screening": "no_news" if not stories_by_sector.get(str(r["id"])) else "not_run",
+            "quant_available": r.get("available"),
+            "missing_quant_fields": [
+                key
+                for key in ("return_5d", "return_20d", "relative_20d", "turnover_percentile_60d")
+                if r.get(key) is None
+            ],
+        }
+        for r in radars
+    }
+
+    def finish(report: dict[str, Any], *, fallback_reason: str | None = None) -> dict[str, Any]:
+        _save_run_snapshot(
+            {
+                "schema_version": 1,
+                "run_id": run_id,
+                "generated_at": generated_at,
+                "use_ai": use_ai,
+                "model": {"name": conn.model, "protocol": conn.protocol} if conn else None,
+                "fallback_reason": fallback_reason,
+                "data_status": data_status or {},
+                "sector_status": sector_status,
+                "model_calls": model_calls,
+                "report": report,
+            },
+            root=root,
+        )
+        save_latest_report(report, root=root)
+        return report
 
     if not use_ai or conn is None or not conn.enabled or not conn.model:
         reason = "已选择离线规则模式" if not use_ai else "尚未配置并启用大模型 API"
+        if use_ai and connection_error:
+            reason = f"模型配置读取失败（{connection_error}）"
         fallback_report = _rule_fallback_report(
             run_id=run_id,
             generated_at=generated_at,
@@ -223,11 +281,26 @@ def run_butterfly_analysis(
             smart_money_summary=smart_money_summary,
             reason=reason,
         )
-        save_latest_report(fallback_report, root=root)
-        return fallback_report
+        return finish(fallback_report, fallback_reason=reason)
 
-    def ask_json(prompt: str, system: str, timeout: float = 120.0) -> dict[str, Any]:
-        return complete_json(conn, prompt, system=system, timeout=timeout)
+    def ask_json(
+        prompt: str, system: str, timeout: float = 120.0, *, sector: str | None = None
+    ) -> dict[str, Any]:
+        call = {
+            "stage": "screening" if sector else "synthesis",
+            "sector": sector,
+            "prompt_version": hashlib.sha256(system.encode("utf-8")).hexdigest(),
+            "system": system,
+            # All prompts here are JSON, rendered as an object for direct inspection.
+            "input": json.loads(prompt),
+            "status": "ok",
+        }
+        model_calls.append(call)
+        try:
+            return complete_json(conn, prompt, system=system, timeout=timeout)
+        except Exception as exc:
+            call.update(status="failed", error=type(exc).__name__)
+            raise
 
     # 第一步：按行业并行筛选结构性弱信号
     radar_map = {str(r["id"]): r for r in radars}
@@ -242,11 +315,16 @@ def run_butterfly_analysis(
                         str(r["name"]),
                         stories_by_sector.get(str(r["id"]), []),
                         r,
-                        ask_json,
+                        partial(ask_json, sector=str(r["id"])),
                     ),
                     active_sectors,
                 )
             )
+    for result in sector_signals:
+        status = sector_status[result["sector"]]
+        status["screening"] = "failed" if result.get("error") else "ok"
+        if result.get("error"):
+            status["error"] = result["error"]
 
     # 第二步：全局交叉推演（结合宏观、大宗、量化位置分位、机构趋势）
     compact_macro = [
@@ -259,7 +337,7 @@ def run_butterfly_analysis(
             "status": m.get("status"),
         }
         for m in macro_items
-        if m.get("value") is not None
+        if m.get("value") is not None and m.get("id") != "northbound_net"
     ][:18]
 
     compact_radars = [
@@ -319,6 +397,13 @@ def run_butterfly_analysis(
         {
             "as_of": generated_at,
             "macro_indicators": compact_macro[:14],
+            "macro_data_gaps": [
+                {
+                    key: item.get(key)
+                    for key in ("id", "name", "status", "last_valid_date", "message")
+                }
+                for item in (data_status or {}).get("macro_unavailable", [])
+            ],
             "commodities": commodities[:14],
             "sector_quant_hard_signals": compact_radars,
             "sector_news_weak_signals": compact_signals,
@@ -340,6 +425,7 @@ def run_butterfly_analysis(
         "例如指出具体受益于该行业内的哪个子环节及参考 ETF/龙头。\n"
         "4. 允许引用输入中的真实数值，禁止编造未提供的精确目标价；"
         "evidence_story_ids 只能引用输入里存在的真实 id。\n"
+        "5. macro_data_gaps 中列出的停更指标只说明数据缺口，不用于判断当期方向。\n"
         "必须输出合法 JSON：\n"
         "{\n"
         '  "macro_regime": {"summary": "宏观与商品周期总判断", '
@@ -370,17 +456,17 @@ def run_butterfly_analysis(
         except ValueError:
             parsed = ask_json(synthesis_prompt, synthesis_system, 240.0)
     except Exception as exc:  # noqa: BLE001 - AI 请求异常时明确降级，保留弱信号结果
+        reason = f"综合推演调用失败（{type(exc).__name__}）"
         fallback = _rule_fallback_report(
             run_id=run_id,
             generated_at=generated_at,
             radars=radars,
             stories_by_sector=stories_by_sector,
             smart_money_summary=smart_money_summary,
-            reason=f"综合推演调用失败：{exc}",
+            reason=reason,
         )
         fallback["sector_signals"] = sector_signals
-        save_latest_report(fallback, root=root)
-        return fallback
+        return finish(fallback, fallback_reason=reason)
 
     def attach_evidence(items: list[dict[str, Any]], *, limit: int) -> list[dict[str, Any]]:
         cleaned: list[dict[str, Any]] = []
@@ -442,5 +528,4 @@ def run_butterfly_analysis(
         ),
         "watch_list": list(parsed.get("watch_list") or [])[:6],
     }
-    save_latest_report(report, root=root)
-    return report
+    return finish(report)

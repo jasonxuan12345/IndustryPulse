@@ -189,6 +189,22 @@ class TestService:
         missing = [item for item in payload["indicators"] if item["status"] == "missing"]
         assert len(missing) == len(service.macro_config["indicators"])
 
+    def test_macro_does_not_serve_legacy_northbound_values(self, service: MarketService) -> None:
+        with service._db_lock:
+            service._db.execute(
+                "INSERT INTO macro_point VALUES "
+                "('northbound_net', DATE '2024-08-16', 99, '万元', "
+                "'eastmoney:RPT_MUTUAL_DEAL_HISTORY', CURRENT_TIMESTAMP)"
+            )
+        payload = service.macro()
+        assert all(item["id"] != "northbound_net" for item in payload["indicators"])
+        unavailable = next(
+            item for item in payload["unavailable"] if item["id"] == "northbound_net"
+        )
+        assert unavailable["status"] == "retired"
+        assert unavailable["last_valid_date"] == "2024-08-16"
+        assert "value" not in unavailable
+
     def test_health_records_failures(self, service: MarketService) -> None:
         service.health.record_failure("eastmoney:moneyflow", "测试失败")
         snapshot = {item.source_id: item for item in service.health.snapshot()}

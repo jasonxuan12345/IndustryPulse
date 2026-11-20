@@ -802,7 +802,11 @@ class MarketService:
                     "zero_value": value == 0,
                 }
             )
-        return {"updated_at": datetime.now(TZ_SHANGHAI).isoformat(), "indicators": items}
+        return {
+            "updated_at": datetime.now(TZ_SHANGHAI).isoformat(),
+            "indicators": items,
+            "unavailable": self.macro_config.get("unavailable", []),
+        }
 
     @staticmethod
     def _expected_period(freq: str, today: date) -> date:
@@ -870,16 +874,13 @@ class MarketService:
         start = time.perf_counter()
         try:
             if indicator["provider"] == "eastmoney":
-                if indicator["source"] == "RPT_MUTUAL_DEAL_HISTORY":
-                    series = eastmoney.fetch_northbound()
-                else:
-                    extra: dict[str, str] = {}
-                    if indicator.get("date_field") == "REPORT_DATE":
-                        extra["sortColumns"] = "REPORT_DATE"
-                        extra["sortTypes"] = "-1"
-                    if indicator.get("city") and indicator.get("city_field"):
-                        extra["filter"] = f'({indicator["city_field"]}="{indicator["city"]}")'
-                    series = eastmoney.fetch_macro_report(indicator["source"], extra=extra or None)
+                extra: dict[str, str] = {}
+                if indicator.get("date_field") == "REPORT_DATE":
+                    extra["sortColumns"] = "REPORT_DATE"
+                    extra["sortTypes"] = "-1"
+                if indicator.get("city") and indicator.get("city_field"):
+                    extra["filter"] = f'({indicator["city_field"]}="{indicator["city"]}")'
+                series = eastmoney.fetch_macro_report(indicator["source"], extra=extra or None)
             elif indicator["provider"] == "chinamoney":
                 series = chinamoney.fetch_series(str(indicator["source"]))
             else:
