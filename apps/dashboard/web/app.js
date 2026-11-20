@@ -180,6 +180,28 @@ function renderJudgment(item, fallback = '', label = 'AI 推断') {
       <ul>${item.gaps.map(gap => `<li>${escapeHtml(gap)}</li>`).join('')}</ul></div>` : ''}`;
 }
 
+function renderPilotChains(chains) {
+  return chains.map(chain => {
+    const { evidence, quote } = chain.shock;
+    const shared = renderJudgment({ evidence: [evidence], facts: [{ evidence_id: evidence.id, quote }] });
+    const nodes = chain.nodes.map(node => `<article class="signal-card">
+      <div class="signal-top"><h3>${escapeHtml(node.name)}</h3>
+        <span class="tag">利润${escapeHtml(node.profit_status)}</span></div>
+      ${renderJudgment(
+        { ...node, facts: node.facts.filter(fact => fact.evidence_id !== evidence.id) },
+        '', '条件推演'
+      )}
+      <p class="muted"><b>成立条件</b> · ${node.conditions.map(escapeHtml).join(' · ')}</p>
+      ${node.basket ? `<details>
+        <summary>市场观察篮子 · ${escapeHtml(node.basket.effective_from)} 生效</summary>
+        <ul>${node.basket.members.map(member => `<li>${escapeHtml(member.name)}
+          ${escapeHtml(member.symbol)} · ${escapeHtml(member.weight * 100)}% · ${escapeHtml(member.reason)}</li>`).join('')}</ul>
+      </details>` : (node.basket_note ? `<p class="muted">${escapeHtml(node.basket_note)}</p>` : '')}
+    </article>`).join('');
+    return panel(chain.name, `<div class="panel-body">${shared}<div class="card-grid">${nodes}</div></div>`);
+  }).join('');
+}
+
 function renderRadar() {
   const radarData = state.radar || {};
   const sectors = radarData.sectors || [];
@@ -315,6 +337,7 @@ function renderRadar() {
     </div>
     ${panel('全网硬异动探测器（业绩预增簇 / 公告 / 台股月营收 / 海外映射）', anomalyBar + disclosureList, anomalies.updated_at ? `<span class="muted" style="font-size:11px">更新于 ${date(anomalies.updated_at)}</span>` : '', 'HARD ANOMALY DETECTORS')}
     <div style="margin-top:20px">${panel('宏观经济风向与主要矛盾', macroSummary, '', 'MACRO REGIME')}</div>
+    ${renderPilotChains(report.chain_assessments || [])}
     <div class="two-col" style="margin-top:20px">
       ${panel('「异常催化 × 180日市场位置」四象限', `<div class="panel-body">${quadrantChart(sectors)}</div>`, '', 'QUANT POSITION MATRIX')}
       ${panel('高危离场警示区', `<div class="panel-body stack">${riskCards}</div>`, '', 'HIGH RISK WARNINGS')}

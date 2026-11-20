@@ -1,0 +1,100 @@
+# 行业引用 news_sources.yaml 二级 ID。期货及篮子代码引用 market/sectors.yaml。
+# 篮子权重为研究用途的固定权重，启用新版本时追加生效日期。
+chains:
+  - id: lithium
+    name: 锂电链
+    commodity: lc
+    news_terms: [碳酸锂, 碳酸鋰, LC0]
+    observations:
+      ore_price: {name: 锂矿实际成交价, match: '锂(?:矿|精矿)(?:实际)?(?:成交价|均价|售价)'}
+      ore_cost: {name: 锂矿单位开采成本, match: '锂矿单位(?:开采)?成本'}
+      ore_volume: {name: 锂矿销量, match: '锂矿(?:销量|销售量|出货量)'}
+      salt_price: {name: 锂盐实际成交价, match: '(?:锂盐|碳酸锂)(?:现货)?(?:实际)?(?:成交价|成交均价)'}
+      battery_cost: {name: 电池材料实际采购价, match: '(?:电池材料|电池级碳酸锂)(?:实际)?采购(?:均)?价'}
+      battery_price: {name: 电池售价, match: '(?:动力)?电池(?:实际)?(?:平均售价|售价|销售均价|成交均价)'}
+      battery_volume: {name: 动力电池装机量, match: '(?:动力)?电池装机量'}
+      vehicle_price: {name: 新能源车实际成交价, match: '(?:新能源车|新能源汽车)(?:实际)?(?:成交均价|成交价)'}
+      vehicle_volume: {name: 新能源车销量, match: '(?:新能源车|新能源汽车)(?:销售量|销量)'}
+    nodes:
+      - id: miners
+        name: 锂矿企业
+        industries: [base-metals, batteries]
+        requires: [ore_price, ore_cost, ore_volume]
+        conditions: [锂矿实现售价跟随期货方向变化, 单位开采成本和销量相对稳定]
+        down: 锂矿实现售价若跟跌且成本与销量不变，矿企单位毛利可能承压。
+        up: 锂矿实现售价若跟涨且成本与销量不变，矿企单位毛利可能改善。
+        baskets:
+          - effective_from: "2026-11-20"
+            members:
+              - {symbol: sz002460, weight: 1.0, reason: 涵盖锂资源与锂盐业务的样本，收益含下游业务影响}
+      - id: salt
+        name: 锂盐加工
+        upstream: miners
+        industries: [base-metals, batteries]
+        requires: [salt_price, ore_price, battery_volume]
+        conditions: [锂盐现货与矿石采购价格可按同一时段对比, 加工量和订单相对稳定]
+        down: 锂盐售价和矿石采购成本都可能下降，毛利取决于实际价差。
+        up: 锂盐售价和矿石采购成本都可能上涨，毛利取决于实际价差。
+      - id: battery
+        name: 电池厂
+        upstream: salt
+        industries: [batteries]
+        requires: [battery_cost, battery_price, battery_volume]
+        demand: battery_volume
+        conditions: [采购价按同一产品和时期跟随锂价变化, 电池售价与装机量未同步走弱, 库存与长协允许原料价格传导]
+        down: 新采购的锂盐成本可能下降。若电池售价和需求一起下滑，毛利仍可能承压。
+        up: 新采购的锂盐成本可能上升。能否保住毛利取决于电池售价、装机量和成本转嫁能力。
+        baskets:
+          - effective_from: "2026-11-20"
+            members:
+              - {symbol: sz300750, weight: 0.5, reason: 动力电池与储能电池出货样本}
+              - {symbol: sz300014, weight: 0.5, reason: 电池制造样本，用于避免只跟踪单家公司}
+      - id: ev
+        name: 新能源整车厂
+        upstream: battery
+        industries: [ev]
+        requires: [battery_price, vehicle_price, vehicle_volume]
+        demand: vehicle_volume
+        conditions: [电池供货价已重新定价, 整车成交价与销量相对稳定]
+        down: 电池供货价若下调，整车电池采购成本可能下降，整车降价会抵消这部分收益。
+        up: 电池供货价若上调，整车电池采购成本可能上升，需核对能否转嫁。
+        baskets:
+          - effective_from: "2026-11-20"
+            members:
+              - {symbol: sz002594, weight: 1.0, reason: 新能源整车样本，包含自产电池及其他业务影响}
+  - id: europe-freight
+    name: 集运出口链
+    commodity: ec
+    news_terms: [集运欧线, 欧线集运, EC0]
+    observations:
+      realized_freight: {name: 欧线实际结算运价, match: '(?:欧洲航线|欧线)(?:实际)?(?:结算运价|结算价|现货运价)'}
+      europe_volume: {name: 对欧出货量, match: '(?:对欧|对欧洲|欧线)(?:出口量|出货量|集装箱运量)'}
+      voyage_cost: {name: 欧线单位航次成本, match: '(?:欧线|欧洲航线)单位航次成本'}
+      freight_payer:
+        name: 运费承担方
+        payer_match: '(?:对欧(?:洲)?出口|欧线订单)[^，。；！？\n]{0,30}?(?:海运费|运费)由\s*(?P<payer>卖方|出口企业|出口方|买方|客户|进口方)\s*承担'
+      pass_through: {name: 对欧出口售价及运费转嫁, match: '(?:对欧|对欧洲)出口(?:实际)?(?:售价|成交均价|价格)'}
+    nodes:
+      - id: carriers
+        name: 集装箱船公司
+        industries: [supply-chain]
+        requires: [realized_freight, europe_volume, voyage_cost]
+        demand: europe_volume
+        conditions: [期货方向传到欧线实际结算价, 货量与航次成本相对稳定]
+        down: 欧线实际结算价若跟跌，船公司单位收入可能下降。
+        up: 欧线实际结算价若跟涨，船公司单位收入可能提高。
+        baskets:
+          - effective_from: "2026-11-20"
+            members:
+              - {symbol: sh601919, weight: 1.0, reason: 经营欧洲在内的集装箱航线，市场收益也包含其他航线及港口业务}
+      - id: exporters
+        name: 对欧出口企业
+        upstream: carriers
+        industries: [supply-chain, economy]
+        requires: [freight_payer, realized_freight, europe_volume, pass_through]
+        demand: europe_volume
+        payer: freight_payer
+        conditions: [合同明确由出口方承担主要海运费, 结算运价实际传导, 订单量与销售价格相对稳定]
+        down: 若合同约定由出口方承担海运费且实际结算运价下调，出口方成本可能下降。
+        up: 若合同约定由出口方承担海运费且实际结算运价上调，出口方成本可能上升。
+        basket_note: 待核实具体公司的对欧敞口和运费责任后再设市场篮子。

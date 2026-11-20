@@ -100,6 +100,7 @@ domains:
       - { symbol: sz000858, name: 五粮液 }
       - { symbol: sh601888, name: 中国中免 }
       - { symbol: sz002241, name: 歌尔股份 }
+      - { symbol: sh601919, name: 中远海控 }
   finance:
     name: 金融与资本市场
     board: BK0473

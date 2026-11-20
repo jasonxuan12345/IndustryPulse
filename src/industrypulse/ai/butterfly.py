@@ -22,6 +22,7 @@ from industrypulse.ai.evidence import (
 )
 from industrypulse.ai.gateway import ModelConnection, complete_json, load_connection
 from industrypulse.core import TZ_SHANGHAI, replace_file
+from industrypulse.signals.industry_chains import assess_chains
 
 ROOT = Path(__file__).resolve().parents[3]
 
@@ -203,7 +204,7 @@ def _rule_fallback_report(
             "summary": summary,
             "favored_styles": ["低位置+高催化板块"],
             "key_risks": ["高位放量拥挤板块回调风险"],
-            **audit_judgment({"gaps": ["本次没有开展宏观与产业链推演"]}, {}, inference=summary),
+            **audit_judgment({"gaps": ["本次未调用模型完成宏观推演"]}, {}, inference=summary),
         },
         "sector_signals": [],
         "early_opportunities": early[:4],
@@ -227,7 +228,10 @@ def run_butterfly_analysis(
 ) -> dict[str, Any]:
     """执行两阶段分析：并行行业新闻筛查 → 跨行业蝴蝶效应与量化位置联合推演。"""
     run_id = uuid4().hex[:12]
-    generated_at = datetime.now(TZ_SHANGHAI).isoformat()
+    as_of = datetime.now(TZ_SHANGHAI)
+    generated_at = as_of.isoformat()
+    base = root or Path(os.getenv("INDUSTRYPULSE_ROOT", str(ROOT)))
+    chains = assess_chains(base, commodities, stories, as_of=as_of)
     stories_by_sector: dict[str, list[dict[str, Any]]] = {}
     for story in stories:
         sid = str(story.get("sector") or "")
@@ -262,6 +266,7 @@ def run_butterfly_analysis(
     }
 
     def finish(report: dict[str, Any], *, fallback_reason: str | None = None) -> dict[str, Any]:
+        report["chain_assessments"] = chains
         _save_run_snapshot(
             {
                 "schema_version": 1,
@@ -273,6 +278,12 @@ def run_butterfly_analysis(
                 "data_status": data_status or {},
                 "sector_status": sector_status,
                 "model_calls": model_calls,
+                "chain_baskets": [
+                    {"chain": chain["id"], "node": node["id"], **node["basket"]}
+                    for chain in chains
+                    for node in chain["nodes"]
+                    if node["basket"]
+                ],
                 "report": report,
             },
             root=root,
@@ -354,6 +365,9 @@ def run_butterfly_analysis(
     ][:14]
 
     catalog = dict(market_refs)
+    for chain in chains:
+        for node in chain["nodes"]:
+            catalog.update({ref["id"]: ref for ref in node["evidence"]})
     for result in sector_signals:
         for signal in result["signals"]:
             catalog.update({ref["id"]: ref for ref in signal["evidence"]})
@@ -445,6 +459,7 @@ def run_butterfly_analysis(
             "commodities": commodities[:14],
             "sector_quant_hard_signals": compact_radars,
             "sector_news_weak_signals": compact_signals,
+            "pilot_chains": chains,
             "evidence_catalog": list(catalog.values()),
         },
         ensure_ascii=False,
@@ -468,6 +483,8 @@ def run_butterfly_analysis(
         "facts 只填写可逐字核对的原文或快照数据，没有就留空，不要替判断凑引用。"
         "新闻引用只能确认该来源报道了什么。\n"
         "5. macro_data_gaps 中列出的停更指标只说明数据缺口，不用于判断当期方向。\n"
+        "6. 碳酸锂和集运欧线异动按 pilot_chains 逐环节判断，不作为宽行业统一加分或证伪。"
+        "条件缺失时只描述可能的成本或售价变化，并保留利润待验证。\n"
         "必须输出合法 JSON：\n"
         "{\n"
         '  "macro_regime": {"summary": "宏观与商品周期总判断", '

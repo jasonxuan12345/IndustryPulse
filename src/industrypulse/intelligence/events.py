@@ -257,6 +257,7 @@ def radar_events(stories: Sequence[dict[str, Any]], path: Path) -> list[dict[str
         sectors = dict.fromkeys(str(item["sector"]) for item in members if item.get("sector"))
         primary = next((item for item in members if item.get("summary")), members[0])
         sources = _sources(members)
+        industries = sorted({tag for item in members for tag in item.get("industry_ids") or []})
         for sector in sectors:
             events.append(
                 {
@@ -264,6 +265,7 @@ def radar_events(stories: Sequence[dict[str, Any]], path: Path) -> list[dict[str
                     "sector": sector,
                     "id": event_id,
                     "cluster_id": event_id,
+                    "industry_ids": industries,
                     "published_at": members[0]["event_published_at"],
                     "sources": sources,
                 }

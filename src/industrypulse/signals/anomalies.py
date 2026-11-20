@@ -24,6 +24,11 @@ import httpx
 import yaml
 
 from industrypulse.core import TZ_SHANGHAI, replace_file
+from industrypulse.signals.industry_chains import (
+    COMMODITY_MOVE_THRESHOLD,
+    is_pilot_commodity,
+    pilot_commodities,
+)
 from industrypulse.signals.sec8k import extract_8k_excerpt
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -151,6 +156,15 @@ class SignalService:
                 (item.get("sector"), item.get("url"), item.get("title")): item
                 for item in (data.get("disclosures") or [])
             }
+            pilots = pilot_commodities(self.root)
+
+            def is_legacy_pilot(item: dict[str, Any]) -> bool:
+                return item.get("kind") in {"commodity_surge", "commodity_crash"} and (
+                    is_pilot_commodity(item, pilots)
+                )
+
+            removed_warnings = 0
+            removed_surges = 0
             for bucket in (data.get("by_sector") or {}).values():
                 signals = bucket.get("hard_signals") or []
                 for item in signals:
@@ -164,16 +178,36 @@ class SignalService:
                                 "detail": "仅有旧版申报标题，正文待核对",
                             },
                         )
-                bucket["hard_signals"] = [item for item in signals if _scores_as_signal(item)]
+                bucket["hard_signals"] = [
+                    item
+                    for item in signals
+                    if _scores_as_signal(item) and not is_legacy_pilot(item)
+                ]
                 bucket["hard_signal_count"] = len(bucket["hard_signals"])
+                warnings = bucket.get("commodity_warnings") or []
+                bucket["commodity_warnings"] = [
+                    item for item in warnings if not is_legacy_pilot(item)
+                ]
+                removed_warnings += len(warnings) - len(bucket["commodity_warnings"])
+                removed_surges += sum(is_legacy_pilot(item) for item in signals)
             data["disclosures"] = list(disclosures.values())
             data["highlights"] = [
-                item for item in (data.get("highlights") or []) if _scores_as_signal(item)
+                item
+                for item in (data.get("highlights") or [])
+                if _scores_as_signal(item) and not is_legacy_pilot(item)
             ]
             sec_channel = (data.get("channels") or {}).get("sec_chain")
             if sec_channel and sec_channel.get("status") == "ok":
                 sec_channel["count"] = sum(_scores_as_signal(item) for item in disclosures.values())
                 sec_channel["disclosure_count"] = len(disclosures)
+            commodity_channel = (data.get("channels") or {}).get("commodities")
+            if commodity_channel and commodity_channel.get("status") == "ok":
+                commodity_channel["count"] = max(
+                    0, commodity_channel.get("count", 0) - removed_surges
+                )
+                commodity_channel["warning_count"] = max(
+                    0, commodity_channel.get("warning_count", 0) - removed_warnings
+                )
             return data
         except (OSError, json.JSONDecodeError):
             return {"updated_at": None, "by_sector": {}, "channels": {}, "highlights": []}
@@ -538,7 +572,10 @@ class SignalService:
         surges: list[dict[str, Any]] = []
         warnings_by_sector: dict[str, list[dict[str, Any]]] = {}
         today_iso = datetime.now(TZ_SHANGHAI).date().isoformat()
+        pilots = pilot_commodities(self.root)
         for item in rows:
+            if is_pilot_commodity(item, pilots):
+                continue
             chg = item.get("change_pct")
             if chg is None:
                 continue
@@ -547,7 +584,7 @@ class SignalService:
             except (TypeError, ValueError):
                 continue
             sectors = [str(s) for s in (item.get("sectors") or []) if s]
-            if not sectors or abs(pct) < 2.5:
+            if not sectors or abs(pct) < COMMODITY_MOVE_THRESHOLD:
                 continue
             name = str(item.get("name") or item.get("id") or "")
             symbol = str(item.get("symbol") or "")
@@ -555,7 +592,7 @@ class SignalService:
             unit = str(item.get("unit") or "")
             date_str = str(item.get("date") or today_iso)
             base_detail = f"最新价 {price} {unit}".strip() if price is not None else ""
-            if pct >= 2.5:
+            if pct >= COMMODITY_MOVE_THRESHOLD:
                 for sid in sectors:
                     surges.append(
                         {
