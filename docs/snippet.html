@@ -1,0 +1,2247 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Passport Holder V5 — Spatial Glass (Pro Updated)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Courier+Prime:wght@400;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --font-sans: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'HarmonyOS Sans SC', 'PingFang SC', 'Inter', sans-serif;
+      --font-mono: 'OCR-B', 'Courier Prime', 'SF Mono', ui-monospace, monospace;
+
+      /* V5 Spatial Glass Light Mode */
+      --bg-canvas: #EEF2F8;
+      --bg-surface: rgba(255, 255, 255, 0.78);
+      --bg-elevated: rgba(255, 255, 255, 0.94);
+      --bg-pill: rgba(15, 23, 42, 0.06);
+      --text-primary: #0F172A;
+      --text-secondary: #64748B;
+      --text-tertiary: #94A3B8;
+      --accent: #3B5BDB;
+      --accent-soft: rgba(59, 91, 219, 0.10);
+      --border-hairline: rgba(255, 255, 255, 0.90);
+      --border-subtle: rgba(15, 23, 42, 0.06);
+      --card-shadow: 0 10px 30px -8px rgba(15, 23, 42, 0.06), 0 2px 6px rgba(15, 23, 42, 0.02);
+      --tabbar-bg: rgba(255, 255, 255, 0.85);
+    }
+
+    [data-mode="dark"] {
+      --bg-canvas: #05070B;
+      --bg-surface: rgba(28, 31, 40, 0.78);
+      --bg-elevated: rgba(38, 42, 54, 0.94);
+      --bg-pill: rgba(255, 255, 255, 0.10);
+      --text-primary: #F8FAFC;
+      --text-secondary: #94A3B8;
+      --text-tertiary: #64748B;
+      --accent: #4C6EF5;
+      --accent-soft: rgba(76, 110, 245, 0.18);
+      --border-hairline: rgba(255, 255, 255, 0.12);
+      --border-subtle: rgba(255, 255, 255, 0.08);
+      --card-shadow: 0 16px 36px -8px rgba(0, 0, 0, 0.7);
+      --tabbar-bg: rgba(22, 25, 34, 0.86);
+    }
+
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+
+    body {
+      font-family: var(--font-sans);
+      background-color: #0D0F14;
+      color: var(--text-primary);
+      margin: 0;
+      padding: 0;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .tabular-nums {
+      font-variant-numeric: tabular-nums;
+      font-feature-settings: "tnum" 1;
+    }
+
+    .font-mrz {
+      font-family: var(--font-mono);
+      letter-spacing: 0.075em;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+    /* 393 x 852 旗舰机画布 */
+    .phone-viewport {
+      width: 393px;
+      height: 852px;
+      background-color: var(--bg-canvas);
+      color: var(--text-primary);
+      border-radius: 52px;
+      position: relative;
+      overflow: hidden;
+      box-shadow:
+        0 0 0 10px #20232A,
+        0 0 0 11.5px #363A45,
+        0 32px 80px -15px rgba(0, 0, 0, 0.78);
+      transition: background-color 0.3s ease, color 0.25s ease, filter 0.25s ease;
+    }
+
+    .phone-viewport.max-bright {
+      filter: brightness(1.12) contrast(1.04);
+      box-shadow:
+        0 0 0 10px #20232A,
+        0 0 0 12px #60A5FA,
+        0 0 70px rgba(255, 255, 255, 0.38);
+    }
+
+    /* V5 空间光影弥散层 */
+    .v5-ambient {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+      background:
+        radial-gradient(circle at 15% 8%, rgba(59, 91, 219, 0.12), transparent 45%),
+        radial-gradient(circle at 88% 20%, rgba(16, 185, 129, 0.09), transparent 45%),
+        radial-gradient(circle at 50% 82%, rgba(99, 102, 241, 0.08), transparent 50%);
+    }
+
+    /* 空间毛玻璃通用卡片 */
+    .ios-card {
+      background: var(--bg-surface);
+      backdrop-filter: blur(28px);
+      -webkit-backdrop-filter: blur(28px);
+      border-radius: 22px;
+      box-shadow: var(--card-shadow);
+      border: 1px solid var(--border-hairline);
+      transition: all 0.26s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    /* V5 主护照/通行证毛玻璃主卡 */
+    .spatial-passport {
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.88) 0%, rgba(238, 244, 255, 0.70) 100%);
+      backdrop-filter: blur(32px);
+      -webkit-backdrop-filter: blur(32px);
+      color: #0F172A;
+      border: 1px solid rgba(255, 255, 255, 0.95);
+      box-shadow: 0 18px 38px -10px rgba(59, 91, 219, 0.13), inset 0 1px 0 rgba(255, 255, 255, 1);
+    }
+    [data-mode="dark"] .spatial-passport {
+      background: linear-gradient(135deg, rgba(38, 44, 58, 0.86) 0%, rgba(20, 24, 34, 0.72) 100%);
+      color: #F8FAFC;
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      box-shadow: 0 18px 38px -10px rgba(0, 0, 0, 0.75), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+    }
+
+    /* Apple Wallet 层叠质感签证卡片 */
+    .visa-stack-container {
+      position: relative;
+      padding-bottom: 12px;
+    }
+    .visa-wallet-card {
+      position: relative;
+      border-radius: 22px;
+      color: #FFFFFF;
+      border: 1px solid rgba(255, 255, 255, 0.24);
+      box-shadow: 0 -6px 20px -4px rgba(0, 0, 0, 0.22), 0 10px 24px -6px rgba(15, 23, 42, 0.25);
+      transition: all 0.36s cubic-bezier(0.22, 1, 0.36, 1);
+      overflow: hidden;
+      cursor: pointer;
+    }
+    .visa-wallet-card:not(:first-child) {
+      margin-top: -82px;
+    }
+    .visa-wallet-card.expanded {
+      margin-top: 10px !important;
+      margin-bottom: 10px !important;
+      transform: translateY(-2px) scale(1.01);
+      box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.42);
+      z-index: 30 !important;
+    }
+    .visa-wallet-card.expanded + .visa-wallet-card {
+      margin-top: 10px !important;
+    }
+
+    /* 真实票据感「入境卡 (Arrival Pass)」 */
+    .arrival-pass-card {
+      position: relative;
+      border-radius: 26px;
+      background: var(--bg-elevated);
+      backdrop-filter: blur(30px);
+      -webkit-backdrop-filter: blur(30px);
+      border: 1px solid var(--border-hairline);
+      box-shadow: 0 18px 40px -12px rgba(15, 23, 42, 0.14);
+      overflow: hidden;
+    }
+    .ticket-divider {
+      position: relative;
+      border-top: 1.5px dashed rgba(148, 163, 184, 0.40);
+      margin: 0 18px;
+    }
+    .ticket-notch-left,
+    .ticket-notch-right {
+      position: absolute;
+      top: -11px;
+      width: 22px;
+      height: 22px;
+      border-radius: 999px;
+      background-color: var(--bg-canvas);
+      border: 1px solid var(--border-subtle);
+      z-index: 5;
+    }
+    .ticket-notch-left { left: -30px; }
+    .ticket-notch-right { right: -30px; }
+
+    /* 地图版块点亮动画 */
+    .map-region {
+      transition: fill 0.4s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.4s ease, filter 0.4s ease;
+    }
+    .map-region.lit-base { fill: #10B981; opacity: 0.85; }
+    .map-region.lit-visa {
+      fill: #3B82F6;
+      opacity: 0.92;
+      filter: drop-shadow(0 0 6px rgba(59, 130, 246, 0.55));
+    }
+    .map-region.unlit { fill: rgba(148, 163, 184, 0.25); opacity: 0.45; }
+
+    /* Bottom Sheet 动画 */
+    .sheet-backdrop {
+      background: rgba(5, 7, 11, 0.48);
+      backdrop-filter: blur(6px);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.26s ease;
+    }
+    .sheet-backdrop.open {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    .bottom-sheet {
+      transform: translateY(100%);
+      transition: transform 0.34s cubic-bezier(0.22, 1, 0.36, 1);
+      background: #F4F5F9;
+      border-top: 1px solid var(--border-hairline);
+    }
+    [data-mode="dark"] .bottom-sheet {
+      background: #141720;
+    }
+    .sheet-backdrop.open .bottom-sheet {
+      transform: translateY(0);
+    }
+
+    .avatar-etched {
+      filter: grayscale(100%) contrast(135%) brightness(1.04);
+      mix-blend-mode: luminosity;
+    }
+
+    .hairline-b { border-bottom: 0.5px solid var(--border-subtle); }
+    .hairline-t { border-top: 0.5px solid var(--border-subtle); }
+
+    /* ==================== 原生 iOS Toggle 开关样式（对应参考图1与图3） ==================== */
+    .ios-switch {
+      position: relative;
+      display: inline-block;
+      width: 48px;
+      height: 28px;
+      flex-shrink: 0;
+    }
+    .ios-switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+    .ios-switch-slider {
+      position: absolute;
+      cursor: pointer;
+      inset: 0;
+      background-color: rgba(120, 120, 128, 0.24);
+      transition: 0.26s cubic-bezier(0.22, 1, 0.36, 1);
+      border-radius: 999px;
+    }
+    .ios-switch-slider:before {
+      position: absolute;
+      content: "";
+      height: 24px;
+      width: 24px;
+      left: 2px;
+      bottom: 2px;
+      background-color: white;
+      transition: 0.26s cubic-bezier(0.22, 1, 0.36, 1);
+      border-radius: 50%;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+    }
+    .ios-switch input:checked + .ios-switch-slider {
+      background-color: #22A047;
+    }
+    .ios-switch input:checked + .ios-switch-slider:before {
+      transform: translateX(20px);
+    }
+
+    /* ==================== 自定义蓝色滑块（对应参考图1） ==================== */
+    input[type="range"].ios-slider {
+      -webkit-appearance: none;
+      appearance: none;
+      height: 6px;
+      border-radius: 999px;
+      background: rgba(148, 163, 184, 0.3);
+      outline: none;
+    }
+    input[type="range"].ios-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: #3B5BDB;
+      cursor: pointer;
+      box-shadow: 0 2px 6px rgba(59, 91, 219, 0.45);
+      border: 2px solid #FFFFFF;
+    }
+
+    /* ==================== NFC 持续扩散脉冲波纹动画（对应参考图2） ==================== */
+    @keyframes nfcRipple {
+      0% {
+        transform: scale(0.85);
+        opacity: 0.75;
+      }
+      70% {
+        transform: scale(1.55);
+        opacity: 0;
+      }
+      100% {
+        transform: scale(1.55);
+        opacity: 0;
+      }
+    }
+    @keyframes nfcWaveGlow {
+      0%, 100% { opacity: 0.35; transform: translateX(0); }
+      50% { opacity: 1; transform: translateX(1.5px); }
+    }
+    @keyframes popSuccess {
+      0% { transform: scale(0.5); opacity: 0; }
+      65% { transform: scale(1.08); opacity: 1; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+    .nfc-ripple-ring-1 {
+      animation: nfcRipple 2.1s infinite cubic-bezier(0.2, 0.8, 0.4, 1);
+    }
+    .nfc-ripple-ring-2 {
+      animation: nfcRipple 2.1s infinite 0.7s cubic-bezier(0.2, 0.8, 0.4, 1);
+    }
+    .nfc-wave-arc-1 { animation: nfcWaveGlow 1.2s infinite 0s ease-in-out; }
+    .nfc-wave-arc-2 { animation: nfcWaveGlow 1.2s infinite 0.25s ease-in-out; }
+    .nfc-wave-arc-3 { animation: nfcWaveGlow 1.2s infinite 0.5s ease-in-out; }
+    .nfc-success-pop {
+      animation: popSuccess 0.42s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col items-center justify-start py-5 px-4">
+
+  <!-- ==================== 顶部轻量控制台 ==================== -->
+  <header class="w-full max-w-[780px] mb-5 bg-[#151821] border border-white/10 rounded-2xl p-3.5 shadow-2xl flex flex-wrap items-center justify-between gap-3">
+    <div class="flex items-center gap-3">
+      <div class="w-9 h-9 rounded-xl bg-blue-500/15 border border-blue-400/30 flex items-center justify-center text-blue-400">
+        <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7">
+          <rect x="4" y="2" width="16" height="20" rx="2.5"/>
+          <circle cx="12" cy="10" r="3.2"/>
+          <path d="M8 17.5h8"/>
+        </svg>
+      </div>
+      <div>
+        <div class="flex items-center gap-2">
+          <span class="text-white font-semibold text-sm tracking-tight">Passport Holder · V5 Spatial Glass</span>
+          <span class="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-medium">3 大截图特性已合入</span>
+        </div>
+        <p class="text-xs text-zinc-400 mt-0.5">
+          高自由度平铺水印与4开关打码 · NFC 动态波纹与验真动画 · 「安全与设置」完整页
+        </p>
+      </div>
+    </div>
+
+    <div class="flex items-center gap-2">
+      <div class="inline-flex rounded-xl bg-black/40 p-1 border border-white/10">
+        <button onclick="switchPerson('self')" id="btnPersonSelf" class="px-2.5 py-1 rounded-lg text-xs font-medium transition-all bg-white text-zinc-900">
+          本人 · 正常态
+        </button>
+        <button onclick="switchPerson('family')" id="btnPersonFamily" class="px-2.5 py-1 rounded-lg text-xs font-medium transition-all text-zinc-400 hover:text-white">
+          家人 · &lt;6个月预警
+        </button>
+      </div>
+
+      <button onclick="toggleDarkMode()" class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/15 text-xs text-white font-medium border border-white/10 transition">
+        <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+          <circle cx="12" cy="12" r="4"/>
+          <path d="M12 2v2m0 16v2M4.93 4.93l1.41 1.41m11.32 11.32l1.41 1.41M2 12h2m16 0h2M4.93 19.07l1.41-1.41m11.32-11.32l1.41-1.41"/>
+        </svg>
+        <span id="labelThemeMode">浅色模式</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- ==================== 393 × 852 旗舰机交互画布 ==================== -->
+  <div id="phoneRoot" class="phone-viewport flex flex-col" data-mode="light">
+    <!-- V5 空间弥散光影层 -->
+    <div class="v5-ambient"></div>
+
+    <!-- 1. 顶部原生状态栏 + 灵动岛实况胶囊 -->
+    <div class="relative z-20 px-7 pt-3.5 pb-2 flex items-center justify-between select-none">
+      <span class="text-[14px] font-semibold tracking-tight tabular-nums">9:41</span>
+
+      <button onclick="switchTab('arrival')" title="点击打开入境卡" class="h-[29px] px-3.5 rounded-full bg-[#0B0C10] text-white flex items-center gap-2 shadow-md border border-white/10 active:scale-95 transition">
+        <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+        <span class="text-[11px] font-medium tracking-tight tabular-nums">NRT 入境卡 · E123 4567 8</span>
+      </button>
+
+      <div class="flex items-center gap-1.5 opacity-85">
+        <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
+          <rect x="2" y="15" width="3" height="6" rx="1"/>
+          <rect x="7" y="11" width="3" height="10" rx="1"/>
+          <rect x="12" y="7" width="3" height="14" rx="1"/>
+          <rect x="17" y="3" width="3" height="18" rx="1"/>
+        </svg>
+        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+          <rect x="2" y="7" width="17" height="10" rx="2"/>
+          <path d="M21 10v4"/>
+          <rect x="4.5" y="9.5" width="12" height="5" rx="1" fill="currentColor"/>
+        </svg>
+      </div>
+    </div>
+
+    <!-- 2. 主内容滚动区 -->
+    <main id="mainScroll" class="relative z-10 flex-1 overflow-y-auto no-scrollbar pb-28">
+
+      <!-- ==================== TAB 1: 卡包 (V5 空间主证切换 + Apple Wallet 层叠签证卡) ==================== -->
+      <section id="tab-wallet" class="px-4 pt-1">
+        <div class="flex items-center justify-between mb-3">
+          <h1 class="text-[26px] font-bold tracking-tight leading-none">卡包</h1>
+
+          <div class="flex items-center gap-1.5">
+            <button onclick="openSheet('familySheet')" class="h-8 px-2.5 rounded-full ios-card flex items-center gap-1.5 text-xs font-medium active:scale-95 transition">
+              <span id="currentPersonBadge" class="w-4 h-4 rounded-full bg-[var(--accent)] text-white text-[10px] font-bold flex items-center justify-center">伟</span>
+              <span id="currentPersonName" class="text-xs font-semibold">王伟敏</span>
+              <svg class="w-3 h-3 opacity-50" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+            </button>
+            <button onclick="openNfcSheet()" title="NFC 碰一碰读芯录入" class="w-8 h-8 rounded-full ios-card flex items-center justify-center active:scale-95 transition">
+              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 5v14M5 12h14"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <div id="walletDynamicMount"></div>
+      </section>
+
+      <!-- ==================== TAB 2: 探索 (动态点亮世界版图 + 地标插画目的地卡 + 拟真双页护照本) ==================== -->
+      <section id="tab-explore" class="px-4 pt-1 hidden">
+        <div class="flex items-center justify-between mb-3">
+          <div>
+            <h1 class="text-[26px] font-bold tracking-tight leading-none">探索目的地</h1>
+            <p class="text-[12px] text-[var(--text-secondary)] mt-1">点选下方签证芯片，实时点亮可免签版图</p>
+          </div>
+          <div class="text-right tabular-nums">
+            <span id="totalVisaFreeBadge" class="text-xs font-bold px-2.5 py-1 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
+              已解锁 94 国
+            </span>
+          </div>
+        </div>
+
+        <!-- 交互式点亮世界版图画布 -->
+        <div class="ios-card overflow-hidden mb-3.5">
+          <div class="relative p-3.5 bg-gradient-to-b from-[#0F172A] to-[#1E293B] text-white">
+            <div class="flex items-center justify-between text-[10px] text-slate-300 mb-1">
+              <span class="flex items-center gap-3">
+                <i class="inline-flex items-center gap-1 not-italic"><span class="w-2 h-2 rounded-full bg-emerald-400"></span>护照直免 (48国)</i>
+                <i class="inline-flex items-center gap-1 not-italic"><span class="w-2 h-2 rounded-full bg-blue-400"></span>持签叠加解锁 (<b id="bonusCountNum">+46</b>国)</i>
+              </span>
+              <span class="font-mono opacity-75">LIVE MAP</span>
+            </div>
+
+            <svg viewBox="0 0 340 135" class="w-full h-[122px] my-1">
+              <g stroke="rgba(255,255,255,0.06)" stroke-width="0.6">
+                <line x1="0" y1="35" x2="340" y2="35"/>
+                <line x1="0" y1="70" x2="340" y2="70"/>
+                <line x1="0" y1="105" x2="340" y2="105"/>
+                <line x1="85" y1="0" x2="85" y2="135"/>
+                <line x1="170" y1="0" x2="170" y2="135"/>
+                <line x1="255" y1="0" x2="255" y2="135"/>
+              </g>
+              <path id="mapRegionAmericas" class="map-region lit-visa" d="M22,22 L68,18 L84,42 L74,66 L54,78 L42,65 L28,46 Z" />
+              <path id="mapRegionSouthAmerica" class="map-region lit-visa" d="M68,82 L94,86 L88,122 L72,128 L64,102 Z" />
+              <path id="mapRegionEurope" class="map-region lit-visa" d="M142,20 L192,16 L198,46 L172,54 L144,44 Z" />
+              <path class="map-region lit-base" d="M138,58 L194,58 L198,98 L168,116 L146,92 Z" />
+              <path class="map-region lit-base" d="M204,24 L282,20 L294,66 L252,84 L212,62 Z" />
+              <path id="mapRegionEastAsia" class="map-region lit-visa" d="M288,36 L312,32 L316,74 L292,78 Z" />
+              <path class="map-region lit-base" d="M266,94 L308,92 L312,118 L272,122 Z" />
+
+              <g id="mapPinMex" class="transition-opacity duration-300">
+                <circle cx="54" cy="64" r="3" fill="#60A5FA"/>
+                <circle cx="54" cy="64" r="6" fill="none" stroke="#60A5FA" stroke-width="1" opacity="0.6"/>
+                <text x="62" y="67" fill="#E2E8F0" font-size="7.5" font-weight="600">墨西哥 180天</text>
+              </g>
+              <g id="mapPinEur" class="transition-opacity duration-300">
+                <circle cx="168" cy="36" r="3" fill="#60A5FA"/>
+                <text x="145" y="30" fill="#E2E8F0" font-size="7.5" font-weight="600">申根/黑山</text>
+              </g>
+              <g id="mapPinAsia" class="transition-opacity duration-300">
+                <circle cx="298" cy="54" r="3" fill="#34D399"/>
+                <text x="252" y="96" fill="#E2E8F0" font-size="7.5" font-weight="600">新马泰/日本</text>
+              </g>
+            </svg>
+          </div>
+
+          <div class="p-3 flex items-center justify-between gap-1.5">
+            <button onclick="toggleOverlayFilter('usa')" id="filterPillUsa" class="flex-1 py-1.5 px-2 rounded-xl text-[11px] font-semibold border transition flex items-center justify-center gap-1 bg-[var(--accent)] text-white border-transparent shadow-sm">
+              <span>+ 美签 B1/B2</span>
+            </button>
+            <button onclick="toggleOverlayFilter('sch')" id="filterPillSch" class="flex-1 py-1.5 px-2 rounded-xl text-[11px] font-semibold border transition flex items-center justify-center gap-1 bg-[var(--accent)] text-white border-transparent shadow-sm">
+              <span>+ 申根多次</span>
+            </button>
+            <button onclick="toggleOverlayFilter('jpn')" id="filterPillJpn" class="flex-1 py-1.5 px-2 rounded-xl text-[11px] font-semibold border transition flex items-center justify-center gap-1 bg-[var(--accent)] text-white border-transparent shadow-sm">
+              <span>+ 日签五年</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- 顶部双工具微缩视觉卡 -->
+        <div class="grid grid-cols-2 gap-2.5 mb-4">
+          <button onclick="openSheet('pagesSheet')" class="ios-card p-3.5 text-left active:scale-[0.98] transition relative overflow-hidden">
+            <div class="flex items-center justify-between">
+              <span class="text-[11px] font-semibold text-[var(--text-secondary)]">护照空白页本</span>
+              <span class="text-[10px] font-semibold text-[var(--accent)]">翻阅 ›</span>
+            </div>
+            <div class="mt-2 flex items-baseline gap-1 tabular-nums">
+              <span id="exploreAvailablePagesNum" class="text-2xl font-bold tracking-tight">31</span>
+              <span class="text-[11px] text-[var(--text-secondary)]">/ 44 页可用</span>
+            </div>
+            <div class="mt-2 flex gap-0.5">
+              <span class="h-1.5 flex-1 rounded-l bg-emerald-500"></span>
+              <span class="h-1.5 flex-1 bg-emerald-500"></span>
+              <span class="h-1.5 flex-1 bg-amber-500"></span>
+              <span class="h-1.5 flex-1 rounded-r bg-blue-500"></span>
+            </div>
+          </button>
+
+          <button onclick="openSheet('schengenSheet')" class="ios-card p-3.5 text-left active:scale-[0.98] transition relative overflow-hidden">
+            <div class="flex items-center justify-between">
+              <span class="text-[11px] font-semibold text-[var(--text-secondary)]">申根停留沙盘</span>
+              <span class="text-[10px] font-semibold text-[var(--accent)]">推演 ›</span>
+            </div>
+            <div class="mt-2 flex items-baseline gap-1 tabular-nums">
+              <span class="text-2xl font-bold tracking-tight">68</span>
+              <span class="text-[11px] text-[var(--text-secondary)]">天剩余可停</span>
+            </div>
+            <div class="mt-2 w-full h-1.5 rounded-full bg-black/10 dark:bg-white/10 overflow-hidden">
+              <div class="h-full bg-blue-500 rounded-full" style="width: 24.5%"></div>
+            </div>
+          </button>
+        </div>
+
+        <div class="mb-2 flex items-center justify-between px-1">
+          <span class="text-xs font-semibold text-[var(--text-secondary)]">热门免签与持签特权目的地</span>
+          <span class="text-[11px] text-[var(--text-tertiary)]">点击卡片展开 4 维细则</span>
+        </div>
+
+        <div id="exploreCountryList" class="space-y-2.5 pb-3"></div>
+      </section>
+
+      <!-- ==================== TAB 3: 入境 (一体式票据「电子入境卡」) ==================== -->
+      <section id="tab-arrival" class="px-4 pt-1 hidden">
+        <div class="flex items-center justify-between mb-3">
+          <div>
+            <h1 class="text-[26px] font-bold tracking-tight leading-none">入境卡</h1>
+            <p class="text-[12px] text-[var(--text-secondary)] mt-1">填表大字抄写与边检扫码一体单据</p>
+          </div>
+          <button onclick="toggleMaxBrightness()" class="px-3 py-1.5 rounded-full ios-card flex items-center gap-1.5 text-xs font-semibold active:scale-95 transition">
+            <svg class="w-3.5 h-3.5 text-amber-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="4"/>
+              <path d="M12 2v2m0 16v2M4.93 4.93l1.41 1.41m11.32 11.32l1.41 1.41M2 12h2m16 0h2M4.93 19.07l1.41-1.41m11.32-11.32l1.41-1.41"/>
+            </svg>
+            <span id="txtMaxBright">高亮扫码</span>
+          </button>
+        </div>
+
+        <div class="arrival-pass-card mb-4">
+          <div class="px-5 py-3.5 bg-gradient-to-r from-[#3B5BDB] to-[#1D4ED8] text-white flex items-center justify-between">
+            <div class="flex items-center gap-2.5">
+              <span class="px-2 py-0.5 rounded bg-white/20 font-mono text-xs font-bold tracking-wider">JPN</span>
+              <div>
+                <div class="text-xs font-bold tracking-wide">日本入境审查单 · ARRIVAL CARD</div>
+                <div class="text-[10px] text-blue-100 tabular-nums">东京成田 NRT · 航班 NH960 · 离线就绪</div>
+              </div>
+            </div>
+            <span class="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-400/20 text-emerald-200 border border-emerald-300/30">
+              READY
+            </span>
+          </div>
+
+          <div class="p-5 space-y-3.5">
+            <div class="flex items-start justify-between">
+              <div>
+                <div class="text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)]">PASSPORT NO. / 护照号码 (4位分组)</div>
+                <div id="arrivalPassNoText" class="text-[28px] font-bold font-mono tracking-wider tabular-nums leading-tight mt-0.5 text-[var(--accent)]">
+                  E123 4567 8
+                </div>
+              </div>
+              <button onclick="copyText('E12345678', '护照号码已复制')" class="px-2.5 py-1 rounded-lg bg-[var(--accent-soft)] text-[var(--accent)] text-[11px] font-semibold mt-1">
+                复制
+              </button>
+            </div>
+
+            <div class="px-3 py-1.5 rounded-xl bg-amber-500/12 border border-amber-500/25 flex items-center justify-between text-[11px]">
+              <span class="text-amber-700 dark:text-amber-300 font-medium">旧护照号 (贴有十年美签需同带)</span>
+              <span class="font-mono font-bold tabular-nums text-amber-700 dark:text-amber-300">G481 0293 8</span>
+            </div>
+
+            <div class="grid grid-cols-2 gap-2 pt-2 hairline-t tabular-nums">
+              <div>
+                <div class="text-[10px] font-bold uppercase text-[var(--text-tertiary)]">FULL NAME / 英文姓名</div>
+                <div id="arrivalNameText" class="text-sm font-bold mt-0.5">WANG, WEIMIN</div>
+              </div>
+              <div>
+                <div class="text-[10px] font-bold uppercase text-[var(--text-tertiary)]">BIRTH DATE / 出生日期</div>
+                <div class="text-sm font-bold font-mono mt-0.5">1985-01-01</div>
+              </div>
+            </div>
+
+            <div class="pt-2 hairline-t">
+              <div class="flex items-center justify-between">
+                <span class="text-[10px] font-bold uppercase text-[var(--text-tertiary)]">HOTEL ADDRESS IN JAPAN / 入境住址</span>
+                <button onclick="copyText('AMAN TOKYO, 1-5-6 OTEMACHI, CHIYODA-KU, TOKYO', '酒店英文地址已复制')" class="text-[11px] font-semibold text-[var(--accent)]">
+                  一键复制地址
+                </button>
+              </div>
+              <div class="text-xs font-semibold mt-1 leading-snug">
+                AMAN TOKYO, 1-5-6 OTEMACHI, CHIYODA-KU, TOKYO
+              </div>
+              <div class="text-[11px] text-[var(--text-secondary)] font-mono tabular-nums mt-0.5">
+                TEL: +81 3-5224-3333
+              </div>
+            </div>
+          </div>
+
+          <div class="ticket-divider">
+            <span class="ticket-notch-left"></span>
+            <span class="ticket-notch-right"></span>
+          </div>
+
+          <div class="p-5 flex flex-col items-center text-center">
+            <div class="inline-flex rounded-xl bg-[var(--bg-pill)] p-1 mb-3.5 w-full max-w-[260px]">
+              <button onclick="switchQrTab('immigration')" id="qrBtnImm" class="flex-1 py-1 rounded-lg text-[11px] font-semibold bg-[var(--bg-elevated)] shadow-sm transition">
+                入境与海关申报码
+              </button>
+              <button onclick="switchQrTab('taxfree')" id="qrBtnTax" class="flex-1 py-1 rounded-lg text-[11px] font-medium text-[var(--text-secondary)] transition">
+                免税购物码
+              </button>
+            </div>
+
+            <div onclick="toggleMaxBrightness()" class="w-40 h-40 p-2.5 rounded-2xl bg-white border border-slate-200 shadow-sm flex items-center justify-center cursor-pointer active:scale-95 transition">
+              <svg viewBox="0 0 100 100" class="w-full h-full">
+                <rect width="100" height="100" fill="#FFFFFF"/>
+                <path d="M8,8 h26 v26 h-26 z M13,13 v16 h16 v-16 z M17,17 h8 v8 h-8 z" fill="#0F172A"/>
+                <path d="M66,8 h26 v26 h-26 z M71,13 v16 h16 v-16 z M75,17 h8 v8 h-8 z" fill="#0F172A"/>
+                <path d="M8,66 h26 v26 h-26 z M13,71 v16 h16 v-16 z M17,75 h8 v8 h-8 z" fill="#0F172A"/>
+                <g fill="#0F172A">
+                  <rect x="40" y="10" width="6" height="6"/><rect x="52" y="10" width="6" height="12"/>
+                  <rect x="40" y="22" width="12" height="6"/><rect x="46" y="34" width="12" height="6"/>
+                  <rect x="10" y="42" width="12" height="6"/><rect x="28" y="42" width="6" height="12"/>
+                  <rect x="42" y="44" width="12" height="12" fill="#3B5BDB"/>
+                  <rect x="60" y="40" width="6" height="18"/><rect x="74" y="42" width="16" height="6"/>
+                  <rect x="40" y="64" width="6" height="14"/><rect x="52" y="68" width="14" height="6"/>
+                  <rect x="72" y="62" width="6" height="18"/><rect x="84" y="70" width="8" height="16"/>
+                  <rect x="48" y="82" width="18" height="8"/>
+                </g>
+              </svg>
+            </div>
+
+            <div id="qrTypeTitle" class="text-xs font-bold mt-2.5">Visit Japan Web · 入境审查与海关申报码</div>
+            <div class="text-[11px] text-[var(--text-secondary)] mt-0.5">向边检自助机出示 · 点击二维码可自动增亮屏幕</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ==================== TAB 4: 安全与设置 (升级点 3：严格还原参考图 3 布局与功能) ==================== -->
+      <section id="tab-settings" class="px-4 pt-1 hidden">
+        <div class="mb-3.5">
+          <h1 class="text-[28px] font-bold tracking-tight leading-none">安全与设置</h1>
+        </div>
+
+        <!-- 1. 顶部本人管理员档案卡（还原参考图 3） -->
+        <button onclick="openSheet('familySheet')" class="w-full ios-card p-4 mb-5 flex items-center justify-between text-left active:scale-[0.99] transition">
+          <div class="flex items-center gap-3.5">
+            <div id="settingsAvatarCircle" class="w-12 h-12 rounded-full bg-[#E5EBFF] dark:bg-blue-500/20 text-[#3B5BDB] dark:text-blue-300 text-lg font-bold flex items-center justify-center shrink-0">
+              伟
+            </div>
+            <div>
+              <div id="settingsProfileName" class="text-[17px] font-bold tracking-tight">王伟敏</div>
+              <div id="settingsProfileSub" class="text-[12px] text-[var(--text-secondary)] mt-0.5 tabular-nums">
+                本人 · 管理员 · 5 份证件 · NFC 已验真
+              </div>
+            </div>
+          </div>
+          <svg class="w-4 h-4 text-[var(--text-tertiary)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M9 18l6-6-6-6"/>
+          </svg>
+        </button>
+
+        <!-- 2. 分组：家庭 -->
+        <div class="mb-2 px-1 text-[12px] font-semibold text-[var(--text-secondary)]">家庭</div>
+        <div class="ios-card overflow-hidden divide-y divide-[var(--border-subtle)] mb-5">
+          <button onclick="openSheet('familySheet')" class="w-full p-3.5 flex items-center justify-between text-left hover:bg-black/[0.015] transition">
+            <div class="flex items-center gap-3">
+              <div class="w-8 h-8 rounded-xl bg-[#EAF0FF] dark:bg-blue-500/20 text-[#3B5BDB] dark:text-blue-400 flex items-center justify-center shrink-0">
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                  <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
+                  <circle cx="9" cy="7" r="4"/>
+                  <path d="M22 21v-2a4 4 0 0 0-3-3.87"/>
+                  <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                </svg>
+              </div>
+              <div>
+                <div class="text-[14px] font-bold">家庭成员与切换</div>
+                <div class="text-[11px] text-[var(--text-secondary)] mt-0.5">本人 · 管理员 / 父亲</div>
+              </div>
+            </div>
+            <span class="text-[13px] text-[var(--text-secondary)] font-medium tabular-nums">2 位成员</span>
+          </button>
+
+          <button onclick="openSheet('vaultBackupSheet')" class="w-full p-3.5 flex items-center justify-between text-left hover:bg-black/[0.015] transition">
+            <div class="flex items-center gap-3">
+              <div class="w-8 h-8 rounded-xl bg-[#EAF0FF] dark:bg-blue-500/20 text-[#3B5BDB] dark:text-blue-400 flex items-center justify-center shrink-0">
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                  <polyline points="14 2 14 8 20 8"/>
+                  <line x1="8" y1="13" x2="16" y2="13"/>
+                  <line x1="8" y1="17" x2="13" y2="17"/>
+                </svg>
+              </div>
+              <div>
+                <div class="text-[14px] font-bold">家庭出行证件包导出</div>
+                <div class="text-[11px] text-[var(--text-secondary)] mt-0.5">勾选成员生成加密 PDF / .passportvault</div>
+              </div>
+            </div>
+            <span class="text-[13px] font-bold text-[#3B5BDB] dark:text-blue-400">Pro</span>
+          </button>
+        </div>
+
+        <!-- 3. 分组：安全与隐私 -->
+        <div class="mb-2 px-1 text-[12px] font-semibold text-[var(--text-secondary)]">安全与隐私</div>
+        <div class="ios-card overflow-hidden divide-y divide-[var(--border-subtle)] mb-5">
+          <!-- 生物识别应用锁 -->
+          <div class="p-3.5 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <div class="w-8 h-8 rounded-xl bg-emerald-500/12 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                  <rect x="5" y="11" width="14" height="10" rx="2"/>
+                  <path d="M8 11V7a4 4 0 0 1 8 0v4"/>
+                </svg>
+              </div>
+              <div>
+                <div class="text-[14px] font-bold">生物识别应用锁</div>
+                <div class="text-[11px] text-[var(--text-secondary)] mt-0.5">人脸 / 指纹 · 切后台即刻锁定</div>
+              </div>
+            </div>
+            <label class="ios-switch">
+              <input type="checkbox" checked onchange="showToast(this.checked ? '已开启生物识别应用锁' : '已关闭生物识别应用锁')">
+              <span class="ios-switch-slider"></span>
+            </label>
+          </div>
+
+          <!-- 防截屏隐私模式 -->
+          <div class="p-3.5 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <div class="w-8 h-8 rounded-xl bg-[#EAF0FF] dark:bg-blue-500/20 text-[#3B5BDB] dark:text-blue-400 flex items-center justify-center shrink-0">
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                  <path d="M9 12l2 2 4-4"/>
+                </svg>
+              </div>
+              <div>
+                <div class="text-[14px] font-bold">防截屏隐私模式</div>
+                <div class="text-[11px] text-[var(--text-secondary)] mt-0.5">证件详情页阻止截屏与录屏</div>
+              </div>
+            </div>
+            <label class="ios-switch">
+              <input type="checkbox" checked onchange="showToast(this.checked ? '已开启防截屏保护' : '已允许系统截屏')">
+              <span class="ios-switch-slider"></span>
+            </label>
+          </div>
+
+          <!-- 后台免密宽限期 -->
+          <button onclick="cycleGracePeriod()" class="w-full p-3.5 flex items-center justify-between text-left hover:bg-black/[0.015] transition">
+            <div class="flex items-center gap-3">
+              <div class="w-8 h-8 rounded-xl bg-[#EAF0FF] dark:bg-blue-500/20 text-[#3B5BDB] dark:text-blue-400 flex items-center justify-center shrink-0">
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                  <circle cx="8" cy="15" r="4"/>
+                  <path d="M10.85 12.15L19 4"/>
+                  <path d="M18 5l2 2"/>
+                  <path d="M15 8l2 2"/>
+                </svg>
+              </div>
+              <div>
+                <div class="text-[14px] font-bold">后台免密宽限期</div>
+              </div>
+            </div>
+            <span id="gracePeriodLabel" class="text-[13px] text-[var(--text-secondary)] font-medium tabular-nums">1 分钟</span>
+          </button>
+
+          <!-- 纯离线零联网模式 -->
+          <div class="p-3.5 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <div class="w-8 h-8 rounded-xl bg-[#EAF0FF] dark:bg-blue-500/20 text-[#3B5BDB] dark:text-blue-400 flex items-center justify-center shrink-0">
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                  <path d="M8.5 16.5a5 5 0 0 1 7 0"/>
+                  <path d="M5 13a10 10 0 0 1 14 0"/>
+                  <line x1="12" y1="20" x2="12.01" y2="20"/>
+                </svg>
+              </div>
+              <div>
+                <div class="text-[14px] font-bold">纯离线零联网模式</div>
+                <div class="text-[11px] text-[var(--text-secondary)] mt-0.5">关闭规则库热更新检查</div>
+              </div>
+            </div>
+            <label class="ios-switch">
+              <input type="checkbox" onchange="showToast(this.checked ? '已开启纯离线零联网模式' : '已允许免签规则库热更新检查')">
+              <span class="ios-switch-slider"></span>
+            </label>
+          </div>
+        </div>
+
+        <!-- 4. 分组：水印与外发 -->
+        <div class="mb-2 px-1 text-[12px] font-semibold text-[var(--text-secondary)]">水印与外发</div>
+        <div class="ios-card overflow-hidden divide-y divide-[var(--border-subtle)] mb-6">
+          <div class="p-3.5 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <div class="w-8 h-8 rounded-xl bg-emerald-500/12 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                  <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/>
+                </svg>
+              </div>
+              <div>
+                <div class="text-[14px] font-bold">外发图即焚</div>
+                <div class="text-[11px] text-[var(--text-secondary)] mt-0.5">分享完成后立即销毁沙盒临时图，不留相册</div>
+              </div>
+            </div>
+            <label class="ios-switch">
+              <input type="checkbox" checked onchange="showToast('已更新外发图即焚策略')">
+              <span class="ios-switch-slider"></span>
+            </label>
+          </div>
+
+          <button onclick="openSheet('watermarkSheet')" class="w-full p-3.5 flex items-center justify-between text-left hover:bg-black/[0.015] transition">
+            <div class="flex items-center gap-3">
+              <div class="w-8 h-8 rounded-xl bg-[#EAF0FF] dark:bg-blue-500/20 text-[#3B5BDB] dark:text-blue-400 flex items-center justify-center shrink-0">
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                  <rect x="3" y="3" width="18" height="18" rx="2"/>
+                  <path d="M3 9h18"/>
+                </svg>
+              </div>
+              <div>
+                <div class="text-[14px] font-bold">安全水印与局部打码工作台</div>
+                <div class="text-[11px] text-[var(--text-secondary)] mt-0.5">自定义倾斜水印强度、字号与敏感栏遮挡</div>
+              </div>
+            </div>
+            <svg class="w-4 h-4 text-[var(--text-tertiary)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M9 18l6-6-6-6"/>
+            </svg>
+          </button>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- 3. V5 空间悬浮毛玻璃胶囊底栏（严格还原参考图 3：带选中胶囊底色与「安全与设置」标题） -->
+    <nav class="absolute bottom-3 inset-x-4 z-20 p-1.5 rounded-[28px] backdrop-blur-2xl border border-[var(--border-hairline)] shadow-xl" style="background: var(--tabbar-bg);">
+      <div class="grid grid-cols-4 gap-1">
+        <button onclick="switchTab('wallet')" data-tabbtn="wallet" class="tab-btn flex flex-col items-center justify-center py-1.5 rounded-[22px] transition bg-[#E5EBFF]/90 dark:bg-blue-500/20 text-[#3B5BDB] dark:text-blue-400">
+          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <rect x="3" y="5" width="18" height="14" rx="2.5"/>
+            <path d="M3 10h18"/>
+          </svg>
+          <span class="text-[10px] font-semibold mt-0.5">卡包</span>
+        </button>
+
+        <button onclick="switchTab('explore')" data-tabbtn="explore" class="tab-btn flex flex-col items-center justify-center py-1.5 rounded-[22px] transition text-[var(--text-tertiary)]">
+          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <circle cx="12" cy="12" r="9"/>
+            <path d="M14.8 9.2l-2 5.6-5.6 2 2-5.6 5.6-2z"/>
+          </svg>
+          <span class="text-[10px] font-medium mt-0.5">探索</span>
+        </button>
+
+        <button onclick="switchTab('arrival')" data-tabbtn="arrival" class="tab-btn flex flex-col items-center justify-center py-1.5 rounded-[22px] transition text-[var(--text-tertiary)]">
+          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <rect x="4" y="4" width="16" height="16" rx="2.5"/>
+            <path d="M4 9h16"/>
+            <path d="M10 14h4"/>
+          </svg>
+          <span class="text-[10px] font-medium mt-0.5">入境</span>
+        </button>
+
+        <button onclick="switchTab('settings')" data-tabbtn="settings" class="tab-btn flex flex-col items-center justify-center py-1.5 rounded-[22px] transition text-[var(--text-tertiary)]">
+          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+            <path d="M9 12l2 2 4-4"/>
+          </svg>
+          <span class="text-[10px] font-medium mt-0.5">安全与设置</span>
+        </button>
+      </div>
+    </nav>
+
+    <!-- Toast 轻提示 -->
+    <div id="iosToast" class="pointer-events-none opacity-0 transition-all duration-200 absolute top-14 left-1/2 -translate-x-1/2 z-50 px-3.5 py-1.5 rounded-full bg-[#0F172A]/95 text-white text-xs font-medium shadow-lg border border-white/10 whitespace-nowrap">
+      已复制到剪贴板
+    </div>
+
+    <!-- ==================== NATIVE BOTTOM SHEETS ==================== -->
+
+    <!-- ==================== 升级点 1：安全水印与局部打码（1:1 严格还原参考图 1） ==================== -->
+    <div id="watermarkSheet" class="sheet-backdrop absolute inset-0 z-30 flex flex-col justify-end" onclick="closeSheetOnBg(event, 'watermarkSheet')">
+      <div class="bottom-sheet rounded-t-[30px] px-5 pt-3 pb-5 max-h-[92%] overflow-y-auto no-scrollbar">
+        <div class="w-10 h-1 rounded-full bg-slate-400/40 mx-auto mb-3"></div>
+
+        <!-- 顶部标题与圆角关闭按钮 -->
+        <div class="flex items-start justify-between mb-3">
+          <div>
+            <h3 class="text-[20px] font-bold tracking-tight">安全水印与局部打码</h3>
+            <p class="text-[12px] text-[var(--text-secondary)] mt-0.5">全屏倾斜平铺防 AI 擦除 · 生成图零相册残留</p>
+          </div>
+          <button onclick="closeSheet('watermarkSheet')" class="w-7 h-7 rounded-full bg-black/5 dark:bg-white/10 flex items-center justify-center text-[var(--text-secondary)] hover:opacity-80">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+          </button>
+        </div>
+
+        <!-- 勃艮第红护照预览卡 + 全屏倾斜平铺水印阵列 + 4处独立局部黑条打码 -->
+        <div class="relative rounded-[20px] overflow-hidden mb-3.5 shadow-lg border border-black/10 select-none"
+             style="background: linear-gradient(135deg, #632030 0%, #4E1623 55%, #3D101B 100%); height: 196px;">
+
+          <!-- 护照内部信息层 -->
+          <div class="p-4 flex gap-3.5 relative z-10 h-[152px]">
+            <!-- 左：人像照片区 / 黑块遮挡 -->
+            <div class="w-[74px] h-[94px] rounded-xl overflow-hidden shrink-0 relative border border-white/20 bg-[#2E0B13]">
+              <!-- 未打码时显示的真实头像 -->
+              <div id="wmAvatarRaw" class="w-full h-full hidden flex items-center justify-center bg-slate-300">
+                <svg viewBox="0 0 80 100" class="w-full h-full">
+                  <path d="M10,100 C10,74 24,68 40,68 C56,68 70,74 70,100 Z" fill="#1E293B"/>
+                  <ellipse cx="40" cy="40" rx="15" ry="18" fill="#EAC3A3"/>
+                  <path d="M25,36 C25,20 33,17 42,17 C51,17 56,22 55,35 Z" fill="#1E2024"/>
+                </svg>
+              </div>
+              <!-- 打码时显示的纯黑遮挡块（还原图1左上角） -->
+              <div id="wmAvatarRedacted" class="w-full h-full bg-[#09090B]"></div>
+            </div>
+
+            <!-- 右：姓名 / 护照号 / 出生日期 / 签名 -->
+            <div class="flex-1 text-white flex flex-col justify-between py-0.5">
+              <div>
+                <div class="text-[9px] text-white/60 uppercase tracking-wider">NAME / 姓名</div>
+                <div id="wmCardName" class="text-[14px] font-bold tracking-wide leading-tight">WANG, WEIMIN</div>
+              </div>
+
+              <div>
+                <div class="text-[9px] text-white/60 uppercase tracking-wider">PASSPORT NO / 护照号</div>
+                <div id="wmCardNo" class="text-[14px] font-mono font-bold tracking-wider tabular-nums leading-tight">E123 4567 8</div>
+              </div>
+
+              <div class="flex items-end justify-between gap-2">
+                <div>
+                  <div class="text-[9px] text-white/60 uppercase tracking-wider">DATE OF BIRTH / 出生日期</div>
+                  <div id="wmDobBox" class="text-[13px] font-mono font-bold tabular-nums leading-tight mt-0.5">1985-01-01</div>
+                </div>
+                <div class="text-right">
+                  <div class="text-[8px] text-white/55 uppercase">SIGNATURE</div>
+                  <div id="wmSignBox" class="text-[12px] font-serif italic text-amber-100/90 px-1.5 py-0.5 rounded">Wang Weimin</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 底部 MRZ 机读码区 / 黑条遮挡（还原图1底部纯黑遮挡条） -->
+          <div class="absolute bottom-0 inset-x-0 h-[44px] z-20 flex items-center px-4">
+            <div id="wmMrzRaw" class="hidden font-mrz text-[9.5px] text-white/80 leading-tight truncate w-full">
+              P&lt;CHNWANG&lt;&lt;WEIMIN&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;<br/>
+              E123456784CHN8501018M3305146&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;08
+            </div>
+            <div id="wmMrzRedacted" class="w-full h-full bg-[#09090B] -mx-4 flex-1"></div>
+          </div>
+
+          <!-- 全屏倾斜平铺防 AI 擦除水印网格层（动态受滑块控制透明度与字号） -->
+          <div id="wmTiledOverlay" class="pointer-events-none absolute inset-[-60%] z-30 flex flex-col justify-center gap-4 -rotate-[24deg] select-none"
+               style="opacity: 0.50; font-size: 12px;">
+            <!-- JS 动态生成多行平铺斜向水印 -->
+          </div>
+        </div>
+
+        <!-- 4 大用途快捷胶囊按钮（还原图1） -->
+        <div class="grid grid-cols-2 gap-2 mb-3">
+          <button onclick="selectWmTag(0, '仅用于酒店入住登记')" id="wmTagBtn0"
+                  class="wm-tag-btn py-2 px-3 rounded-full text-xs font-bold flex items-center justify-center gap-1.5 transition bg-[#3B5BDB] text-white shadow-sm">
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/></svg>
+            <span>仅用于酒店入住登记</span>
+          </button>
+
+          <button onclick="selectWmTag(1, '仅用于签证代办审核')" id="wmTagBtn1"
+                  class="wm-tag-btn py-2 px-3 rounded-full text-xs font-medium flex items-center justify-center gap-1.5 transition bg-white dark:bg-white/10 text-[var(--text-primary)] border border-slate-200 dark:border-white/10">
+            <svg class="w-3.5 h-3.5 opacity-60" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/></svg>
+            <span>仅用于签证代办审核</span>
+          </button>
+
+          <button onclick="selectWmTag(2, '仅用于机票预订核验')" id="wmTagBtn2"
+                  class="wm-tag-btn py-2 px-3 rounded-full text-xs font-medium flex items-center justify-center gap-1.5 transition bg-white dark:bg-white/10 text-[var(--text-primary)] border border-slate-200 dark:border-white/10">
+            <svg class="w-3.5 h-3.5 opacity-60" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/></svg>
+            <span>仅用于机票预订核验</span>
+          </button>
+
+          <button onclick="selectWmCustom()" id="wmTagBtn3"
+                  class="wm-tag-btn py-2 px-3 rounded-full text-xs font-medium flex items-center justify-center gap-1.5 transition bg-white dark:bg-white/10 text-[var(--text-primary)] border border-slate-200 dark:border-white/10">
+            <svg class="w-3.5 h-3.5 opacity-60" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/></svg>
+            <span id="wmCustomBtnLabel">自定义用途...</span>
+          </button>
+        </div>
+
+        <!-- 自定义水印输入框（点击自定义用途时展开） -->
+        <div id="wmCustomInputBox" class="hidden mb-3">
+          <input id="wmCustomInput" type="text" value="仅用于租车提车核验"
+                 oninput="updateCustomWatermarkText(this.value)"
+                 placeholder="输入自定义水印文字..."
+                 class="w-full px-3.5 py-2 rounded-xl bg-white dark:bg-white/10 border border-[#3B5BDB] text-xs font-medium outline-none" />
+        </div>
+
+        <!-- 水印强度与水印字号双滑块（还原图1） -->
+        <div class="space-y-3 py-2 mb-2">
+          <div class="flex items-center justify-between gap-4">
+            <span class="text-[13px] font-bold w-16 shrink-0">水印强度</span>
+            <input type="range" min="15" max="95" value="50"
+                   oninput="updateWmOpacity(this.value)"
+                   class="ios-slider flex-1" />
+            <span id="wmOpacityVal" class="text-[12px] text-[var(--text-secondary)] font-mono tabular-nums w-10 text-right">50%</span>
+          </div>
+
+          <div class="flex items-center justify-between gap-4">
+            <span class="text-[13px] font-bold w-16 shrink-0">水印字号</span>
+            <input type="range" min="10" max="18" value="12"
+                   oninput="updateWmFontSize(this.value)"
+                   class="ios-slider flex-1" />
+            <span id="wmSizeVal" class="text-[12px] text-[var(--text-secondary)] font-mono tabular-nums w-10 text-right">12px</span>
+          </div>
+        </div>
+
+        <!-- 4 项局部打码开关行（还原图1） -->
+        <div class="divide-y divide-slate-200/70 dark:divide-white/10 border-t border-slate-200/70 dark:border-white/10 mb-3">
+          <div class="py-2.5 flex items-center justify-between">
+            <span class="text-[13px] font-bold">遮挡人像照片</span>
+            <label class="ios-switch">
+              <input type="checkbox" checked onchange="toggleWmRedact('avatar', this.checked)">
+              <span class="ios-switch-slider"></span>
+            </label>
+          </div>
+
+          <div class="py-2.5 flex items-center justify-between">
+            <span class="text-[13px] font-bold">遮挡持照人签名栏</span>
+            <label class="ios-switch">
+              <input type="checkbox" onchange="toggleWmRedact('sign', this.checked)">
+              <span class="ios-switch-slider"></span>
+            </label>
+          </div>
+
+          <div class="py-2.5 flex items-center justify-between">
+            <span class="text-[13px] font-bold">遮挡底部 MRZ 机读码</span>
+            <label class="ios-switch">
+              <input type="checkbox" checked onchange="toggleWmRedact('mrz', this.checked)">
+              <span class="ios-switch-slider"></span>
+            </label>
+          </div>
+
+          <div class="py-2.5 flex items-center justify-between">
+            <span class="text-[13px] font-bold">遮挡出生日期 / 出生地</span>
+            <label class="ios-switch">
+              <input type="checkbox" onchange="toggleWmRedact('dob', this.checked)">
+              <span class="ios-switch-slider"></span>
+            </label>
+          </div>
+        </div>
+
+        <!-- 底部沙盒安全绿色提示横幅（还原图1底部） -->
+        <div class="p-3 rounded-2xl bg-emerald-500/12 border border-emerald-500/20 flex items-start gap-2 text-[11px] text-emerald-800 dark:text-emerald-300 leading-relaxed mb-3">
+          <svg class="w-4 h-4 shrink-0 mt-0.5 text-emerald-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>
+          </svg>
+          <span>生成图仅存于应用沙盒临时区，调用系统分享面板直出，不写入系统相册，分享完即刻销毁。</span>
+        </div>
+
+        <button onclick="showToast('已生成防盗水印图并拉起系统分享（零相册残留）'); closeSheet('watermarkSheet')"
+                class="w-full py-3 rounded-2xl bg-[#3B5BDB] text-white text-xs font-bold shadow-md active:scale-[0.99] transition">
+          调用系统分享直出
+        </button>
+      </div>
+    </div>
+
+    <!-- ==================== 升级点 2：NFC 碰一碰读芯动态动画 Sheet（1:1 严格还原参考图 2） ==================== -->
+    <div id="nfcSheet" class="sheet-backdrop absolute inset-0 z-30 flex flex-col justify-end" onclick="closeSheetOnBg(event, 'nfcSheet')">
+      <div class="bottom-sheet rounded-t-[30px] p-6 pb-8">
+        <div class="w-10 h-1 rounded-full bg-slate-400/40 mx-auto mb-3"></div>
+
+        <!-- 顶部标题与关闭按钮（还原图2） -->
+        <div class="flex items-start justify-between">
+          <div>
+            <h3 class="text-[20px] font-bold tracking-tight">NFC 碰一碰读芯</h3>
+            <p class="text-[12px] text-[var(--text-secondary)] mt-0.5">扫描 MRZ 获取 BAC 密钥后贴近手机背面</p>
+          </div>
+          <button onclick="closeNfcSheet()" class="w-7 h-7 rounded-full bg-black/5 dark:bg-white/10 flex items-center justify-center text-[var(--text-secondary)]">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+          </button>
+        </div>
+
+        <!-- 阶段 1：NFC 持续动态波纹扫描中（还原图2中心视觉与文案） -->
+        <div id="nfcScanningStage" class="py-7 flex flex-col items-center text-center">
+          <div onclick="triggerNfcSuccessNow()" title="点击可立即完成读取演示" class="relative w-36 h-36 flex items-center justify-center cursor-pointer">
+            <!-- 持续向外扩散的双层同心圆脉冲波纹 -->
+            <div class="nfc-ripple-ring-1 absolute w-28 h-28 rounded-full border border-[#3B5BDB]/35"></div>
+            <div class="nfc-ripple-ring-2 absolute w-28 h-28 rounded-full border border-[#3B5BDB]/25"></div>
+
+            <!-- 静态外环与内环（还原图2双圈设计） -->
+            <div class="w-32 h-32 rounded-full border border-[#3B5BDB]/15 flex items-center justify-center bg-[#3B5BDB]/[0.03]">
+              <div class="w-24 h-24 rounded-full border border-[#3B5BDB]/25 flex items-center justify-center bg-white/60 dark:bg-white/5 shadow-inner">
+                <!-- 动态呼吸发光的蓝色三道无线声波弧线 -->
+                <svg class="w-10 h-10 text-[#3B5BDB]" viewBox="0 0 36 36" fill="none" stroke="currentColor" stroke-linecap="round">
+                  <path class="nfc-wave-arc-1" d="M13 14.5a5.5 5.5 0 0 1 0 7" stroke-width="2.4"/>
+                  <path class="nfc-wave-arc-2" d="M17.5 11.5a9.5 9.5 0 0 1 0 13" stroke-width="2.4"/>
+                  <path class="nfc-wave-arc-3" d="M22 8.5a13.5 13.5 0 0 1 0 19" stroke-width="2.4"/>
+                </svg>
+              </div>
+            </div>
+          </div>
+
+          <div class="mt-4 text-[15px] font-bold tracking-tight">
+            将电子护照贴近手机背面 · 保持不动
+          </div>
+          <div id="nfcStepSubText" class="mt-1.5 text-[12px] text-[var(--text-secondary)] leading-relaxed max-w-[300px]">
+            正在通过 BAC 基本访问控制建立连接<br/>
+            读取 DG1 身份字段与 DG2 高清证件照 · 并校验芯片数字签名
+          </div>
+
+          <!-- 实时读取进度条 -->
+          <div class="w-48 h-1.5 rounded-full bg-slate-200 dark:bg-white/10 overflow-hidden mt-4">
+            <div id="nfcProgressBar" class="h-full bg-[#3B5BDB] transition-all duration-300 rounded-full" style="width: 18%"></div>
+          </div>
+        </div>
+
+        <!-- 阶段 2：NFC 读取与数字签名验真成功动画态 -->
+        <div id="nfcSuccessStage" class="py-5 hidden flex flex-col items-center text-center">
+          <div class="nfc-success-pop w-24 h-24 rounded-full bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shadow-inner">
+            <svg class="w-12 h-12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M20 6L9 17l-5-5"/>
+            </svg>
+          </div>
+
+          <div class="mt-3.5 text-[16px] font-bold text-emerald-600 dark:text-emerald-400">
+            ICAO 9303 电子芯片验真通过
+          </div>
+          <p class="text-[12px] text-[var(--text-secondary)] mt-0.5">
+            已成功解析 DG1 机读信息、DG2 原生高清人像与 SOD 国家签名
+          </p>
+
+          <!-- 芯片解析结果核验小卡 -->
+          <div class="w-full ios-card p-3.5 mt-4 text-left flex items-center justify-between tabular-nums">
+            <div>
+              <div class="flex items-center gap-1.5">
+                <span class="px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 text-[10px] font-mono font-bold">SOD VALID</span>
+                <span class="text-xs font-bold">WANG, WEIMIN (王伟敏)</span>
+              </div>
+              <div class="text-[11px] text-[var(--text-secondary)] font-mono mt-1">
+                芯片序列号: CN-8920-4410 · E12345678
+              </div>
+            </div>
+            <span class="text-[11px] font-bold text-emerald-600 dark:text-emerald-400">100% 真品</span>
+          </div>
+
+          <div class="w-full grid grid-cols-2 gap-2.5 mt-4">
+            <button onclick="restartNfcDemo()" class="py-2.5 rounded-xl ios-card text-xs font-semibold">
+              重新演示读芯动画
+            </button>
+            <button onclick="closeNfcSheet(); showToast('已更新芯片验真状态至卡包')" class="py-2.5 rounded-xl bg-[#3B5BDB] text-white text-xs font-bold shadow">
+              完成并同步
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sheet 3: 护照 / 签证详情弹窗 -->
+    <div id="visaDetailSheet" class="sheet-backdrop absolute inset-0 z-30 flex flex-col justify-end" onclick="closeSheetOnBg(event, 'visaDetailSheet')">
+      <div class="bottom-sheet rounded-t-[28px] p-5 max-h-[82%] overflow-y-auto no-scrollbar">
+        <div class="w-10 h-1 rounded-full bg-slate-400/40 mx-auto mb-4"></div>
+        <div id="visaDetailSheetBody"></div>
+      </div>
+    </div>
+
+    <!-- Sheet 4: 拟真护照双页本 + 48页盖章矩阵 -->
+    <div id="pagesSheet" class="sheet-backdrop absolute inset-0 z-30 flex flex-col justify-end" onclick="closeSheetOnBg(event, 'pagesSheet')">
+      <div class="bottom-sheet rounded-t-[28px] p-5 max-h-[86%] overflow-y-auto no-scrollbar">
+        <div class="w-10 h-1 rounded-full bg-slate-400/40 mx-auto mb-3"></div>
+        <div class="flex items-center justify-between mb-2.5">
+          <div>
+            <h3 class="text-base font-bold">护照内页余量本 (48页)</h3>
+            <p class="text-[11px] text-[var(--text-secondary)]">点击下方页码可标记「盖章」或「贴签」</p>
+          </div>
+          <button onclick="closeSheet('pagesSheet')" class="text-xs font-semibold text-[var(--accent)]">完成</button>
+        </div>
+
+        <div class="p-3 rounded-2xl bg-gradient-to-r from-[#F9F6EE] via-[#EFECE2] to-[#F9F6EE] text-slate-800 border border-amber-900/15 shadow-inner mb-3 relative overflow-hidden">
+          <div class="grid grid-cols-2 gap-3 relative">
+            <div class="absolute left-1/2 top-0 bottom-0 w-[2px] -translate-x-1/2 bg-amber-900/15"></div>
+            <div class="p-2 border border-dashed border-slate-300 rounded-lg text-center">
+              <div class="text-[9px] font-mono text-slate-400">PAGE 08 · 签证页</div>
+              <div class="mt-1.5 py-2 px-1 rounded bg-blue-900/10 border border-blue-800/20 text-[10px] font-bold text-blue-900">
+                SCHENGEN VISA (MULT)
+              </div>
+            </div>
+            <div class="p-2 border border-dashed border-slate-300 rounded-lg flex flex-col items-center justify-center">
+              <div class="text-[9px] font-mono text-slate-400">PAGE 09 · 备注盖章</div>
+              <div class="mt-1 flex items-center gap-1.5">
+                <span class="px-1.5 py-0.5 rounded-full border border-rose-600/60 text-rose-700 text-[9px] font-mono -rotate-6">CDG 18.09.26</span>
+                <span class="px-1.5 py-0.5 rounded border border-emerald-700/60 text-emerald-800 text-[9px] font-mono rotate-6">NRT 入境</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex items-center justify-between text-[11px] py-2 px-3 rounded-xl ios-card mb-3 tabular-nums">
+          <div class="flex items-center gap-3">
+            <span class="flex items-center gap-1"><i class="w-2 h-2 rounded-sm bg-emerald-500 inline-block"></i>空白 <b id="sheetBlankCount">31</b></span>
+            <span class="flex items-center gap-1"><i class="w-2 h-2 rounded-sm bg-amber-500 inline-block"></i>盖章 <b id="sheetStampCount">8</b></span>
+            <span class="flex items-center gap-1"><i class="w-2 h-2 rounded-sm bg-blue-600 inline-block"></i>贴签 <b id="sheetVisaCount">5</b></span>
+          </div>
+          <span class="text-[var(--text-secondary)]">12 对跨页相连</span>
+        </div>
+
+        <div id="pagesGridMount" class="grid grid-cols-6 gap-1.5 mb-2"></div>
+      </div>
+    </div>
+
+    <!-- Sheet 5: 申根 90/180 天滚动沙盘 -->
+    <div id="schengenSheet" class="sheet-backdrop absolute inset-0 z-30 flex flex-col justify-end" onclick="closeSheetOnBg(event, 'schengenSheet')">
+      <div class="bottom-sheet rounded-t-[28px] p-5 max-h-[85%] overflow-y-auto no-scrollbar">
+        <div class="w-10 h-1 rounded-full bg-slate-400/40 mx-auto mb-3"></div>
+        <div class="flex items-center justify-between mb-3">
+          <div>
+            <h3 class="text-base font-bold">申根 90/180 天滚动沙盘</h3>
+            <p class="text-[11px] text-[var(--text-secondary)]">拖动滑块模拟新行程，实时校验是否超期</p>
+          </div>
+          <button onclick="closeSheet('schengenSheet')" class="text-xs font-semibold text-[var(--accent)]">完成</button>
+        </div>
+
+        <div class="ios-card p-4 mb-3.5">
+          <div class="flex items-baseline justify-between tabular-nums">
+            <div>
+              <div class="text-[11px] text-[var(--text-secondary)]">模拟出行后 · 剩余可停留</div>
+              <div id="schengenSimRemain" class="text-3xl font-bold tracking-tight mt-0.5 text-emerald-600 dark:text-emerald-400">54 天</div>
+            </div>
+            <div class="text-right">
+              <div class="text-[11px] text-[var(--text-secondary)]">180 天窗口累计占用</div>
+              <div id="schengenSimUsed" class="text-sm font-bold mt-1">36 / 90 天 (合规)</div>
+            </div>
+          </div>
+
+          <div class="w-full h-2.5 rounded-full bg-black/10 dark:bg-white/10 overflow-hidden mt-3 flex">
+            <div class="h-full bg-slate-500" style="width: 24.4%"></div>
+            <div id="schengenSimBar" class="h-full bg-blue-500 transition-all" style="width: 15.5%"></div>
+          </div>
+
+          <div class="mt-4">
+            <div class="flex justify-between text-xs font-medium mb-1.5 tabular-nums">
+              <span>拟新增申根区停留天数</span>
+              <span id="schengenSliderVal" class="font-bold text-[var(--accent)]">14 天</span>
+            </div>
+            <input type="range" min="1" max="75" value="14" oninput="updateSchengenSim(this.value)" class="ios-slider w-full"/>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sheet 6: 家庭成员切换 -->
+    <div id="familySheet" class="sheet-backdrop absolute inset-0 z-30 flex flex-col justify-end" onclick="closeSheetOnBg(event, 'familySheet')">
+      <div class="bottom-sheet rounded-t-[28px] p-5">
+        <div class="w-10 h-1 rounded-full bg-slate-400/40 mx-auto mb-3"></div>
+        <div class="flex items-center justify-between mb-3">
+          <h3 class="text-base font-bold">家庭成员与切换</h3>
+          <button onclick="closeSheet('familySheet')" class="text-xs font-semibold text-[var(--accent)]">关闭</button>
+        </div>
+        <div class="ios-card divide-y divide-[var(--border-subtle)]">
+          <button onclick="switchPerson('self'); closeSheet('familySheet')" class="w-full p-3.5 flex items-center justify-between text-left">
+            <div>
+              <div class="text-xs font-bold">王伟敏 (WANG, WEIMIN) · 本人</div>
+              <div class="text-[11px] text-[var(--text-secondary)] tabular-nums mt-0.5">管理员 · 5 份证件 · NFC 已验真</div>
+            </div>
+            <span class="text-xs font-semibold text-[var(--accent)]">正常态</span>
+          </button>
+          <button onclick="switchPerson('family'); closeSheet('familySheet')" class="w-full p-3.5 flex items-center justify-between text-left">
+            <div>
+              <div class="text-xs font-bold">王建国 (WANG, JIANGUO) · 父亲</div>
+              <div class="text-[11px] text-rose-500 tabular-nums mt-0.5">护照仅剩 148 天 (&lt; 6个月值机红线预警)</div>
+            </div>
+            <span class="text-xs font-semibold text-rose-500">红线预警态</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sheet 7: 家庭出行证件包导出 -->
+    <div id="vaultBackupSheet" class="sheet-backdrop absolute inset-0 z-30 flex flex-col justify-end" onclick="closeSheetOnBg(event, 'vaultBackupSheet')">
+      <div class="bottom-sheet rounded-t-[28px] p-5">
+        <div class="w-10 h-1 rounded-full bg-slate-400/40 mx-auto mb-3"></div>
+        <div class="flex items-center justify-between mb-3">
+          <h3 class="text-base font-bold">家庭出行证件包导出</h3>
+          <button onclick="closeSheet('vaultBackupSheet')" class="text-xs font-semibold text-[var(--accent)]">关闭</button>
+        </div>
+        <div class="ios-card p-4 space-y-3 text-xs">
+          <p class="text-[var(--text-secondary)] leading-relaxed">
+            可勾选家庭成员一键导出受密码保护的加密 PDF 证件合集，或生成 `.passportvault` 离线加密备份包。
+          </p>
+          <button onclick="showToast('已生成加密证件包并调起系统保存'); closeSheet('vaultBackupSheet')" class="w-full py-2.5 rounded-xl bg-[var(--accent)] text-white font-semibold">
+            生成加密 PDF 并导出
+          </button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ==================== 核心交互与渲染逻辑 ==================== -->
+  <script>
+    const state = {
+      mode: 'light',
+      person: 'self',
+      privacyMasked: false,
+      etchedAvatar: true,
+      v5DocIndex: 0,           // 0: 电子普通护照, 1: 往来港澳通行证
+      expandedVisaId: null,
+      overlays: { usa: true, sch: true, jpn: true },
+      expandedCountry: 'MEX',
+      graceIdx: 1,
+      // 水印工作台状态（对应图1）
+      wmText: '仅用于酒店入住登记',
+      wmOpacity: 50,
+      wmFontSize: 12,
+      wmRedact: {
+        avatar: true,
+        sign: false,
+        mrz: true,
+        dob: false
+      },
+      blankPages: Array.from({ length: 48 }, (_, i) => {
+        const p = i + 1;
+        if (p <= 4) return 'reserved';
+        if ([6, 8, 12, 16, 22].includes(p)) return 'visa';
+        if ([5, 7, 9, 10, 11, 14, 15, 19].includes(p)) return 'stamp';
+        return 'blank';
+      })
+    };
+
+    // 持有人数据（对齐参考图1与图3中的 王伟敏 / WANG, WEIMIN / E123 4567 8）
+    const personData = {
+      self: {
+        name: 'WANG, WEIMIN',
+        cnName: '王伟敏',
+        shortName: '王伟敏',
+        badge: '伟',
+        subDesc: '本人 · 管理员 · 5 份证件 · NFC 已验真',
+        passportNo: 'E123 4567 8',
+        passportMasked: 'E123 •••• 8',
+        oldPassportNo: 'G48102938',
+        dob: '1985-01-01',
+        issueDate: '2023.05.15',
+        expiryDate: '2033.05.14',
+        remainText: '余 6 年 171 天',
+        isUrgentPassport: false,
+        inlineAlert: 'EVUS 14天后到期 · 美签贴于旧护照需同带',
+        hkPermit: {
+          no: 'C819 2041 5',
+          masked: 'C819 •••• 5',
+          expiry: '2031.08.19',
+          remainText: '卡面余 4 年 268 天'
+        }
+      },
+      family: {
+        name: 'WANG, JIANGUO',
+        cnName: '王建国',
+        shortName: '王建国',
+        badge: '父',
+        subDesc: '父亲 · 护照不足 6 个月红线预警',
+        passportNo: 'E310 8841 9',
+        passportMasked: 'E310 •••• 9',
+        oldPassportNo: '—',
+        dob: '1958-09-12',
+        issueDate: '2022.04.21',
+        expiryDate: '2027.04.20',
+        remainText: '仅剩 148 天 (<6个月)',
+        isUrgentPassport: true,
+        inlineAlert: '严重预警：护照不足 6 个月，国际航司将拒绝值机',
+        hkPermit: {
+          no: 'C309 1823 1',
+          masked: 'C309 •••• 1',
+          expiry: '2027.05.10',
+          remainText: '卡面余 167 天'
+        }
+      }
+    };
+
+    const visas = [
+      {
+        id: 'usa',
+        docGroup: 'passport',
+        iso: 'USA',
+        country: '美国 · United States',
+        shortTitle: '美国十年签 (B1/B2)',
+        visaNo: 'K9812049',
+        entries: 'M (多次往返)',
+        stayDays: '180 天 / 次',
+        issueDate: '2019.11.04',
+        expiryDate: '2029.11.03',
+        remainDays: '余 1,075 天',
+        cardGradient: 'linear-gradient(135deg, #1E3A8A 0%, #172554 55%, #0F172A 100%)',
+        statusBadge: 'EVUS 14天后到期',
+        badgeType: 'amber',
+        boundOldPassport: 'G48102938',
+        detailNote: '贴于旧护照 G48102938 第 12 页，值机与入境美国必须【新旧两本护照同带】。'
+      },
+      {
+        id: 'sch',
+        docGroup: 'passport',
+        iso: 'SCH',
+        country: '申根区 · Schengen Area',
+        shortTitle: '申根五年多次 (C类)',
+        visaNo: 'FRA00948120',
+        entries: 'MULT (多次)',
+        stayDays: '90 / 180 天',
+        issueDate: '2024.06.01',
+        expiryDate: '2029.05.31',
+        remainDays: '余 919 天',
+        cardGradient: 'linear-gradient(135deg, #065F46 0%, #064E3B 55%, #022C22 100%)',
+        statusBadge: '已激活 · 本期余68天',
+        badgeType: 'green',
+        boundOldPassport: null,
+        detailNote: '法国签发并已在巴黎完成首入激活。180天滚动窗口内累计停留不超过90天。'
+      },
+      {
+        id: 'jpn',
+        docGroup: 'passport',
+        iso: 'JPN',
+        country: '日本 · Japan',
+        shortTitle: '日本五年多次观光签',
+        visaNo: 'JP202399104',
+        entries: 'MULTIPLE',
+        stayDays: '90 天 / 次',
+        issueDate: '2023.09.12',
+        expiryDate: '2028.09.11',
+        remainDays: '余 657 天',
+        cardGradient: 'linear-gradient(135deg, #3730A3 0%, #312E81 55%, #1E1B4B 100%)',
+        statusBadge: '有效 · 余 657 天',
+        badgeType: 'green',
+        boundOldPassport: null,
+        detailNote: '每次停留最长 90 天。入境日本时可直接切换至底部「入境」页出示二维码。'
+      },
+      {
+        id: 'hkg_endorse',
+        docGroup: 'hkpermit',
+        iso: 'HKG',
+        country: '中国香港 · Hong Kong SAR',
+        shortTitle: '赴港个人旅游签注 (G)',
+        visaNo: 'HK-2026-8812',
+        entries: '剩余 2 次有效',
+        stayDays: '7 天 / 次',
+        issueDate: '2026.03.10',
+        expiryDate: '2027.03.09',
+        remainDays: '余 2 次 · 每次7天',
+        cardGradient: 'linear-gradient(135deg, #0F766E 0%, #115E59 55%, #134E4A 100%)',
+        statusBadge: '有效 · 剩余 2 次',
+        badgeType: 'green',
+        boundOldPassport: null,
+        detailNote: '持往来港澳通行证配合有效赴港签注可走人工或 e-Channel 自助通道。'
+      },
+      {
+        id: 'mac_endorse',
+        docGroup: 'hkpermit',
+        iso: 'MAC',
+        country: '中国澳门 · Macao SAR',
+        shortTitle: '赴澳个人旅游签注 (G)',
+        visaNo: 'MO-2026-3319',
+        entries: '剩余 1 次有效',
+        stayDays: '7 天 / 次',
+        issueDate: '2026.03.10',
+        expiryDate: '2027.03.09',
+        remainDays: '余 1 次 · 每次7天',
+        cardGradient: 'linear-gradient(135deg, #0369A1 0%, #075985 55%, #0C4A6E 100%)',
+        statusBadge: '有效 · 剩余 1 次',
+        badgeType: 'green',
+        boundOldPassport: null,
+        detailNote: '距离上次赴澳已满 60 天间隔，可直接通关使用。'
+      }
+    ];
+
+    const exploreCountries = [
+      {
+        code: 'MEX',
+        name: '墨西哥 · Mexico',
+        landmarkName: '奇琴伊察金字塔 · Chichen Itza',
+        ruleType: '持有效美签 / 申根 / 日签免签入境',
+        requires: ['usa', 'sch', 'jpn'],
+        maxStay: '180 天',
+        accentGrad: 'from-amber-500/20 via-orange-500/10 to-transparent',
+        svgArt: `<svg viewBox="0 0 120 60" class="w-28 h-14 opacity-80"><circle cx="95" cy="18" r="9" fill="rgba(245,158,11,0.35)"/><path d="M18,56 L38,24 L82,24 L102,56 Z" fill="rgba(245,158,11,0.22)" stroke="currentColor" stroke-width="1.2"/><path d="M28,45 H92 M34,34 H86 M48,16 H72 V24 H48 Z" stroke="currentColor" stroke-width="1.2" fill="none"/></svg>`,
+        dim1_threshold: '持有有效且多次入境的美国 B1/B2、申根 C 类或日本多次实体贴纸签证。',
+        dim2_activation: '无需提前激活，签证在整个墨西哥停留期内保持有效即可。',
+        dim3_stay: '单次最长停留 180 天（由入境边检官在章面手写天数）。',
+        dim4_extra: '若美签贴在旧护照上，必须新旧两本护照原件同带；电子签不适用。',
+        verifiedAt: '2026-11-01 核验'
+      },
+      {
+        code: 'JPN',
+        name: '日本 · Japan',
+        landmarkName: '富士山与水上鸟居 · Mt. Fuji',
+        ruleType: '已持有五年多次观光签 · 随时直飞',
+        requires: ['jpn'],
+        maxStay: '90 天',
+        accentGrad: 'from-indigo-500/20 via-blue-500/10 to-transparent',
+        svgArt: `<svg viewBox="0 0 120 60" class="w-28 h-14 opacity-80"><circle cx="60" cy="22" r="12" fill="rgba(239,68,68,0.28)"/><path d="M12,56 Q44,44 52,22 L68,22 Q76,44 108,56 Z" fill="rgba(99,102,241,0.2)" stroke="currentColor" stroke-width="1.2"/><path d="M84,34 H106 M87,38 H103 M90,34 V54 M100,34 V54" stroke="currentColor" stroke-width="1.3"/></svg>`,
+        dim1_threshold: '您卡包中已持有日本五年多次旅游签证 (至 2028.09.11)。',
+        dim2_activation: '已完成首次入境激活，不限入境口岸。',
+        dim3_stay: '每次最长停留 90 天，一年累计不超过 180 天。',
+        dim4_extra: '出发前可在底部「入境」页直接调出 Visit Japan Web 二维码快速过关。',
+        verifiedAt: '2026-11-15 核验'
+      },
+      {
+        code: 'MNE',
+        name: '黑山 · Montenegro',
+        landmarkName: '科托尔峡湾与圣母岩 · Kotor Bay',
+        ruleType: '持有效美签 / 申根多次签证免签',
+        requires: ['usa', 'sch'],
+        maxStay: '30 天',
+        accentGrad: 'from-emerald-500/20 via-teal-500/10 to-transparent',
+        svgArt: `<svg viewBox="0 0 120 60" class="w-28 h-14 opacity-80"><path d="M8,52 L34,18 L62,48 L88,14 L114,52 Z" fill="rgba(16,185,129,0.18)" stroke="currentColor" stroke-width="1.2"/><path d="M10,55 Q60,49 112,55" stroke="currentColor" stroke-width="1.2" fill="none"/></svg>`,
+        dim1_threshold: '持有有效多次往返的美国签证或申根 C 类多次签证。',
+        dim2_activation: '建议所持申根签证已完成首次入境申根国激活。',
+        dim3_stay: '单次停留不超过 30 天（不得超过所持签证到期日）。',
+        dim4_extra: '入境后 24 小时内需由酒店完成外国人居留登记。',
+        verifiedAt: '2026-11-05 核验'
+      },
+      {
+        code: 'SGP',
+        name: '新加坡 · Singapore',
+        landmarkName: '滨海湾金沙空中花园 · Marina Bay',
+        ruleType: '中国普通电子护照互免签证',
+        requires: [],
+        maxStay: '30 天',
+        accentGrad: 'from-sky-500/20 via-cyan-500/10 to-transparent',
+        svgArt: `<svg viewBox="0 0 120 60" class="w-28 h-14 opacity-80"><path d="M24,20 Q62,14 98,20 L92,26 Q60,22 28,26 Z" fill="rgba(14,165,233,0.3)" stroke="currentColor" stroke-width="1.2"/><path d="M36,25 L32,54 M60,24 L60,54 M84,25 L88,54" stroke="currentColor" stroke-width="2.2"/><path d="M16,54 H106" stroke="currentColor" stroke-width="1.2"/></svg>`,
+        dim1_threshold: '持有效期 6 个月以上的中国普通电子护照即可直接免签。',
+        dim2_activation: '无任何前置第三国签证要求。',
+        dim3_stay: '单次最长停留不超过 30 天。',
+        dim4_extra: '入境前 3 天内须在线提交 SG Arrival Card 电子入境卡。',
+        verifiedAt: '2026-11-18 核验'
+      }
+    ];
+
+    function renderAvatarSvg(isEtched) {
+      const cls = isEtched ? 'avatar-etched' : '';
+      return `
+        <div onclick="event.stopPropagation(); toggleAvatarStyle()" title="点击切换蚀刻/真彩相片" class="relative w-[56px] h-[70px] rounded-xl overflow-hidden border border-white/30 bg-gradient-to-b from-slate-200 to-slate-300 dark:from-zinc-700 dark:to-zinc-800 shrink-0 cursor-pointer ${cls}">
+          <svg viewBox="0 0 80 100" class="w-full h-full">
+            <path d="M10,100 C10,74 24,68 40,68 C56,68 70,74 70,100 Z" fill="#1E293B"/>
+            <path d="M33,68 L40,86 L47,68 Z" fill="#F8FAFC"/>
+            <rect x="34" y="54" width="12" height="16" rx="4" fill="#E2B897"/>
+            <ellipse cx="40" cy="40" rx="15" ry="18" fill="#EAC3A3"/>
+            <path d="M25,36 C25,20 33,17 42,17 C51,17 56,22 55,35 C52,28 45,25 36,26 C30,26 27,31 25,36 Z" fill="#1E2024"/>
+            <circle cx="34" cy="39" r="1.5" fill="#1E2024"/>
+            <circle cx="46" cy="39" r="1.5" fill="#1E2024"/>
+            <path d="M36,48 Q40,51 44,48" stroke="#8C5843" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+          </svg>
+          <span class="absolute bottom-0.5 right-1 text-[8px] font-mono px-1 rounded bg-black/50 text-white">${isEtched ? 'ETCH' : 'COLOR'}</span>
+        </div>
+      `;
+    }
+
+    // ==================== 渲染 Tab 1：V5 顶栏主证切换 + NFC读芯按钮 + Apple Wallet 层叠签证卡 ====================
+    function renderWalletTab() {
+      const mount = document.getElementById('walletDynamicMount');
+      const p = personData[state.person];
+      const isHkActive = state.v5DocIndex === 1;
+      const shownPassportNo = state.privacyMasked ? p.passportMasked : p.passportNo;
+      const filteredVisas = visas.filter(v => isHkActive ? v.docGroup === 'hkpermit' : v.docGroup === 'passport');
+
+      mount.innerHTML = `
+        <!-- 顶部主证横向切换胶囊 -->
+        <div class="flex items-center justify-between mb-2.5">
+          <div class="inline-flex rounded-full p-0.5 ios-card">
+            <button onclick="setV5DocIndex(0)" class="px-3.5 py-1 rounded-full text-xs font-semibold transition ${!isHkActive ? 'bg-[var(--accent)] text-white shadow-sm' : 'text-[var(--text-secondary)]'}">
+              电子普通护照
+            </button>
+            <button onclick="setV5DocIndex(1)" class="px-3.5 py-1 rounded-full text-xs font-semibold transition ${isHkActive ? 'bg-[var(--accent)] text-white shadow-sm' : 'text-[var(--text-secondary)]'}">
+              往来港澳通行证
+            </button>
+          </div>
+          <button onclick="togglePrivacyMask()" class="text-[11px] font-medium text-[var(--text-secondary)] px-2 py-1 rounded-lg hover:bg-black/5 dark:hover:bg-white/5">
+            ${state.privacyMasked ? '显示号码' : '隐藏号码'}
+          </button>
+        </div>
+
+        <!-- V5 空间毛玻璃主证件卡 -->
+        ${!isHkActive ? `
+          <div onclick="openPassportSheet()" class="spatial-passport rounded-[26px] p-5 cursor-pointer transition active:scale-[0.99]">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <span class="px-2 py-0.5 rounded-full bg-[var(--accent)]/15 text-[var(--accent)] text-[10px] font-mono font-bold">CHN · e-PASSPORT</span>
+                <span class="text-xs font-semibold opacity-75">中华人民共和国护照</span>
+              </div>
+              <span class="text-xs font-bold tabular-nums ${p.isUrgentPassport ? 'text-rose-500' : 'text-[var(--accent)]'}">${p.remainText}</span>
+            </div>
+
+            <div class="mt-4 flex items-center gap-3.5">
+              ${renderAvatarSvg(state.etchedAvatar)}
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-1.5">
+                  <span class="text-lg font-bold tracking-tight truncate">${p.name}</span>
+                  <span class="px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 text-[9px] font-bold shrink-0">NFC 已验真</span>
+                </div>
+                <div class="text-[15px] font-mono font-bold mt-1 tabular-nums opacity-90 tracking-wider">${shownPassportNo}</div>
+                <div class="text-[11px] opacity-65 mt-1 tabular-nums">${p.cnName} · 有效期至 ${p.expiryDate}</div>
+              </div>
+            </div>
+
+            <div class="mt-3.5 px-3 py-1.5 rounded-xl ${p.isUrgentPassport ? 'bg-rose-500/15 border-rose-500/30 text-rose-600 dark:text-rose-300' : 'bg-amber-500/15 border-amber-500/25 text-amber-700 dark:text-amber-300'} border text-[11px] font-medium flex items-center justify-between">
+              <span class="truncate">${p.inlineAlert}</span>
+              <span class="text-[10px] shrink-0 ml-2">详情 ›</span>
+            </div>
+          </div>
+        ` : `
+          <div onclick="openVisaSheet('hkg_endorse')" class="spatial-passport rounded-[26px] p-5 cursor-pointer transition active:scale-[0.99]">
+            <div class="flex items-center justify-between">
+              <span class="px-2 py-0.5 rounded-full bg-teal-500/15 text-teal-600 dark:text-teal-300 text-[10px] font-mono font-bold">EEP · 往来港澳通行证</span>
+              <span class="text-xs font-bold tabular-nums text-teal-600 dark:text-teal-400">${p.hkPermit.remainText}</span>
+            </div>
+            <div class="mt-4 flex items-center gap-3.5">
+              ${renderAvatarSvg(state.etchedAvatar)}
+              <div class="flex-1">
+                <div class="text-lg font-bold tracking-tight">${p.name} (${p.cnName})</div>
+                <div class="text-[15px] font-mono font-bold opacity-90 mt-1 tabular-nums">${state.privacyMasked ? p.hkPermit.masked : p.hkPermit.no}</div>
+                <div class="text-[11px] opacity-65 mt-1 tabular-nums">证件卡面有效期至 ${p.hkPermit.expiry}</div>
+              </div>
+            </div>
+            <div class="mt-3.5 px-3 py-1.5 rounded-xl bg-emerald-500/12 border border-emerald-500/25 text-emerald-700 dark:text-emerald-300 text-[11px] font-medium flex items-center justify-between">
+              <span>卡面与签注已独立解耦 · 点击下方卡片查看港/澳余次</span>
+              <span class="text-[10px] shrink-0 ml-1">›</span>
+            </div>
+          </div>
+        `}
+
+        <!-- 升级点 2：主卡下方双快捷胶囊（「防盗水印」+「NFC 读芯」） -->
+        <div class="grid grid-cols-2 gap-2.5 my-3.5">
+          <button onclick="openSheet('watermarkSheet')" class="ios-card py-2.5 px-3 rounded-2xl flex items-center justify-center gap-2 text-xs font-semibold active:scale-95 transition">
+            <svg class="w-4 h-4 text-[var(--accent)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+              <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/>
+            </svg>
+            <span>防盗水印</span>
+          </button>
+          <button onclick="openNfcSheet()" class="ios-card py-2.5 px-3 rounded-2xl flex items-center justify-center gap-2 text-xs font-semibold active:scale-95 transition">
+            <svg class="w-4 h-4 text-[var(--accent)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+              <path d="M6 8.5a6.5 6.5 0 0 1 12 0M8.5 11.5a3.5 3.5 0 0 1 7 0M12 14.5h.01"/>
+            </svg>
+            <span>NFC 读芯</span>
+          </button>
+        </div>
+
+        <!-- Apple Wallet 式层叠质感签证卡片 -->
+        <div class="mb-2 flex items-center justify-between px-1">
+          <span class="text-xs font-semibold text-[var(--text-secondary)]">
+            ${isHkActive ? '有效港澳签注卡包' : '有效各国签证卡包'} (${filteredVisas.length})
+          </span>
+          <span class="text-[11px] text-[var(--text-tertiary)]">点击任意卡片抽出详情</span>
+        </div>
+
+        <div class="visa-stack-container">
+          ${filteredVisas.map((v, idx) => {
+            const isExpanded = state.expandedVisaId === v.id;
+            return `
+              <div onclick="toggleVisaCardExpand('${v.id}')"
+                   class="visa-wallet-card p-4 ${isExpanded ? 'expanded' : ''}"
+                   style="background: ${v.cardGradient}; z-index: ${idx + 1};">
+                <svg class="pointer-events-none absolute -right-4 -top-4 w-28 h-28 opacity-10" viewBox="0 0 100 100" fill="none" stroke="white" stroke-width="1.5">
+                  <circle cx="50" cy="50" r="42" stroke-dasharray="4 3"/>
+                  <circle cx="50" cy="50" r="32"/>
+                  <path d="M22,50 H78 M50,22 V78"/>
+                </svg>
+
+                <div class="flex items-center justify-between relative z-10">
+                  <div class="flex items-center gap-2.5">
+                    <span class="px-2 py-0.5 rounded-md bg-white/15 font-mono text-[11px] font-bold tracking-wider backdrop-blur-sm">
+                      ${v.iso}
+                    </span>
+                    <div>
+                      <div class="text-[13px] font-bold tracking-tight leading-snug">${v.shortTitle}</div>
+                      <div class="text-[10px] text-white/70">${v.country}</div>
+                    </div>
+                  </div>
+
+                  <div class="text-right tabular-nums">
+                    <span class="inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold ${v.badgeType === 'amber' ? 'bg-amber-400/25 text-amber-200 border border-amber-300/40' : 'bg-white/15 text-white/95'}">
+                      ${v.statusBadge}
+                    </span>
+                  </div>
+                </div>
+
+                <div class="mt-4 pt-3 border-t border-white/15 relative z-10 tabular-nums">
+                  <div class="grid grid-cols-3 gap-2 text-[11px]">
+                    <div>
+                      <div class="text-[9px] text-white/60 uppercase">VISA / 签注号</div>
+                      <div class="font-mono font-semibold mt-0.5">${v.visaNo}</div>
+                    </div>
+                    <div>
+                      <div class="text-[9px] text-white/60 uppercase">MAX STAY / 停留</div>
+                      <div class="font-semibold mt-0.5">${v.stayDays}</div>
+                    </div>
+                    <div class="text-right">
+                      <div class="text-[9px] text-white/60 uppercase">EXPIRES / 到期</div>
+                      <div class="font-mono font-semibold mt-0.5">${v.expiryDate}</div>
+                    </div>
+                  </div>
+
+                  ${isExpanded ? `
+                    <div class="mt-3 pt-2.5 border-t border-white/15 flex items-center justify-between text-[11px] text-white/90">
+                      <span class="truncate pr-2">${v.detailNote}</span>
+                      <button onclick="event.stopPropagation(); openVisaSheet('${v.id}')" class="shrink-0 px-2.5 py-1 rounded-lg bg-white text-slate-900 text-[10px] font-bold shadow">
+                        完整页 ›
+                      </button>
+                    </div>
+                  ` : ''}
+                </div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      `;
+    }
+
+    function toggleVisaCardExpand(visaId) {
+      state.expandedVisaId = state.expandedVisaId === visaId ? null : visaId;
+      renderWalletTab();
+    }
+
+    // ==================== 升级点 1 交互：全屏倾斜平铺防 AI 擦除水印与 4 项打码控制 ====================
+    function renderTiledWatermarks() {
+      const container = document.getElementById('wmTiledOverlay');
+      if (!container) return;
+      const unit = `${state.wmText} · 2026-11-24`;
+      const rowStr = Array(5).fill(unit).join('   ·   ');
+      container.style.opacity = (state.wmOpacity / 100).toFixed(2);
+      container.style.fontSize = `${state.wmFontSize}px`;
+
+      container.innerHTML = Array.from({ length: 9 }, (_, idx) => `
+        <div class="whitespace-nowrap font-bold tracking-wider text-white/90"
+             style="margin-left: ${(idx % 2) * -45}px;">
+          ${rowStr}
+        </div>
+      `).join('');
+    }
+
+    function selectWmTag(index, text) {
+      state.wmText = text;
+      document.getElementById('wmCustomInputBox').classList.add('hidden');
+      for (let i = 0; i < 4; i++) {
+        const btn = document.getElementById('wmTagBtn' + i);
+        if (i === index) {
+          btn.className = 'wm-tag-btn py-2 px-3 rounded-full text-xs font-bold flex items-center justify-center gap-1.5 transition bg-[#3B5BDB] text-white shadow-sm';
+        } else {
+          btn.className = 'wm-tag-btn py-2 px-3 rounded-full text-xs font-medium flex items-center justify-center gap-1.5 transition bg-white dark:bg-white/10 text-[var(--text-primary)] border border-slate-200 dark:border-white/10';
+        }
+      }
+      renderTiledWatermarks();
+    }
+
+    function selectWmCustom() {
+      for (let i = 0; i < 4; i++) {
+        const btn = document.getElementById('wmTagBtn' + i);
+        btn.className = i === 3
+          ? 'wm-tag-btn py-2 px-3 rounded-full text-xs font-bold flex items-center justify-center gap-1.5 transition bg-[#3B5BDB] text-white shadow-sm'
+          : 'wm-tag-btn py-2 px-3 rounded-full text-xs font-medium flex items-center justify-center gap-1.5 transition bg-white dark:bg-white/10 text-[var(--text-primary)] border border-slate-200 dark:border-white/10';
+      }
+      const box = document.getElementById('wmCustomInputBox');
+      box.classList.remove('hidden');
+      const input = document.getElementById('wmCustomInput');
+      state.wmText = input.value || '自定义用途';
+      renderTiledWatermarks();
+    }
+
+    function updateCustomWatermarkText(val) {
+      state.wmText = val.trim() || '自定义用途';
+      document.getElementById('wmCustomBtnLabel').textContent = state.wmText.slice(0, 7) + '...';
+      renderTiledWatermarks();
+    }
+
+    function updateWmOpacity(val) {
+      state.wmOpacity = parseInt(val, 10);
+      document.getElementById('wmOpacityVal').textContent = state.wmOpacity + '%';
+      renderTiledWatermarks();
+    }
+
+    function updateWmFontSize(val) {
+      state.wmFontSize = parseInt(val, 10);
+      document.getElementById('wmSizeVal').textContent = state.wmFontSize + 'px';
+      renderTiledWatermarks();
+    }
+
+    function toggleWmRedact(field, checked) {
+      state.wmRedact[field] = checked;
+      if (field === 'avatar') {
+        document.getElementById('wmAvatarRedacted').classList.toggle('hidden', !checked);
+        document.getElementById('wmAvatarRaw').classList.toggle('hidden', checked);
+      } else if (field === 'mrz') {
+        document.getElementById('wmMrzRedacted').classList.toggle('hidden', !checked);
+        document.getElementById('wmMrzRaw').classList.toggle('hidden', checked);
+      } else if (field === 'sign') {
+        const signEl = document.getElementById('wmSignBox');
+        if (checked) {
+          signEl.textContent = 'REDACTED';
+          signEl.className = 'text-[11px] font-mono bg-[#09090B] text-[#09090B] px-2 py-0.5 rounded select-none';
+        } else {
+          signEl.textContent = 'Wang Weimin';
+          signEl.className = 'text-[12px] font-serif italic text-amber-100/90 px-1.5 py-0.5 rounded';
+        }
+      } else if (field === 'dob') {
+        const dobEl = document.getElementById('wmDobBox');
+        if (checked) {
+          dobEl.textContent = '██████████';
+          dobEl.className = 'text-[12px] font-mono bg-[#09090B] text-[#09090B] px-1.5 rounded select-none mt-0.5 inline-block';
+        } else {
+          dobEl.textContent = '1985-01-01';
+          dobEl.className = 'text-[13px] font-mono font-bold tabular-nums leading-tight mt-0.5';
+        }
+      }
+    }
+
+    // ==================== 升级点 2 交互：NFC 碰一碰读芯多阶段动态动画 ====================
+    let nfcTimer1 = null;
+    let nfcTimer2 = null;
+    let nfcTimer3 = null;
+
+    function openNfcSheet() {
+      openSheet('nfcSheet');
+      restartNfcDemo();
+    }
+
+    function closeNfcSheet() {
+      clearTimeout(nfcTimer1);
+      clearTimeout(nfcTimer2);
+      clearTimeout(nfcTimer3);
+      closeSheet('nfcSheet');
+    }
+
+    function restartNfcDemo() {
+      clearTimeout(nfcTimer1);
+      clearTimeout(nfcTimer2);
+      clearTimeout(nfcTimer3);
+
+      const scanStage = document.getElementById('nfcScanningStage');
+      const successStage = document.getElementById('nfcSuccessStage');
+      const bar = document.getElementById('nfcProgressBar');
+      const subText = document.getElementById('nfcStepSubText');
+
+      scanStage.classList.remove('hidden');
+      successStage.classList.add('hidden');
+      bar.style.width = '18%';
+      subText.innerHTML = '正在通过 BAC 基本访问控制建立连接<br/>读取 DG1 身份字段与 DG2 高清证件照 · 并校验芯片数字签名';
+
+      nfcTimer1 = setTimeout(() => {
+        bar.style.width = '58%';
+        subText.innerHTML = '已感应到电子护照芯片 (ICAO 9303)<br/>正在解密 DG2 生物特征面部图像与 SOD 证书...';
+      }, 950);
+
+      nfcTimer2 = setTimeout(() => {
+        bar.style.width = '92%';
+      }, 1850);
+
+      nfcTimer3 = setTimeout(() => {
+        triggerNfcSuccessNow();
+      }, 2550);
+    }
+
+    function triggerNfcSuccessNow() {
+      clearTimeout(nfcTimer1);
+      clearTimeout(nfcTimer2);
+      clearTimeout(nfcTimer3);
+      document.getElementById('nfcScanningStage').classList.add('hidden');
+      document.getElementById('nfcSuccessStage').classList.remove('hidden');
+    }
+
+    // ==================== 升级点 3 交互：安全与设置页宽限期切换 ====================
+    function cycleGracePeriod() {
+      const options = ['立即锁定', '1 分钟', '5 分钟'];
+      state.graceIdx = (state.graceIdx + 1) % options.length;
+      document.getElementById('gracePeriodLabel').textContent = options[state.graceIdx];
+      showToast('后台免密宽限期已设为：' + options[state.graceIdx]);
+    }
+
+    // ==================== 探索页与其它通用逻辑 ====================
+    function updateInteractiveMap() {
+      const hasUsa = state.overlays.usa;
+      const hasSch = state.overlays.sch;
+      const hasJpn = state.overlays.jpn;
+
+      let total = 48;
+      let bonus = 0;
+      if (hasUsa) bonus += 22;
+      if (hasSch) bonus += 15;
+      if (hasJpn) bonus += 9;
+      total += bonus;
+
+      document.getElementById('totalVisaFreeBadge').textContent = `已解锁 ${total} 国`;
+      document.getElementById('bonusCountNum').textContent = `+${bonus}`;
+
+      const americas = document.getElementById('mapRegionAmericas');
+      const southAm = document.getElementById('mapRegionSouthAmerica');
+      const europe = document.getElementById('mapRegionEurope');
+      const eastAsia = document.getElementById('mapRegionEastAsia');
+
+      if (americas) americas.setAttribute('class', `map-region ${(hasUsa || hasSch || hasJpn) ? 'lit-visa' : 'unlit'}`);
+      if (southAm) southAm.setAttribute('class', `map-region ${hasUsa ? 'lit-visa' : 'unlit'}`);
+      if (europe) europe.setAttribute('class', `map-region ${(hasSch || hasUsa) ? 'lit-visa' : 'unlit'}`);
+      if (eastAsia) eastAsia.setAttribute('class', `map-region ${(hasJpn || hasUsa) ? 'lit-visa' : 'unlit'}`);
+    }
+
+    function renderExploreCountries() {
+      updateInteractiveMap();
+      const container = document.getElementById('exploreCountryList');
+      const filtered = exploreCountries.filter(c => {
+        if (c.requires.length === 0) return true;
+        return c.requires.some(req => state.overlays[req]);
+      });
+
+      container.innerHTML = filtered.map(c => {
+        const isOpen = state.expandedCountry === c.code;
+        return `
+          <div class="ios-card overflow-hidden transition">
+            <div onclick="toggleExpandCountry('${c.code}')" class="relative p-3.5 flex items-center justify-between cursor-pointer bg-gradient-to-r ${c.accentGrad}">
+              <div class="relative z-10 pr-2">
+                <div class="flex items-center gap-2">
+                  <span class="px-2 py-0.5 rounded-md bg-black/10 dark:bg-white/15 font-mono text-[10px] font-bold">${c.code}</span>
+                  <span class="text-[14px] font-bold">${c.name}</span>
+                </div>
+                <div class="text-[11px] text-[var(--text-secondary)] mt-1">${c.ruleType}</div>
+                <div class="text-[10px] text-[var(--text-tertiary)] mt-0.5">${c.landmarkName}</div>
+              </div>
+
+              <div class="flex items-center gap-2 shrink-0">
+                <div class="text-[var(--text-secondary)]">${c.svgArt}</div>
+                <div class="text-right tabular-nums">
+                  <div class="text-sm font-bold text-emerald-600 dark:text-emerald-400">${c.maxStay}</div>
+                  <div class="text-[10px] text-[var(--text-tertiary)]">${isOpen ? '收起 ▲' : '细则 ▼'}</div>
+                </div>
+              </div>
+            </div>
+
+            ${isOpen ? `
+              <div class="p-3.5 pt-2.5 hairline-t text-xs space-y-2 bg-black/[0.015] dark:bg-white/[0.02]">
+                <div class="grid grid-cols-2 gap-2">
+                  <div class="p-2.5 rounded-xl ios-card">
+                    <span class="text-[10px] font-bold text-[var(--accent)]">1. 签证门槛</span>
+                    <p class="text-[11px] mt-0.5 leading-snug">${c.dim1_threshold}</p>
+                  </div>
+                  <div class="p-2.5 rounded-xl ios-card">
+                    <span class="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">2. 激活要求</span>
+                    <p class="text-[11px] mt-0.5 leading-snug">${c.dim2_activation}</p>
+                  </div>
+                  <div class="p-2.5 rounded-xl ios-card">
+                    <span class="text-[10px] font-bold text-amber-600 dark:text-amber-400">3. 停留期限</span>
+                    <p class="text-[11px] mt-0.5 leading-snug">${c.dim3_stay}</p>
+                  </div>
+                  <div class="p-2.5 rounded-xl ios-card">
+                    <span class="text-[10px] font-bold text-rose-500">4. 附加前提</span>
+                    <p class="text-[11px] mt-0.5 leading-snug">${c.dim4_extra}</p>
+                  </div>
+                </div>
+              </div>
+            ` : ''}
+          </div>
+        `;
+      }).join('');
+    }
+
+    function renderPagesGrid() {
+      const mount = document.getElementById('pagesGridMount');
+      let blank = 0, stamp = 0, visa = 0;
+
+      mount.innerHTML = state.blankPages.map((st, idx) => {
+        const pageNum = idx + 1;
+        if (st === 'blank') blank++;
+        if (st === 'stamp') stamp++;
+        if (st === 'visa') visa++;
+
+        let styleCls = 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30';
+        let tag = '空';
+        if (st === 'reserved') {
+          styleCls = 'bg-slate-500/15 text-slate-400 border-slate-400/20 cursor-not-allowed';
+          tag = '资';
+        } else if (st === 'stamp') {
+          styleCls = 'bg-amber-500/20 text-amber-700 dark:text-amber-300 border-amber-500/40';
+          tag = '章';
+        } else if (st === 'visa') {
+          styleCls = 'bg-blue-600 text-white border-blue-600';
+          tag = '签';
+        }
+
+        return `
+          <button onclick="cyclePageState(${idx})" class="h-10 rounded-lg border text-[11px] font-mono tabular-nums flex flex-col items-center justify-center transition ${styleCls}">
+            <span class="font-bold leading-none">${pageNum}</span>
+            <span class="text-[9px] opacity-80 mt-0.5">${tag}</span>
+          </button>
+        `;
+      }).join('');
+
+      document.getElementById('sheetBlankCount').textContent = blank;
+      document.getElementById('sheetStampCount').textContent = stamp;
+      document.getElementById('sheetVisaCount').textContent = visa;
+      document.getElementById('exploreAvailablePagesNum').textContent = blank;
+    }
+
+    function cyclePageState(idx) {
+      if (idx < 4) return;
+      const order = ['blank', 'stamp', 'visa'];
+      const cur = state.blankPages[idx];
+      state.blankPages[idx] = order[(order.indexOf(cur) + 1) % order.length];
+      renderPagesGrid();
+    }
+
+    function toggleDarkMode() {
+      state.mode = state.mode === 'light' ? 'dark' : 'light';
+      document.getElementById('phoneRoot').setAttribute('data-mode', state.mode);
+      document.getElementById('labelThemeMode').textContent = state.mode === 'light' ? '浅色模式' : '深色模式';
+      renderWalletTab();
+    }
+
+    function switchPerson(who) {
+      state.person = who;
+      const p = personData[who];
+      document.getElementById('currentPersonBadge').textContent = p.badge;
+      document.getElementById('currentPersonName').textContent = p.shortName;
+
+      // 同步更新安全与设置页顶部本人管理员卡片 & 水印预览卡
+      document.getElementById('settingsAvatarCircle').textContent = p.badge;
+      document.getElementById('settingsProfileName').textContent = p.cnName;
+      document.getElementById('settingsProfileSub').textContent = p.subDesc;
+      document.getElementById('wmCardName').textContent = p.name;
+      document.getElementById('wmCardNo').textContent = p.passportNo;
+      document.getElementById('arrivalPassNoText').textContent = p.passportNo;
+      document.getElementById('arrivalNameText').textContent = p.name;
+
+      document.getElementById('btnPersonSelf').className = who === 'self'
+        ? 'px-2.5 py-1 rounded-lg text-xs font-medium transition-all bg-white text-zinc-900'
+        : 'px-2.5 py-1 rounded-lg text-xs font-medium transition-all text-zinc-400 hover:text-white';
+      document.getElementById('btnPersonFamily').className = who === 'family'
+        ? 'px-2.5 py-1 rounded-lg text-xs font-medium transition-all bg-rose-500 text-white'
+        : 'px-2.5 py-1 rounded-lg text-xs font-medium transition-all text-zinc-400 hover:text-white';
+
+      renderWalletTab();
+      showToast(who === 'family' ? '已切换至父亲档案（演示护照不足6个月预警）' : '已切换至王伟敏（本人）档案');
+    }
+
+    // 底部胶囊 Tab 切换（还原图3选中胶囊高亮样式）
+    function switchTab(tabId) {
+      ['wallet', 'explore', 'arrival', 'settings'].forEach(t => {
+        document.getElementById('tab-' + t).classList.toggle('hidden', t !== tabId);
+      });
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        const active = btn.getAttribute('data-tabbtn') === tabId;
+        btn.className = active
+          ? 'tab-btn flex flex-col items-center justify-center py-1.5 rounded-[22px] transition bg-[#E5EBFF]/90 dark:bg-blue-500/20 text-[#3B5BDB] dark:text-blue-400'
+          : 'tab-btn flex flex-col items-center justify-center py-1.5 rounded-[22px] transition text-[var(--text-tertiary)]';
+      });
+      document.getElementById('mainScroll').scrollTop = 0;
+    }
+
+    function togglePrivacyMask() {
+      state.privacyMasked = !state.privacyMasked;
+      renderWalletTab();
+    }
+
+    function toggleAvatarStyle() {
+      state.etchedAvatar = !state.etchedAvatar;
+      renderWalletTab();
+      showToast(state.etchedAvatar ? '已切换为激光蚀刻相片' : '已切换为真彩相片');
+    }
+
+    function setV5DocIndex(idx) {
+      state.v5DocIndex = idx;
+      state.expandedVisaId = null;
+      renderWalletTab();
+    }
+
+    function openPassportSheet() {
+      const p = personData[state.person];
+      const body = document.getElementById('visaDetailSheetBody');
+      body.innerHTML = `
+        <div class="flex items-center justify-between mb-3">
+          <div>
+            <span class="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-[var(--accent-soft)] text-[var(--accent)]">CHN · ELECTRONIC PASSPORT</span>
+            <h3 class="text-base font-bold mt-1">${p.name} (${p.cnName})</h3>
+          </div>
+          <button onclick="closeSheet('visaDetailSheet')" class="text-xs font-semibold text-[var(--accent)]">完成</button>
+        </div>
+
+        <div class="ios-card p-3.5 space-y-2.5 text-xs tabular-nums mb-3.5">
+          <div class="flex justify-between py-1 hairline-b">
+            <span class="text-[var(--text-secondary)]">护照号码</span>
+            <span class="font-mono font-bold">${p.passportNo}</span>
+          </div>
+          <div class="flex justify-between py-1 hairline-b">
+            <span class="text-[var(--text-secondary)]">签发日 / 到期日</span>
+            <span class="font-semibold">${p.issueDate} — ${p.expiryDate}</span>
+          </div>
+          <div class="flex justify-between py-1">
+            <span class="text-[var(--text-secondary)]">关联旧护照号 (贴有美签)</span>
+            <span class="font-mono font-semibold">${p.oldPassportNo}</span>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2">
+          <button onclick="closeSheet('visaDetailSheet'); openSheet('watermarkSheet')" class="py-2.5 rounded-xl ios-card text-xs font-semibold">
+            安全水印与打码
+          </button>
+          <button onclick="closeSheet('visaDetailSheet'); openNfcSheet()" class="py-2.5 rounded-xl bg-[var(--accent)] text-white text-xs font-semibold">
+            NFC 芯片验真
+          </button>
+        </div>
+      `;
+      openSheet('visaDetailSheet');
+    }
+
+    function openVisaSheet(visaId) {
+      const v = visas.find(item => item.id === visaId);
+      if (!v) return;
+      const body = document.getElementById('visaDetailSheetBody');
+      body.innerHTML = `
+        <div class="flex items-center justify-between mb-3">
+          <div>
+            <span class="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-[var(--accent-soft)] text-[var(--accent)]">${v.iso} · VISA DETAILS</span>
+            <h3 class="text-base font-bold mt-1">${v.shortTitle}</h3>
+          </div>
+          <button onclick="closeSheet('visaDetailSheet')" class="text-xs font-semibold text-[var(--accent)]">完成</button>
+        </div>
+
+        <div class="ios-card p-3.5 space-y-2.5 text-xs tabular-nums mb-3.5">
+          <div class="flex justify-between py-1 hairline-b">
+            <span class="text-[var(--text-secondary)]">签证/签注号</span>
+            <span class="font-mono font-bold">${v.visaNo}</span>
+          </div>
+          <div class="flex justify-between py-1 hairline-b">
+            <span class="text-[var(--text-secondary)]">单次停留期限</span>
+            <span class="font-bold text-emerald-600 dark:text-emerald-400">${v.stayDays}</span>
+          </div>
+          <div class="flex justify-between py-1">
+            <span class="text-[var(--text-secondary)]">有效期</span>
+            <span class="font-mono font-semibold">${v.issueDate} — ${v.expiryDate}</span>
+          </div>
+        </div>
+
+        <div class="p-3.5 rounded-2xl ios-card text-xs leading-relaxed mb-4">
+          <div class="font-bold text-[var(--text-secondary)] mb-1">出入境核验提醒</div>
+          <p>${v.detailNote}</p>
+        </div>
+      `;
+      openSheet('visaDetailSheet');
+    }
+
+    function toggleOverlayFilter(key) {
+      state.overlays[key] = !state.overlays[key];
+      const mapId = { usa: 'filterPillUsa', sch: 'filterPillSch', jpn: 'filterPillJpn' };
+      const el = document.getElementById(mapId[key]);
+      el.className = state.overlays[key]
+        ? 'flex-1 py-1.5 px-2 rounded-xl text-[11px] font-semibold border transition flex items-center justify-center gap-1 bg-[var(--accent)] text-white border-transparent shadow-sm'
+        : 'flex-1 py-1.5 px-2 rounded-xl text-[11px] font-semibold border transition flex items-center justify-center gap-1 bg-transparent text-[var(--text-secondary)] border-[var(--border-subtle)]';
+      renderExploreCountries();
+    }
+
+    function toggleExpandCountry(code) {
+      state.expandedCountry = state.expandedCountry === code ? null : code;
+      renderExploreCountries();
+    }
+
+    function updateSchengenSim(val) {
+      const addDays = parseInt(val, 10);
+      const baseUsed = 22;
+      const totalUsed = baseUsed + addDays;
+      const remain = Math.max(0, 90 - totalUsed);
+      const isOver = totalUsed > 90;
+
+      document.getElementById('schengenSliderVal').textContent = addDays + ' 天';
+      const remainEl = document.getElementById('schengenSimRemain');
+      remainEl.textContent = isOver ? `超期 ${totalUsed - 90} 天 (!)` : `${remain} 天`;
+      remainEl.className = `text-3xl font-bold tracking-tight mt-0.5 ${isOver ? 'text-rose-500' : 'text-emerald-600 dark:text-emerald-400'}`;
+
+      document.getElementById('schengenSimUsed').textContent = `${totalUsed} / 90 天 (${isOver ? '超期预警' : '合规'})`;
+      const bar = document.getElementById('schengenSimBar');
+      bar.style.width = Math.min(75.6, (addDays / 90) * 100) + '%';
+      bar.className = `h-full transition-all ${isOver ? 'bg-rose-500' : 'bg-blue-500'}`;
+    }
+
+    function toggleMaxBrightness() {
+      const phone = document.getElementById('phoneRoot');
+      const isMax = phone.classList.toggle('max-bright');
+      document.getElementById('txtMaxBright').textContent = isMax ? '已增亮 100%' : '高亮扫码';
+      showToast(isMax ? '屏幕已调至最高亮度，方便边检扫码' : '已恢复正常屏幕亮度');
+    }
+
+    function switchQrTab(type) {
+      const immBtn = document.getElementById('qrBtnImm');
+      const taxBtn = document.getElementById('qrBtnTax');
+      const title = document.getElementById('qrTypeTitle');
+      if (type === 'immigration') {
+        immBtn.className = 'flex-1 py-1 rounded-lg text-[11px] font-semibold bg-[var(--bg-elevated)] shadow-sm transition';
+        taxBtn.className = 'flex-1 py-1 rounded-lg text-[11px] font-medium text-[var(--text-secondary)] transition';
+        title.textContent = 'Visit Japan Web · 入境审查与海关申报码';
+      } else {
+        taxBtn.className = 'flex-1 py-1 rounded-lg text-[11px] font-semibold bg-[var(--bg-elevated)] shadow-sm transition';
+        immBtn.className = 'flex-1 py-1 rounded-lg text-[11px] font-medium text-[var(--text-secondary)] transition';
+        title.textContent = 'Visit Japan Web · 免税购物专用码 (Tax-Free)';
+      }
+    }
+
+    function openSheet(id) { document.getElementById(id).classList.add('open'); }
+    function closeSheet(id) { document.getElementById(id).classList.remove('open'); }
+    function closeSheetOnBg(e, id) {
+      if (e.target.id === id) {
+        if (id === 'nfcSheet') closeNfcSheet();
+        else closeSheet(id);
+      }
+    }
+
+    function copyText(txt, msg) {
+      if (navigator.clipboard) navigator.clipboard.writeText(txt).catch(() => {});
+      showToast(msg || '已复制到剪贴板');
+    }
+
+    let toastTimer = null;
+    function showToast(msg) {
+      const t = document.getElementById('iosToast');
+      t.textContent = msg;
+      t.classList.remove('opacity-0');
+      t.classList.add('opacity-100');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => {
+        t.classList.remove('opacity-100');
+        t.classList.add('opacity-0');
+      }, 2200);
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      renderWalletTab();
+      renderExploreCountries();
+      renderPagesGrid();
+      renderTiledWatermarks();
+    });
+  </script>
+</body>
+</html>
