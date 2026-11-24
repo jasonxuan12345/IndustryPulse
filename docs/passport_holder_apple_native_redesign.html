@@ -1,0 +1,3481 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Passport Holder — Apple Native Redesign</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    /* ==========================================================================
+       1. Apple Native System Tokens (Light: #F2F2F7 / Dark: OLED #000000)
+       ========================================================================== */
+    :root {
+      --font-sans: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'HarmonyOS Sans SC', 'PingFang SC', 'Inter', sans-serif;
+      --font-mono: 'SF Mono', 'JetBrains Mono', ui-monospace, Menlo, monospace;
+
+      --bg-canvas: #F2F2F7;
+      --bg-surface: #FFFFFF;
+      --bg-fill: rgba(118, 118, 128, 0.12);
+      --bg-fill-strong: rgba(118, 118, 128, 0.18);
+      --border-hairline: rgba(60, 60, 67, 0.12);
+      --border-card: rgba(0, 0, 0, 0.06);
+
+      --text-primary: #000000;
+      --text-secondary: #636366;
+      --text-tertiary: #8E8E93;
+
+      --accent: #007AFF;
+      --accent-soft: rgba(0, 122, 255, 0.10);
+      --sem-green: #34C759;
+      --sem-amber: #FF9F0A;
+      --sem-red: #FF3B30;
+
+      /* Razor-sharp grounding shadow — zero muddy blur halos */
+      --surface-shadow: 0 1px 2px rgba(0, 0, 0, 0.03), 0 0 0 0.5px rgba(0, 0, 0, 0.06);
+      --seg-bg: rgba(118, 118, 128, 0.12);
+      --seg-active: #FFFFFF;
+      --seg-shadow: 0 1px 2px rgba(0, 0, 0, 0.10), 0 0 0 0.5px rgba(0, 0, 0, 0.04);
+
+      --tabbar-bg: rgba(255, 255, 255, 0.84);
+      --tabbar-border: rgba(0, 0, 0, 0.08);
+      --tabbar-active: rgba(0, 0, 0, 0.055);
+      --sheet-bg: #F2F2F7;
+    }
+
+    [data-mode="dark"] {
+      --bg-canvas: #000000;
+      --bg-surface: #1C1C1E;
+      --bg-fill: rgba(118, 118, 128, 0.24);
+      --bg-fill-strong: rgba(118, 118, 128, 0.34);
+      --border-hairline: rgba(84, 84, 88, 0.45);
+      --border-card: rgba(255, 255, 255, 0.08);
+
+      --text-primary: #FFFFFF;
+      --text-secondary: #98989F;
+      --text-tertiary: #636366;
+
+      --accent: #0A84FF;
+      --accent-soft: rgba(10, 132, 255, 0.18);
+      --sem-green: #30D158;
+      --sem-amber: #FF9F0A;
+      --sem-red: #FF453A;
+
+      /* Top edge hairline highlight only — zero heavy dark drop shadow */
+      --surface-shadow: inset 0 0.5px 0 rgba(255, 255, 255, 0.08), inset 0 0 0 0.5px rgba(255, 255, 255, 0.05);
+      --seg-bg: rgba(118, 118, 128, 0.24);
+      --seg-active: #3A3A3C;
+      --seg-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+
+      --tabbar-bg: rgba(28, 28, 30, 0.82);
+      --tabbar-border: rgba(255, 255, 255, 0.10);
+      --tabbar-active: rgba(255, 255, 255, 0.11);
+      --sheet-bg: #121214;
+    }
+
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+
+    body {
+      font-family: var(--font-sans);
+      background-color: #0B0B0D;
+      color: var(--text-primary);
+      margin: 0;
+      padding: 0;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    .tabular-nums {
+      font-variant-numeric: tabular-nums;
+      font-feature-settings: "tnum" 1;
+    }
+
+    .font-mono-doc {
+      font-family: var(--font-mono);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+    /* ==========================================================================
+       2. 393 x 852 iPhone Viewport Frame
+       ========================================================================== */
+    .phone-viewport {
+      width: 393px;
+      height: 852px;
+      max-width: 100%;
+      background-color: var(--bg-canvas);
+      color: var(--text-primary);
+      border-radius: 52px;
+      position: relative;
+      overflow: hidden;
+      box-shadow:
+        0 0 0 10px #1A1A1D,
+        0 0 0 11.5px #333339,
+        0 32px 84px -18px rgba(0, 0, 0, 0.85);
+      transition: background-color 0.24s ease, color 0.24s ease, filter 0.24s ease;
+    }
+
+    .phone-viewport.max-bright {
+      filter: brightness(1.13) contrast(1.04);
+      box-shadow:
+        0 0 0 10px #1A1A1D,
+        0 0 0 12px rgba(255, 255, 255, 0.65),
+        0 0 64px rgba(255, 255, 255, 0.24);
+    }
+
+    /* ==========================================================================
+       3. Native Surfaces, Concentric Radii (24 / 16 / 12) & Segmented Control
+       ========================================================================== */
+    .ios-group {
+      background-color: var(--bg-surface);
+      border-radius: 16px;
+      box-shadow: var(--surface-shadow);
+      transition: background-color 0.24s ease;
+    }
+
+    .hairline-b { border-bottom: 0.5px solid var(--border-hairline); }
+    .hairline-t { border-top: 0.5px solid var(--border-hairline); }
+
+    .ios-row-divider {
+      position: relative;
+    }
+    .ios-row-divider:not(:last-child)::after {
+      content: "";
+      position: absolute;
+      bottom: 0;
+      right: 0;
+      left: 56px;
+      height: 0.5px;
+      background-color: var(--border-hairline);
+    }
+    .ios-row-divider-dest:not(:last-child)::after {
+      left: 62px;
+    }
+    .ios-row-divider-full:not(:last-child)::after {
+      left: 16px;
+    }
+
+    /* Full-width Native UISegmentedControl (12px outer / 9px active pill) */
+    .ios-segmented {
+      background-color: var(--seg-bg);
+      padding: 3px;
+      border-radius: 12px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      width: 100%;
+    }
+    .ios-segmented-btn {
+      padding: 6px 12px;
+      border-radius: 9px;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      text-align: center;
+      transition: all 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    .ios-segmented-btn.active {
+      background-color: var(--seg-active);
+      color: var(--text-primary);
+      font-weight: 600;
+      box-shadow: var(--seg-shadow);
+    }
+
+    /* ==========================================================================
+       4. Plan A: Minimalist Physical Passport & Permit Covers (24px radius)
+       ========================================================================== */
+    .passport-cover {
+      position: relative;
+      border-radius: 24px;
+      overflow: hidden;
+      background: linear-gradient(145deg, #641B2B 0%, #48111E 55%, #300A13 100%);
+      color: #FFFFFF;
+      box-shadow:
+        inset 0 0.5px 0 rgba(218, 188, 134, 0.30),
+        0 2px 6px rgba(48, 10, 19, 0.18),
+        0 0 0 0.5px rgba(48, 10, 19, 0.12);
+      transition: transform 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    [data-mode="dark"] .passport-cover {
+      box-shadow:
+        inset 0 0.5px 0 rgba(218, 188, 134, 0.32),
+        inset 0 0 0 0.5px rgba(255, 255, 255, 0.08);
+    }
+
+    .permit-cover {
+      position: relative;
+      border-radius: 24px;
+      overflow: hidden;
+      background: linear-gradient(145deg, #213C44 0%, #172D34 55%, #102026 100%);
+      color: #FFFFFF;
+      box-shadow:
+        inset 0 0.5px 0 rgba(226, 232, 240, 0.24),
+        0 2px 6px rgba(16, 32, 38, 0.18),
+        0 0 0 0.5px rgba(16, 32, 38, 0.12);
+      transition: transform 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    [data-mode="dark"] .permit-cover {
+      box-shadow:
+        inset 0 0.5px 0 rgba(226, 232, 240, 0.26),
+        inset 0 0 0 0.5px rgba(255, 255, 255, 0.08);
+    }
+
+    /* Inset 0.5px embossed champagne gold frame (concentric: 24 - 8 = 16px) */
+    .cover-inner-frame {
+      position: absolute;
+      inset: 8px;
+      border-radius: 16px;
+      pointer-events: none;
+      border: 0.5px solid rgba(218, 188, 134, 0.25);
+    }
+    .cover-inner-frame-silver {
+      border-color: rgba(226, 232, 240, 0.18);
+    }
+
+    /* ==========================================================================
+       5. Apple Wallet Stacked Visa Cards (24px radius, Exact 56px Header Strip)
+       ========================================================================== */
+    .visa-stack-container {
+      position: relative;
+      padding-bottom: 6px;
+    }
+
+    .visa-wallet-card {
+      position: relative;
+      border-radius: 24px;
+      overflow: hidden;
+      cursor: pointer;
+      transition:
+        margin-top 0.34s cubic-bezier(0.22, 1, 0.36, 1),
+        margin-bottom 0.34s cubic-bezier(0.22, 1, 0.36, 1),
+        transform 0.26s cubic-bezier(0.22, 1, 0.36, 1),
+        box-shadow 0.26s ease;
+    }
+
+    .visa-wallet-card.tone-dark {
+      color: #FFFFFF;
+      box-shadow:
+        inset 0 0.5px 0 rgba(255, 255, 255, 0.16),
+        0 -1px 4px rgba(0, 0, 0, 0.14),
+        0 1px 3px rgba(0, 0, 0, 0.08);
+    }
+
+    .visa-wallet-card.tone-light {
+      color: #1C1C1E;
+      box-shadow:
+        inset 0 0.5px 0 rgba(255, 255, 255, 0.92),
+        inset 0 0 0 0.5px rgba(28, 28, 30, 0.09),
+        0 -1px 4px rgba(0, 0, 0, 0.08),
+        0 1px 3px rgba(0, 0, 0, 0.04);
+    }
+
+    /* Exact Wallet Stacking Math:
+       Header strip = 56px. Lower body = 112px. Total collapsed height = 168px.
+       margin-top: -112px exposes ONLY the unobstructed 56px header strip. */
+    .visa-wallet-card:not(:first-child) {
+      margin-top: -112px;
+    }
+
+    .visa-wallet-card.expanded {
+      margin-top: 10px !important;
+      margin-bottom: 10px !important;
+      z-index: 25 !important;
+      box-shadow:
+        inset 0 0.5px 0 rgba(255, 255, 255, 0.20),
+        0 4px 12px rgba(0, 0, 0, 0.14);
+    }
+    .visa-wallet-card.expanded + .visa-wallet-card {
+      margin-top: 10px !important;
+    }
+    .visa-wallet-card:first-child.expanded {
+      margin-top: 0 !important;
+    }
+
+    .visa-header-strip {
+      height: 56px;
+      padding: 0 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: relative;
+      z-index: 2;
+    }
+
+    .visa-lower-body {
+      min-height: 112px;
+      padding: 14px 18px 18px;
+      position: relative;
+      z-index: 2;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    /* ==========================================================================
+       6. Swiss High-Contrast Arrival Pass (24px radius, Seamless Punch-Outs)
+       ========================================================================== */
+    .arrival-pass {
+      position: relative;
+      border-radius: 24px;
+      background-color: var(--bg-surface);
+      box-shadow: var(--surface-shadow);
+      overflow: hidden;
+    }
+
+    .ticket-perforation {
+      position: relative;
+      height: 24px;
+      display: flex;
+      align-items: center;
+      padding: 0 18px;
+    }
+    .ticket-perforation-line {
+      width: 100%;
+      border-top: 1px dashed var(--border-hairline);
+    }
+    .ticket-notch {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 24px;
+      height: 24px;
+      border-radius: 999px;
+      background-color: var(--bg-canvas);
+      z-index: 3;
+      transition: background-color 0.24s ease;
+    }
+    .ticket-notch-left { left: -12px; }
+    .ticket-notch-right { right: -12px; }
+
+    /* ==========================================================================
+       7. Floating Translucent Bottom Tab Bar (28px outer / 4px pad / 24px pill)
+       ========================================================================== */
+    .floating-tabbar {
+      position: absolute;
+      bottom: 14px;
+      left: 16px;
+      right: 16px;
+      z-index: 20;
+      padding: 4px;
+      border-radius: 28px;
+      background-color: var(--tabbar-bg);
+      backdrop-filter: blur(28px) saturate(180%);
+      -webkit-backdrop-filter: blur(28px) saturate(180%);
+      border: 0.5px solid var(--tabbar-border);
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
+    }
+    [data-mode="dark"] .floating-tabbar {
+      box-shadow: inset 0 0.5px 0 rgba(255, 255, 255, 0.10);
+    }
+
+    .tab-btn {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 6px 0;
+      border-radius: 24px;
+      color: var(--text-tertiary);
+      transition: all 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    .tab-btn.active {
+      background-color: var(--tabbar-active);
+      color: var(--accent);
+    }
+
+    /* ==========================================================================
+       8. Native Bottom Sheets (32px top radius)
+       ========================================================================== */
+    .sheet-backdrop {
+      background: rgba(0, 0, 0, 0.38);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.24s ease;
+    }
+    .sheet-backdrop.open {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    .bottom-sheet {
+      transform: translateY(100%);
+      transition: transform 0.34s cubic-bezier(0.22, 1, 0.36, 1);
+      background-color: var(--sheet-bg);
+      border-top-left-radius: 32px;
+      border-top-right-radius: 32px;
+      box-shadow: inset 0 0.5px 0 rgba(255, 255, 255, 0.14);
+    }
+    .sheet-backdrop.open .bottom-sheet {
+      transform: translateY(0);
+    }
+
+    /* Polycarbonate Biodata Page inside Detail Sheet */
+    .polycarbonate-card {
+      position: relative;
+      border-radius: 24px;
+      overflow: hidden;
+      background: linear-gradient(145deg, #ECEBE6 0%, #E1DFD8 55%, #D7D5CE 100%);
+      color: #1C1C1E;
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.85),
+        inset 0 0 0 0.5px rgba(28, 28, 30, 0.10);
+    }
+    [data-mode="dark"] .polycarbonate-card {
+      background: linear-gradient(145deg, #2A2A2E 0%, #202024 60%, #19191C 100%);
+      color: #F5F5F7;
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.12),
+        inset 0 0 0 0.5px rgba(255, 255, 255, 0.08);
+    }
+
+    /* ==========================================================================
+       9. Native iOS Switches, Sliders, Form Inputs & Animations
+       ========================================================================== */
+    .ios-switch {
+      position: relative;
+      display: inline-block;
+      width: 48px;
+      height: 29px;
+      flex-shrink: 0;
+    }
+    .ios-switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+    .ios-switch-slider {
+      position: absolute;
+      cursor: pointer;
+      inset: 0;
+      background-color: rgba(120, 120, 128, 0.26);
+      transition: 0.24s cubic-bezier(0.22, 1, 0.36, 1);
+      border-radius: 999px;
+    }
+    .ios-switch-slider:before {
+      position: absolute;
+      content: "";
+      height: 25px;
+      width: 25px;
+      left: 2px;
+      bottom: 2px;
+      background-color: #FFFFFF;
+      transition: 0.24s cubic-bezier(0.22, 1, 0.36, 1);
+      border-radius: 50%;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.18), 0 0.5px 1px rgba(0, 0, 0, 0.08);
+    }
+    .ios-switch input:checked + .ios-switch-slider {
+      background-color: var(--sem-green);
+    }
+    .ios-switch input:checked + .ios-switch-slider:before {
+      transform: translateX(19px);
+    }
+
+    input[type="range"].ios-slider {
+      -webkit-appearance: none;
+      appearance: none;
+      height: 4px;
+      border-radius: 999px;
+      background: var(--bg-fill-strong);
+      outline: none;
+    }
+    input[type="range"].ios-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: #FFFFFF;
+      cursor: pointer;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.22), 0 0 0 0.5px rgba(0, 0, 0, 0.08);
+    }
+
+    .ios-field-input {
+      background: transparent;
+      color: var(--text-primary);
+      font-size: 14px;
+      text-align: right;
+      outline: none;
+      width: 58%;
+    }
+    .ios-field-input::placeholder {
+      color: var(--text-tertiary);
+    }
+
+    @keyframes nfcRipple {
+      0% { transform: scale(0.84); opacity: 0.62; }
+      75% { transform: scale(1.56); opacity: 0; }
+      100% { transform: scale(1.56); opacity: 0; }
+    }
+    @keyframes nfcWaveGlow {
+      0%, 100% { opacity: 0.30; transform: translateX(0); }
+      50% { opacity: 1; transform: translateX(1.5px); }
+    }
+    @keyframes popSuccess {
+      0% { transform: scale(0.62); opacity: 0; }
+      68% { transform: scale(1.06); opacity: 1; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+    @keyframes mrzScan {
+      0%, 100% { transform: translateY(0px); opacity: 0.45; }
+      50% { transform: translateY(24px); opacity: 1; }
+    }
+
+    .nfc-ripple-1 { animation: nfcRipple 2.1s infinite cubic-bezier(0.2, 0.8, 0.4, 1); }
+    .nfc-ripple-2 { animation: nfcRipple 2.1s infinite 0.72s cubic-bezier(0.2, 0.8, 0.4, 1); }
+    .nfc-arc-1 { animation: nfcWaveGlow 1.2s infinite 0s ease-in-out; }
+    .nfc-arc-2 { animation: nfcWaveGlow 1.2s infinite 0.24s ease-in-out; }
+    .nfc-arc-3 { animation: nfcWaveGlow 1.2s infinite 0.48s ease-in-out; }
+    .nfc-success-pop { animation: popSuccess 0.38s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
+    .mrz-scan-laser { animation: mrzScan 2.0s ease-in-out infinite; }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col items-center justify-start py-5 px-4">
+
+  <!-- ==================== Minimal External Top Control Bar ==================== -->
+  <header class="w-full max-w-[680px] mb-5 bg-[#151517] border border-white/10 rounded-2xl px-4 py-2.5 flex flex-wrap items-center justify-between gap-3">
+    <div class="flex items-center gap-2.5">
+      <div class="w-7 h-7 rounded-lg bg-[#48111E] border border-[#DABC86]/35 flex items-center justify-center text-[#DABC86]">
+        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <rect x="4" y="2.5" width="16" height="19" rx="2.5"/>
+          <circle cx="12" cy="10.5" r="3"/>
+          <path d="M8.5 17h7"/>
+        </svg>
+      </div>
+      <div class="flex items-baseline gap-2">
+        <span class="text-white text-[13px] font-semibold tracking-tight">Passport Holder</span>
+        <span class="text-[11px] text-zinc-400">iOS 原生交互预览</span>
+      </div>
+    </div>
+
+    <div class="flex items-center gap-2">
+      <!-- State Switcher: Self Normal vs Family Urgent -->
+      <div class="inline-flex rounded-xl bg-black/50 p-0.5 border border-white/10">
+        <button onclick="switchPerson('self')" id="btnPersonSelf" class="px-2.5 py-1 rounded-[9px] text-[11px] font-medium transition bg-white text-black">
+          本人 · 正常态
+        </button>
+        <button onclick="switchPerson('family')" id="btnPersonFamily" class="px-2.5 py-1 rounded-[9px] text-[11px] font-medium transition text-zinc-400 hover:text-white">
+          家人 · &lt;6个月预警
+        </button>
+      </div>
+
+      <!-- Light / Dark Mode Switcher -->
+      <button onclick="toggleDarkMode()" class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/15 text-[11px] text-white font-medium border border-white/10 transition">
+        <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+          <circle cx="12" cy="12" r="4"/>
+          <path d="M12 2v2m0 16v2M4.93 4.93l1.41 1.41m11.32 11.32l1.41 1.41M2 12h2m16 0h2M4.93 19.07l1.41-1.41m11.32-11.32l1.41-1.41"/>
+        </svg>
+        <span id="labelThemeMode">浅色模式</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- ==================== 393 x 852 Centered iPhone Viewport ==================== -->
+  <div id="phoneRoot" class="phone-viewport flex flex-col" data-mode="light">
+
+    <!-- 1. Status Bar + Privacy-Safe Dynamic Island -->
+    <div class="relative z-20 px-7 pt-3 pb-2 flex items-center justify-between shrink-0">
+      <span class="text-[14px] font-semibold tracking-tight tabular-nums w-12">9:41</span>
+
+      <!-- Compact Privacy-Safe Dynamic Island (NO Passport No.) -->
+      <button onclick="switchTab('arrival')" class="h-[29px] px-3.5 rounded-full bg-black text-white flex items-center justify-center gap-2 active:scale-95 transition">
+        <span class="w-1.5 h-1.5 rounded-full bg-[#30D158] shrink-0"></span>
+        <span class="text-[11px] font-medium tracking-wide tabular-nums whitespace-nowrap">JPN · NRT 就绪</span>
+      </button>
+
+      <!-- Signal & Battery -->
+      <div class="flex items-center justify-end gap-1.5 w-12">
+        <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
+          <rect x="2" y="15" width="3" height="6" rx="1"/>
+          <rect x="7" y="11" width="3" height="10" rx="1"/>
+          <rect x="12" y="7" width="3" height="14" rx="1"/>
+          <rect x="17" y="3" width="3" height="18" rx="1"/>
+        </svg>
+        <svg class="w-5 h-5" viewBox="0 0 26 16" fill="none">
+          <rect x="1" y="2.5" width="20" height="11" rx="3" stroke="currentColor" stroke-width="1.3" opacity="0.45"/>
+          <rect x="3" y="4.5" width="16" height="7" rx="1.6" fill="currentColor"/>
+          <path d="M23 6v4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" opacity="0.5"/>
+        </svg>
+      </div>
+    </div>
+
+    <!-- 2. Main Scrollable Viewport -->
+    <main id="mainScroll" class="relative z-10 flex-1 overflow-y-auto no-scrollbar pb-28">
+
+      <!-- ======================================================================
+           TAB 1: 卡包 (Wallet — Plan A Physical Cover + Alternating Wallet Stack)
+           ====================================================================== -->
+      <section id="tab-wallet" class="px-4 pt-1.5">
+        <!-- Header: Large Title + Strictly Two Equal 34px Circular Buttons -->
+        <div class="flex items-center justify-between mb-4">
+          <h1 class="text-[32px] font-bold tracking-tight leading-none">卡包</h1>
+
+          <div class="flex items-center gap-2">
+            <button onclick="openSheet('familySheet')" title="切换成员"
+                    class="w-[34px] h-[34px] rounded-full flex items-center justify-center text-[13px] font-semibold transition active:scale-95"
+                    style="background-color: var(--bg-surface); color: var(--text-primary); box-shadow: var(--surface-shadow);">
+              <span id="currentPersonBadge">伟</span>
+            </button>
+
+            <button onclick="openAddSheet('add-root')" title="添加到卡包"
+                    class="w-[34px] h-[34px] rounded-full flex items-center justify-center transition active:scale-95"
+                    style="background-color: var(--bg-surface); color: var(--text-primary); box-shadow: var(--surface-shadow);">
+              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                <path d="M12 5v14M5 12h14"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Dynamic Wallet Content -->
+        <div id="walletDynamicMount"></div>
+      </section>
+
+      <!-- ======================================================================
+           TAB 2: 探索 (Explore — Flighty Dot-Matrix Map + Apple Health + Inset List)
+           ====================================================================== -->
+      <section id="tab-explore" class="px-4 pt-1.5 hidden">
+        <div class="flex items-baseline justify-between mb-4">
+          <h1 class="text-[32px] font-bold tracking-tight leading-none">探索</h1>
+          <span id="totalVisaFreeBadge" class="text-[14px] font-medium tabular-nums" style="color: var(--text-secondary);">已解锁 94 国</span>
+        </div>
+
+        <!-- Flighty-Style Precision Dot-Matrix Instrument Card (24px radius) -->
+        <div class="rounded-[24px] overflow-hidden mb-3.5 bg-[#12141A] text-white" style="box-shadow: inset 0 0.5px 0 rgba(255,255,255,0.10);">
+          <div class="px-4 pt-4 pb-1 flex items-baseline justify-between">
+            <div class="flex items-baseline gap-1.5 tabular-nums">
+              <span id="mapHeroCount" class="text-[28px] font-bold tracking-tight leading-none">94</span>
+              <span class="text-[12px] font-normal text-[#8E8E93]">个可免签及持签国</span>
+            </div>
+            <div class="flex items-center gap-3 text-[11px] font-normal text-[#98989F] tabular-nums">
+              <span class="inline-flex items-center gap-1.5"><i class="w-1.5 h-1.5 rounded-full bg-[#34C759]"></i>直免 48</span>
+              <span class="inline-flex items-center gap-1.5"><i class="w-1.5 h-1.5 rounded-full bg-[#0A84FF]"></i>持签 <span id="bonusCountNum">+46</span></span>
+            </div>
+          </div>
+
+          <!-- 56x21 Uniform Dot-Matrix World Map SVG -->
+          <div class="px-2.5 py-2">
+            <svg id="dotMatrixMapSvg" viewBox="0 0 336 126" class="w-full h-[132px] block"></svg>
+          </div>
+
+          <!-- 3 Visa Toggle Pills -->
+          <div class="px-3.5 pb-3.5 pt-1 grid grid-cols-3 gap-2">
+            <button onclick="toggleOverlayFilter('usa')" id="filterPillUsa" class="py-1.5 px-2 rounded-[12px] text-[12px] font-medium transition text-center bg-white text-black">
+              美签 B1/B2
+            </button>
+            <button onclick="toggleOverlayFilter('sch')" id="filterPillSch" class="py-1.5 px-2 rounded-[12px] text-[12px] font-medium transition text-center bg-white text-black">
+              申根多次
+            </button>
+            <button onclick="toggleOverlayFilter('jpn')" id="filterPillJpn" class="py-1.5 px-2 rounded-[12px] text-[12px] font-medium transition text-center bg-white text-black">
+              日签五年
+            </button>
+          </div>
+        </div>
+
+        <!-- Apple Health 2-Column Telemetry Cards (16px radius) -->
+        <div class="grid grid-cols-2 gap-3 mb-5">
+          <button onclick="openSheet('pagesSheet')" class="ios-group p-4 text-left active:opacity-80 transition">
+            <div class="flex items-center justify-between">
+              <span class="text-[13px] font-medium" style="color: var(--text-secondary);">空白护照页</span>
+              <svg class="w-3.5 h-3.5 opacity-30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M9 18l6-6-6-6"/></svg>
+            </div>
+            <div class="mt-2.5 flex items-baseline gap-1 tabular-nums">
+              <span id="exploreAvailablePagesNum" class="text-[28px] font-bold tracking-tight leading-none">31</span>
+              <span class="text-[12px] font-normal" style="color: var(--text-tertiary);">/ 44 页</span>
+            </div>
+            <div class="mt-3 flex gap-[2px] h-[3.5px] rounded-full overflow-hidden">
+              <span id="barBlankSeg" class="h-full bg-[#34C759]" style="width: 70.5%"></span>
+              <span id="barStampSeg" class="h-full bg-[#FF9F0A]" style="width: 18.2%"></span>
+              <span id="barVisaSeg" class="h-full" style="width: 11.3%; background-color: var(--accent);"></span>
+            </div>
+          </button>
+
+          <button onclick="openSheet('schengenSheet')" class="ios-group p-4 text-left active:opacity-80 transition">
+            <div class="flex items-center justify-between">
+              <span class="text-[13px] font-medium" style="color: var(--text-secondary);">申根 90/180</span>
+              <svg class="w-3.5 h-3.5 opacity-30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M9 18l6-6-6-6"/></svg>
+            </div>
+            <div class="mt-2.5 flex items-baseline gap-1 tabular-nums">
+              <span class="text-[28px] font-bold tracking-tight leading-none">68</span>
+              <span class="text-[12px] font-normal" style="color: var(--text-tertiary);">天剩余</span>
+            </div>
+            <div class="mt-3 w-full h-[3.5px] rounded-full overflow-hidden" style="background-color: var(--bg-fill);">
+              <div class="h-full rounded-full" style="width: 24.4%; background-color: var(--accent);"></div>
+            </div>
+          </button>
+        </div>
+
+        <!-- iOS Inset Grouped Destination List -->
+        <div class="px-2 mb-2 flex items-center justify-between">
+          <span class="text-[13px] font-medium" style="color: var(--text-secondary);">目的地政策</span>
+          <span id="exploreListCount" class="text-[12px] tabular-nums" style="color: var(--text-tertiary);">6</span>
+        </div>
+
+        <div id="exploreCountryList" class="ios-group overflow-hidden mb-4"></div>
+      </section>
+
+      <!-- ======================================================================
+           TAB 3: 入境 (Arrival — Swiss Graphic Design Boarding Pass)
+           ====================================================================== -->
+      <section id="tab-arrival" class="px-4 pt-1.5 hidden">
+        <div class="flex items-center justify-between mb-4">
+          <h1 class="text-[32px] font-bold tracking-tight leading-none">入境</h1>
+          <button onclick="toggleMaxBrightness()" class="h-[34px] px-3.5 rounded-full flex items-center gap-1.5 text-[13px] font-medium active:scale-95 transition"
+                  style="background-color: var(--bg-surface); color: var(--text-primary); box-shadow: var(--surface-shadow);">
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+              <circle cx="12" cy="12" r="4"/>
+              <path d="M12 2v2m0 16v2M4.93 4.93l1.41 1.41m11.32 11.32l1.41 1.41M2 12h2m16 0h2M4.93 19.07l1.41-1.41m11.32-11.32l1.41-1.41"/>
+            </svg>
+            <span id="txtMaxBright">高亮扫码</span>
+          </button>
+        </div>
+
+        <!-- Swiss High-Contrast Pass Card (24px radius, Monochrome Print Aesthetic) -->
+        <div class="arrival-pass mb-4">
+          <!-- Swiss Typographic Header -->
+          <div class="px-5 pt-5 pb-4 hairline-b flex items-start justify-between">
+            <div>
+              <div class="flex items-baseline gap-2.5">
+                <span class="font-mono-doc text-[28px] font-bold tracking-tight leading-none">JPN</span>
+                <span class="font-mono-doc text-[13px] font-medium tabular-nums" style="color: var(--text-secondary);">NRT · NH960</span>
+              </div>
+              <div class="text-[10.5px] font-medium uppercase tracking-[0.12em] mt-1.5" style="color: var(--text-tertiary);">
+                ARRIVAL PASS
+              </div>
+            </div>
+
+            <div class="text-right">
+              <span class="inline-flex items-center gap-1.5 text-[12px] font-medium" style="color: var(--text-secondary);">
+                <i class="w-1.5 h-1.5 rounded-full bg-[#34C759]"></i>离线就绪
+              </span>
+            </div>
+          </div>
+
+          <!-- Swiss Hairline Metadata Grid -->
+          <div class="px-5 pt-4 pb-3 space-y-4">
+            <!-- Passport No. (4-group monospace) -->
+            <div>
+              <div class="flex items-center justify-between">
+                <span class="text-[10.5px] font-medium uppercase tracking-[0.08em]" style="color: var(--text-tertiary);">护照号码</span>
+                <button onclick="copyCurrentPassportNo()" class="text-[12px] font-medium active:opacity-60 transition" style="color: var(--accent);">复制</button>
+              </div>
+              <div id="arrivalPassNoText" class="text-[28px] font-bold font-mono-doc tracking-wider tabular-nums leading-tight mt-0.5">
+                E123 4567 8
+              </div>
+              <div id="arrivalOldPassRow" class="text-[12px] font-mono-doc tabular-nums mt-1" style="color: var(--text-secondary);">
+                旧照同带 · <span id="arrivalOldPassNo">G481 0293 8</span>
+              </div>
+            </div>
+
+            <!-- 2-Column Identity Row -->
+            <div class="grid grid-cols-2 gap-4 pt-3.5 hairline-t tabular-nums">
+              <div>
+                <div class="text-[10.5px] font-medium" style="color: var(--text-tertiary);">英文姓名</div>
+                <div id="arrivalNameText" class="text-[14px] font-semibold mt-1 tracking-tight">WANG, WEIMIN</div>
+              </div>
+              <div>
+                <div class="text-[10.5px] font-medium" style="color: var(--text-tertiary);">出生日期</div>
+                <div id="arrivalDobText" class="text-[14px] font-semibold font-mono-doc mt-1">1985-01-01</div>
+              </div>
+            </div>
+
+            <!-- Hotel Block -->
+            <div class="pt-3.5 hairline-t">
+              <div class="flex items-center justify-between">
+                <span class="text-[10.5px] font-medium" style="color: var(--text-tertiary);">入境住址</span>
+                <button onclick="copyText('AMAN TOKYO, 1-5-6 OTEMACHI, CHIYODA-KU, TOKYO', '地址已复制')" class="text-[12px] font-medium active:opacity-60 transition" style="color: var(--accent);">
+                  复制地址
+                </button>
+              </div>
+              <div class="text-[13px] font-medium mt-1 leading-snug">
+                AMAN TOKYO, 1-5-6 OTEMACHI, CHIYODA-KU, TOKYO
+              </div>
+              <div class="text-[12px] font-mono-doc tabular-nums mt-0.5" style="color: var(--text-secondary);">
+                TEL +81 3-5224-3333
+              </div>
+            </div>
+          </div>
+
+          <!-- Seamless Ticket Perforation Divider -->
+          <div class="ticket-perforation">
+            <span class="ticket-notch ticket-notch-left"></span>
+            <div class="ticket-perforation-line"></div>
+            <span class="ticket-notch ticket-notch-right"></span>
+          </div>
+
+          <!-- Lower QR Stub -->
+          <div class="px-5 pt-2 pb-6 flex flex-col items-center text-center">
+            <div class="ios-segmented max-w-[236px] mb-4">
+              <button onclick="switchQrTab('immigration')" id="qrBtnImm" class="ios-segmented-btn active text-[12px]">
+                入境与海关
+              </button>
+              <button onclick="switchQrTab('taxfree')" id="qrBtnTax" class="ios-segmented-btn text-[12px]">
+                免税购物
+              </button>
+            </div>
+
+            <!-- Crisp Black-on-White SVG QR Code -->
+            <div onclick="toggleMaxBrightness()" class="w-[156px] h-[156px] p-3 rounded-[14px] bg-white border border-black/10 flex items-center justify-center cursor-pointer active:scale-95 transition">
+              <svg viewBox="0 0 100 100" class="w-full h-full">
+                <rect width="100" height="100" fill="#FFFFFF"/>
+                <path d="M6,6 h26 v26 h-26 z M11,11 v16 h16 v-16 z M15,15 h8 v8 h-8 z" fill="#000000"/>
+                <path d="M68,6 h26 v26 h-26 z M73,11 v16 h16 v-16 z M77,15 h8 v8 h-8 z" fill="#000000"/>
+                <path d="M6,68 h26 v26 h-26 z M11,73 v16 h16 v-16 z M15,77 h8 v8 h-8 z" fill="#000000"/>
+                <g id="qrDataGroup" fill="#000000">
+                  <rect x="38" y="8" width="6" height="6"/><rect x="50" y="8" width="6" height="12"/><rect x="60" y="14" width="4" height="6"/>
+                  <rect x="38" y="20" width="12" height="6"/><rect x="44" y="32" width="12" height="6"/><rect x="38" y="42" width="6" height="6"/>
+                  <rect x="8" y="40" width="12" height="6"/><rect x="26" y="40" width="6" height="12"/><rect x="14" y="52" width="10" height="6"/>
+                  <rect x="44" y="44" width="12" height="12"/><rect x="62" y="38" width="6" height="18"/><rect x="74" y="40" width="18" height="6"/>
+                  <rect x="74" y="52" width="8" height="8"/><rect x="86" y="52" width="8" height="6"/>
+                  <rect x="38" y="64" width="6" height="14"/><rect x="50" y="68" width="14" height="6"/><rect x="68" y="64" width="6" height="12"/>
+                  <rect x="78" y="68" width="6" height="16"/><rect x="88" y="72" width="6" height="18"/>
+                  <rect x="48" y="82" width="18" height="8"/><rect x="38" y="84" width="6" height="10"/><rect x="70" y="86" width="8" height="8"/>
+                </g>
+              </svg>
+            </div>
+
+            <div id="qrTypeTitle" class="text-[13px] font-medium mt-3 tracking-tight">Visit Japan Web · 入境与海关申报</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ======================================================================
+           TAB 4: 设置 (Settings — Pure iOS Inset Grouped Lists)
+           ====================================================================== -->
+      <section id="tab-settings" class="px-4 pt-1.5 hidden">
+        <div class="mb-4">
+          <h1 class="text-[32px] font-bold tracking-tight leading-none">设置</h1>
+        </div>
+
+        <!-- Profile Card -->
+        <button onclick="openSheet('familySheet')" class="w-full ios-group px-4 py-3.5 mb-5 flex items-center justify-between text-left active:opacity-80 transition">
+          <div class="flex items-center gap-3.5">
+            <div id="settingsAvatarCircle" class="w-12 h-12 rounded-full flex items-center justify-center text-[17px] font-semibold shrink-0"
+                 style="background-color: var(--bg-fill); color: var(--text-primary);">
+              伟
+            </div>
+            <div>
+              <div id="settingsProfileName" class="text-[17px] font-semibold tracking-tight">王伟敏</div>
+              <div id="settingsProfileSub" class="text-[12px] font-normal mt-0.5 tabular-nums" style="color: var(--text-secondary);">
+                本人 · 5 份证件 · NFC 已验真
+              </div>
+            </div>
+          </div>
+          <svg class="w-4 h-4 opacity-30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+            <path d="M9 18l6-6-6-6"/>
+          </svg>
+        </button>
+
+        <!-- Section: 家庭 -->
+        <div class="px-3 mb-1.5 text-[12px] font-medium" style="color: var(--text-secondary);">家庭</div>
+        <div class="ios-group overflow-hidden mb-5">
+          <button onclick="openSheet('familySheet')" class="ios-row-divider w-full px-4 py-3 flex items-center justify-between text-left active:opacity-75 transition">
+            <div class="flex items-center gap-3">
+              <div class="w-[29px] h-[29px] rounded-[7px] flex items-center justify-center shrink-0" style="background-color: var(--bg-fill); color: var(--text-primary);">
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7">
+                  <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
+                  <circle cx="9" cy="7" r="4"/>
+                  <path d="M22 21v-2a4 4 0 0 0-3-3.87"/>
+                  <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                </svg>
+              </div>
+              <span class="text-[15px] font-normal">家庭成员与切换</span>
+            </div>
+            <div class="flex items-center gap-1.5">
+              <span class="text-[14px] font-normal tabular-nums" style="color: var(--text-secondary);">2 位</span>
+              <svg class="w-3.5 h-3.5 opacity-30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M9 18l6-6-6-6"/></svg>
+            </div>
+          </button>
+
+          <button onclick="openSheet('vaultBackupSheet')" class="ios-row-divider w-full px-4 py-3 flex items-center justify-between text-left active:opacity-75 transition">
+            <div class="flex items-center gap-3">
+              <div class="w-[29px] h-[29px] rounded-[7px] flex items-center justify-center shrink-0" style="background-color: var(--bg-fill); color: var(--text-primary);">
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                  <polyline points="14 2 14 8 20 8"/>
+                  <line x1="8" y1="13" x2="16" y2="13"/>
+                  <line x1="8" y1="17" x2="13" y2="17"/>
+                </svg>
+              </div>
+              <span class="text-[15px] font-normal">家庭出行证件包导出</span>
+            </div>
+            <div class="flex items-center gap-1.5">
+              <span class="text-[13px] font-medium" style="color: var(--accent);">Pro</span>
+              <svg class="w-3.5 h-3.5 opacity-30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M9 18l6-6-6-6"/></svg>
+            </div>
+          </button>
+        </div>
+
+        <!-- Section: 安全与隐私 -->
+        <div class="px-3 mb-1.5 text-[12px] font-medium" style="color: var(--text-secondary);">安全与隐私</div>
+        <div class="ios-group overflow-hidden mb-5">
+          <div class="ios-row-divider px-4 py-2.5 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <div class="w-[29px] h-[29px] rounded-[7px] flex items-center justify-center shrink-0" style="background-color: var(--bg-fill); color: var(--text-primary);">
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7">
+                  <rect x="5" y="11" width="14" height="10" rx="2"/>
+                  <path d="M8 11V7a4 4 0 0 1 8 0v4"/>
+                </svg>
+              </div>
+              <span class="text-[15px] font-normal">生物识别应用锁</span>
+            </div>
+            <label class="ios-switch">
+              <input type="checkbox" checked onchange="showToast(this.checked ? '已开启生物识别应用锁' : '已关闭生物识别应用锁')">
+              <span class="ios-switch-slider"></span>
+            </label>
+          </div>
+
+          <div class="ios-row-divider px-4 py-2.5 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <div class="w-[29px] h-[29px] rounded-[7px] flex items-center justify-center shrink-0" style="background-color: var(--bg-fill); color: var(--text-primary);">
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7">
+                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                </svg>
+              </div>
+              <span class="text-[15px] font-normal">防截屏隐私模式</span>
+            </div>
+            <label class="ios-switch">
+              <input type="checkbox" checked onchange="showToast(this.checked ? '已开启防截屏隐私模式' : '已关闭防截屏隐私模式')">
+              <span class="ios-switch-slider"></span>
+            </label>
+          </div>
+
+          <button onclick="cycleGracePeriod()" class="ios-row-divider w-full px-4 py-3 flex items-center justify-between text-left active:opacity-75 transition">
+            <div class="flex items-center gap-3">
+              <div class="w-[29px] h-[29px] rounded-[7px] flex items-center justify-center shrink-0" style="background-color: var(--bg-fill); color: var(--text-primary);">
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7">
+                  <circle cx="12" cy="12" r="9"/>
+                  <polyline points="12 7 12 12 15.5 13.5"/>
+                </svg>
+              </div>
+              <span class="text-[15px] font-normal">后台免密宽限期</span>
+            </div>
+            <div class="flex items-center gap-1.5">
+              <span id="gracePeriodLabel" class="text-[14px] font-normal tabular-nums" style="color: var(--text-secondary);">1 分钟</span>
+              <svg class="w-3.5 h-3.5 opacity-30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M9 18l6-6-6-6"/></svg>
+            </div>
+          </button>
+
+          <div class="ios-row-divider px-4 py-2.5 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <div class="w-[29px] h-[29px] rounded-[7px] flex items-center justify-center shrink-0" style="background-color: var(--bg-fill); color: var(--text-primary);">
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7">
+                  <path d="M8.5 16.5a5 5 0 0 1 7 0"/>
+                  <path d="M5 13a10 10 0 0 1 14 0"/>
+                  <line x1="12" y1="20" x2="12.01" y2="20"/>
+                </svg>
+              </div>
+              <span class="text-[15px] font-normal">纯离线零联网模式</span>
+            </div>
+            <label class="ios-switch">
+              <input type="checkbox" onchange="showToast(this.checked ? '已开启纯离线零联网模式' : '已关闭纯离线模式')">
+              <span class="ios-switch-slider"></span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Section: 水印与外发 -->
+        <div class="px-3 mb-1.5 text-[12px] font-medium" style="color: var(--text-secondary);">水印与外发</div>
+        <div class="ios-group overflow-hidden mb-6">
+          <div class="ios-row-divider px-4 py-2.5 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <div class="w-[29px] h-[29px] rounded-[7px] flex items-center justify-center shrink-0" style="background-color: var(--bg-fill); color: var(--text-primary);">
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7">
+                  <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/>
+                </svg>
+              </div>
+              <span class="text-[15px] font-normal">外发图即焚</span>
+            </div>
+            <label class="ios-switch">
+              <input type="checkbox" checked onchange="showToast(this.checked ? '已开启外发图即焚' : '已关闭外发图即焚')">
+              <span class="ios-switch-slider"></span>
+            </label>
+          </div>
+
+          <button onclick="openSheet('watermarkSheet')" class="ios-row-divider w-full px-4 py-3 flex items-center justify-between text-left active:opacity-75 transition">
+            <div class="flex items-center gap-3">
+              <div class="w-[29px] h-[29px] rounded-[7px] flex items-center justify-center shrink-0" style="background-color: var(--bg-fill); color: var(--text-primary);">
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7">
+                  <rect x="3" y="4" width="18" height="16" rx="2"/>
+                  <path d="M3 10h18"/>
+                </svg>
+              </div>
+              <span class="text-[15px] font-normal">安全水印与打码工作台</span>
+            </div>
+            <svg class="w-3.5 h-3.5 opacity-30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M9 18l6-6-6-6"/></svg>
+          </button>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- 3. Floating Translucent iOS Tab Bar (4 Balanced 2-Character Tabs) -->
+    <nav class="floating-tabbar">
+      <div class="grid grid-cols-4 gap-1">
+        <button onclick="switchTab('wallet')" data-tabbtn="wallet" class="tab-btn active">
+          <svg class="w-[21px] h-[21px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <rect x="3" y="5" width="18" height="14" rx="2.5"/>
+            <path d="M3 10h18"/>
+          </svg>
+          <span class="text-[10px] font-medium mt-0.5">卡包</span>
+        </button>
+
+        <button onclick="switchTab('explore')" data-tabbtn="explore" class="tab-btn">
+          <svg class="w-[21px] h-[21px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <circle cx="12" cy="12" r="9"/>
+            <path d="M14.8 9.2l-2 5.6-5.6 2 2-5.6 5.6-2z"/>
+          </svg>
+          <span class="text-[10px] font-medium mt-0.5">探索</span>
+        </button>
+
+        <button onclick="switchTab('arrival')" data-tabbtn="arrival" class="tab-btn">
+          <svg class="w-[21px] h-[21px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <rect x="4" y="4" width="16" height="16" rx="2.5"/>
+            <path d="M4 9h16"/>
+            <path d="M9 14h6"/>
+          </svg>
+          <span class="text-[10px] font-medium mt-0.5">入境</span>
+        </button>
+
+        <button onclick="switchTab('settings')" data-tabbtn="settings" class="tab-btn">
+          <svg class="w-[21px] h-[21px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <circle cx="12" cy="12" r="3"/>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9c.26.6.85 1 1.51 1H21a2 2 0 0 1 0 4h-.09c-.66 0-1.25.4-1.51 1z"/>
+          </svg>
+          <span class="text-[10px] font-medium mt-0.5">设置</span>
+        </button>
+      </div>
+    </nav>
+
+    <!-- Native Toast Notification -->
+    <div id="iosToast" class="pointer-events-none opacity-0 transition-all duration-200 absolute top-14 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-full bg-[#1C1C1E]/95 text-white text-[12px] font-medium border border-white/10 whitespace-nowrap">
+      已复制
+    </div>
+
+    <!-- ========================================================================
+         NATIVE BOTTOM SHEETS
+         ======================================================================== -->
+
+    <!-- Sheet 1: Apple Wallet-Style "添加到卡包" Multi-View Grouped Sheet -->
+    <div id="addSheet" class="sheet-backdrop absolute inset-0 z-30 flex flex-col justify-end" onclick="closeSheetOnBg(event, 'addSheet')">
+      <div class="bottom-sheet px-5 pt-3 pb-7 max-h-[89%] overflow-y-auto no-scrollbar">
+        <div class="w-9 h-1 rounded-full bg-zinc-400/40 mx-auto mb-3.5"></div>
+
+        <!-- Dynamic Header with Back Navigation -->
+        <div class="flex items-center justify-between mb-4">
+          <div class="flex items-center gap-1.5 min-w-0">
+            <button id="addSheetBackBtn" onclick="navigateAddBack()" class="hidden items-center gap-0.5 text-[15px] font-medium -ml-1 pr-1.5 active:opacity-60 transition" style="color: var(--accent);">
+              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+              <span>返回</span>
+            </button>
+            <h3 id="addSheetTitle" class="text-[20px] font-bold tracking-tight truncate">添加到卡包</h3>
+          </div>
+          <button onclick="closeAddSheet()" class="w-7 h-7 rounded-full flex items-center justify-center shrink-0 active:scale-95 transition" style="background-color: var(--bg-fill); color: var(--text-secondary);">
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+          </button>
+        </div>
+
+        <div id="addSheetBody"></div>
+      </div>
+    </div>
+
+    <!-- Sheet 2: Passport / HK Permit Detail Sheet (Polycarbonate Data Page + Actions) -->
+    <div id="passportDetailSheet" class="sheet-backdrop absolute inset-0 z-30 flex flex-col justify-end" onclick="closeSheetOnBg(event, 'passportDetailSheet')">
+      <div class="bottom-sheet px-5 pt-3 pb-7 max-h-[90%] overflow-y-auto no-scrollbar">
+        <div class="w-9 h-1 rounded-full bg-zinc-400/40 mx-auto mb-3.5"></div>
+        <div id="passportDetailBody"></div>
+      </div>
+    </div>
+
+    <!-- Sheet 3: Visa Detail Sheet -->
+    <div id="visaDetailSheet" class="sheet-backdrop absolute inset-0 z-30 flex flex-col justify-end" onclick="closeSheetOnBg(event, 'visaDetailSheet')">
+      <div class="bottom-sheet px-5 pt-3 pb-7 max-h-[84%] overflow-y-auto no-scrollbar">
+        <div class="w-9 h-1 rounded-full bg-zinc-400/40 mx-auto mb-3.5"></div>
+        <div id="visaDetailSheetBody"></div>
+      </div>
+    </div>
+
+    <!-- Sheet 4: Destination 4-Dim Policy Sheet -->
+    <div id="countryDetailSheet" class="sheet-backdrop absolute inset-0 z-30 flex flex-col justify-end" onclick="closeSheetOnBg(event, 'countryDetailSheet')">
+      <div class="bottom-sheet px-5 pt-3 pb-7 max-h-[86%] overflow-y-auto no-scrollbar">
+        <div class="w-9 h-1 rounded-full bg-zinc-400/40 mx-auto mb-3.5"></div>
+        <div id="countryDetailSheetBody"></div>
+      </div>
+    </div>
+
+    <!-- Sheet 5: Security Watermark & Partial Redaction Workbench -->
+    <div id="watermarkSheet" class="sheet-backdrop absolute inset-0 z-30 flex flex-col justify-end" onclick="closeSheetOnBg(event, 'watermarkSheet')">
+      <div class="bottom-sheet px-5 pt-3 pb-6 max-h-[92%] overflow-y-auto no-scrollbar">
+        <div class="w-9 h-1 rounded-full bg-zinc-400/40 mx-auto mb-3.5"></div>
+
+        <div class="flex items-center justify-between mb-3.5">
+          <h3 class="text-[18px] font-semibold tracking-tight">安全水印与局部打码</h3>
+          <button onclick="closeSheet('watermarkSheet')" class="w-7 h-7 rounded-full flex items-center justify-center" style="background-color: var(--bg-fill); color: var(--text-secondary);">
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+          </button>
+        </div>
+
+        <!-- Deep Burgundy Passport Preview with Real-Time Diagonal Tiled Watermark -->
+        <div class="relative rounded-[20px] overflow-hidden mb-3.5 select-none"
+             style="background: linear-gradient(145deg, #641B2B 0%, #48111E 55%, #300A13 100%); height: 192px; box-shadow: inset 0 0.5px 0 rgba(218,188,134,0.28);">
+
+          <div class="p-4 flex gap-3.5 relative z-10 h-[148px]">
+            <!-- Portrait Photo / Black Redaction -->
+            <div class="w-[70px] h-[90px] rounded-[10px] overflow-hidden shrink-0 relative border border-white/15 bg-[#2A0911]">
+              <div id="wmAvatarRaw" class="w-full h-full hidden flex items-center justify-center bg-[#3C141D]">
+                <svg viewBox="0 0 80 100" class="w-full h-full opacity-90">
+                  <path d="M10,100 C10,74 24,68 40,68 C56,68 70,74 70,100 Z" fill="#1C1C1E"/>
+                  <ellipse cx="40" cy="40" rx="15" ry="18" fill="#D4C7B8"/>
+                  <path d="M25,36 C25,20 33,17 42,17 C51,17 56,22 55,35 Z" fill="#27272A"/>
+                </svg>
+              </div>
+              <div id="wmAvatarRedacted" class="w-full h-full bg-[#09090B]"></div>
+            </div>
+
+            <!-- Biodata Fields -->
+            <div class="flex-1 text-white flex flex-col justify-between py-0.5">
+              <div>
+                <div class="text-[9px] text-white/50 uppercase tracking-wider">NAME</div>
+                <div id="wmCardName" class="text-[14px] font-semibold tracking-wide leading-tight mt-0.5">WANG, WEIMIN</div>
+              </div>
+              <div>
+                <div class="text-[9px] text-white/50 uppercase tracking-wider">PASSPORT NO.</div>
+                <div id="wmCardNo" class="text-[14px] font-mono-doc font-medium tracking-wider tabular-nums leading-tight mt-0.5 text-[#DABC86]">E123 4567 8</div>
+              </div>
+              <div class="flex items-end justify-between gap-2">
+                <div>
+                  <div class="text-[9px] text-white/50 uppercase tracking-wider">BIRTH DATE</div>
+                  <div id="wmDobBox" class="text-[12px] font-mono-doc font-medium tabular-nums leading-tight mt-0.5">1985-01-01</div>
+                </div>
+                <div class="text-right">
+                  <div class="text-[8px] text-white/45 uppercase">SIGNATURE</div>
+                  <div id="wmSignBox" class="text-[12px] font-serif italic text-[#DABC86] px-1 py-0.5 rounded">Wang Weimin</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- MRZ Strip / Black Redaction -->
+          <div class="absolute bottom-0 inset-x-0 h-[44px] z-20 flex items-center px-4">
+            <div id="wmMrzRaw" class="hidden font-mono-doc text-[9px] text-white/75 leading-tight truncate w-full tracking-wider">
+              P&lt;CHNWANG&lt;&lt;WEIMIN&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;<br/>
+              E123456784CHN8501018M3305146&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;08
+            </div>
+            <div id="wmMrzRedacted" class="w-full h-full bg-[#09090B] -mx-4 flex-1"></div>
+          </div>
+
+          <!-- Dynamic Diagonal Tiled Watermark Array -->
+          <div id="wmTiledOverlay" class="pointer-events-none absolute inset-[-60%] z-30 flex flex-col justify-center gap-4 -rotate-[24deg] select-none" style="opacity: 0.50; font-size: 12px;"></div>
+        </div>
+
+        <!-- 4 Purpose Pills -->
+        <div class="grid grid-cols-2 gap-2 mb-3">
+          <button onclick="selectWmTag(0, '仅用于酒店入住登记')" id="wmTagBtn0" class="py-2 px-3 rounded-[12px] text-[12px] font-medium transition text-white" style="background-color: var(--accent);">
+            仅用于酒店入住登记
+          </button>
+          <button onclick="selectWmTag(1, '仅用于签证代办审核')" id="wmTagBtn1" class="py-2 px-3 rounded-[12px] text-[12px] font-medium transition" style="background-color: var(--bg-surface); color: var(--text-primary);">
+            仅用于签证代办审核
+          </button>
+          <button onclick="selectWmTag(2, '仅用于机票预订核验')" id="wmTagBtn2" class="py-2 px-3 rounded-[12px] text-[12px] font-medium transition" style="background-color: var(--bg-surface); color: var(--text-primary);">
+            仅用于机票预订核验
+          </button>
+          <button onclick="selectWmCustom()" id="wmTagBtn3" class="py-2 px-3 rounded-[12px] text-[12px] font-medium transition" style="background-color: var(--bg-surface); color: var(--text-primary);">
+            <span id="wmCustomBtnLabel">自定义用途</span>
+          </button>
+        </div>
+
+        <!-- Custom Purpose Input -->
+        <div id="wmCustomInputBox" class="hidden mb-3">
+          <input id="wmCustomInput" type="text" value="仅用于租车提车核验"
+                 oninput="updateCustomWatermarkText(this.value)"
+                 placeholder="输入自定义水印用途"
+                 class="w-full px-3.5 py-2.5 rounded-[12px] text-[13px] outline-none"
+                 style="background-color: var(--bg-surface); color: var(--text-primary); border: 1px solid var(--accent);" />
+        </div>
+
+        <!-- Opacity & Font Size Sliders -->
+        <div class="ios-group px-4 py-3 space-y-3 mb-3">
+          <div class="flex items-center justify-between gap-4">
+            <span class="text-[13px] font-medium w-16 shrink-0">水印强度</span>
+            <input type="range" min="15" max="95" value="50" oninput="updateWmOpacity(this.value)" class="ios-slider flex-1" />
+            <span id="wmOpacityVal" class="text-[12px] font-mono-doc tabular-nums w-10 text-right" style="color: var(--text-secondary);">50%</span>
+          </div>
+          <div class="flex items-center justify-between gap-4 pt-2 hairline-t">
+            <span class="text-[13px] font-medium w-16 shrink-0">水印字号</span>
+            <input type="range" min="10" max="18" value="12" oninput="updateWmFontSize(this.value)" class="ios-slider flex-1" />
+            <span id="wmSizeVal" class="text-[12px] font-mono-doc tabular-nums w-10 text-right" style="color: var(--text-secondary);">12px</span>
+          </div>
+        </div>
+
+        <!-- 4 Redaction Switches -->
+        <div class="ios-group px-4 divide-y divide-[var(--border-hairline)] mb-3">
+          <div class="py-2.5 flex items-center justify-between">
+            <span class="text-[14px] font-normal">遮挡人像照片</span>
+            <label class="ios-switch">
+              <input type="checkbox" checked onchange="toggleWmRedact('avatar', this.checked)">
+              <span class="ios-switch-slider"></span>
+            </label>
+          </div>
+          <div class="py-2.5 flex items-center justify-between">
+            <span class="text-[14px] font-normal">遮挡持照人签名栏</span>
+            <label class="ios-switch">
+              <input type="checkbox" onchange="toggleWmRedact('sign', this.checked)">
+              <span class="ios-switch-slider"></span>
+            </label>
+          </div>
+          <div class="py-2.5 flex items-center justify-between">
+            <span class="text-[14px] font-normal">遮挡底部 MRZ 机读码</span>
+            <label class="ios-switch">
+              <input type="checkbox" checked onchange="toggleWmRedact('mrz', this.checked)">
+              <span class="ios-switch-slider"></span>
+            </label>
+          </div>
+          <div class="py-2.5 flex items-center justify-between">
+            <span class="text-[14px] font-normal">遮挡出生日期</span>
+            <label class="ios-switch">
+              <input type="checkbox" onchange="toggleWmRedact('dob', this.checked)">
+              <span class="ios-switch-slider"></span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Zero-Album-Residue Info Bar -->
+        <div class="px-3.5 py-2.5 rounded-[12px] mb-3 flex items-center gap-2 text-[11.5px]" style="background-color: var(--bg-fill); color: var(--text-secondary);">
+          <svg class="w-4 h-4 shrink-0 text-[#34C759]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+            <path d="M9 12l2 2 4-4"/>
+          </svg>
+          <span>沙盒临时区直出系统分享，不写入相册，关闭即焚。</span>
+        </div>
+
+        <button onclick="showToast('已生成防盗水印图并调用系统分享'); closeSheet('watermarkSheet')"
+                class="w-full py-3.5 rounded-[12px] text-white text-[15px] font-semibold active:scale-[0.99] transition"
+                style="background-color: var(--accent);">
+          分享水印图片
+        </button>
+      </div>
+    </div>
+
+    <!-- Sheet 6: Standalone NFC Chip Verification Modal -->
+    <div id="nfcSheet" class="sheet-backdrop absolute inset-0 z-30 flex flex-col justify-end" onclick="closeSheetOnBg(event, 'nfcSheet')">
+      <div class="bottom-sheet px-5 pt-3 pb-8">
+        <div class="w-9 h-1 rounded-full bg-zinc-400/40 mx-auto mb-3.5"></div>
+
+        <div class="flex items-center justify-between">
+          <h3 class="text-[18px] font-semibold tracking-tight">NFC 芯片验真</h3>
+          <button onclick="closeNfcSheet()" class="w-7 h-7 rounded-full flex items-center justify-center" style="background-color: var(--bg-fill); color: var(--text-secondary);">
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+          </button>
+        </div>
+
+        <!-- Stage 1: Scanning -->
+        <div id="nfcScanningStage" class="py-7 flex flex-col items-center text-center">
+          <div onclick="triggerStandaloneNfcSuccess()" class="relative w-36 h-36 flex items-center justify-center cursor-pointer">
+            <div class="nfc-ripple-1 absolute w-28 h-28 rounded-full border" style="border-color: var(--accent);"></div>
+            <div class="nfc-ripple-2 absolute w-28 h-28 rounded-full border" style="border-color: var(--accent);"></div>
+
+            <div class="w-28 h-28 rounded-full flex items-center justify-center" style="background-color: var(--accent-soft);">
+              <div class="w-20 h-20 rounded-full flex items-center justify-center" style="background-color: var(--bg-surface); box-shadow: var(--surface-shadow);">
+                <svg class="w-9 h-9" style="color: var(--accent);" viewBox="0 0 36 36" fill="none" stroke="currentColor" stroke-linecap="round">
+                  <path class="nfc-arc-1" d="M13 14.5a5.5 5.5 0 0 1 0 7" stroke-width="2.2"/>
+                  <path class="nfc-arc-2" d="M17.5 11.5a9.5 9.5 0 0 1 0 13" stroke-width="2.2"/>
+                  <path class="nfc-arc-3" d="M22 8.5a13.5 13.5 0 0 1 0 19" stroke-width="2.2"/>
+                </svg>
+              </div>
+            </div>
+          </div>
+
+          <div class="mt-4 text-[16px] font-semibold tracking-tight">将电子护照贴近手机顶部背面</div>
+          <div id="nfcStepSubText" class="mt-1.5 text-[13px] leading-relaxed max-w-[280px]" style="color: var(--text-secondary);">
+            正在校验 BAC 访问密钥<br/>准备读取 DG1 与 DG2 数据组
+          </div>
+
+          <div class="w-48 h-1 rounded-full overflow-hidden mt-5" style="background-color: var(--bg-fill);">
+            <div id="nfcProgressBar" class="h-full transition-all duration-300 rounded-full" style="width: 18%; background-color: var(--accent);"></div>
+          </div>
+        </div>
+
+        <!-- Stage 2: Verified -->
+        <div id="nfcSuccessStage" class="py-5 hidden flex flex-col items-center text-center">
+          <div class="nfc-success-pop w-20 h-20 rounded-full bg-[#34C759]/15 flex items-center justify-center text-[#34C759]">
+            <svg class="w-10 h-10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M20 6L9 17l-5-5"/>
+            </svg>
+          </div>
+
+          <div class="mt-3.5 text-[17px] font-semibold tracking-tight">ICAO 9303 芯片验真通过</div>
+          <p class="text-[13px] mt-1" style="color: var(--text-secondary);">DG1 身份信息 · DG2 高清人像 · SOD 数字签名有效</p>
+
+          <div class="w-full ios-group p-4 mt-4 text-left flex items-center justify-between tabular-nums">
+            <div>
+              <div id="nfcVerifiedName" class="text-[14px] font-semibold">WANG, WEIMIN</div>
+              <div id="nfcVerifiedMeta" class="text-[12px] font-mono-doc mt-0.5" style="color: var(--text-secondary);">SOD · CN-8920-4410 · E12345678</div>
+            </div>
+            <span class="text-[12px] font-medium text-[#34C759]">已验真</span>
+          </div>
+
+          <div class="w-full grid grid-cols-2 gap-2.5 mt-4">
+            <button onclick="restartStandaloneNfc()" class="py-3 rounded-[12px] text-[14px] font-medium" style="background-color: var(--bg-surface); color: var(--text-primary);">
+              重新验真
+            </button>
+            <button onclick="closeNfcSheet(); showToast('芯片验真记录已更新')" class="py-3 rounded-[12px] text-[14px] font-semibold text-white" style="background-color: var(--accent);">
+              完成
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sheet 7: 48-Page Passport Spread Preview & Interactive Matrix -->
+    <div id="pagesSheet" class="sheet-backdrop absolute inset-0 z-30 flex flex-col justify-end" onclick="closeSheetOnBg(event, 'pagesSheet')">
+      <div class="bottom-sheet px-5 pt-3 pb-7 max-h-[88%] overflow-y-auto no-scrollbar">
+        <div class="w-9 h-1 rounded-full bg-zinc-400/40 mx-auto mb-3.5"></div>
+
+        <div class="flex items-center justify-between mb-3.5">
+          <h3 class="text-[18px] font-semibold tracking-tight">空白护照页</h3>
+          <button onclick="closeSheet('pagesSheet')" class="text-[15px] font-semibold" style="color: var(--accent);">完成</button>
+        </div>
+
+        <!-- Realistic 2-Page Passport Spread Preview -->
+        <div class="p-3 rounded-[16px] bg-gradient-to-r from-[#F7F4EC] via-[#ECE7DA] to-[#F7F4EC] text-[#1C1C1E] border border-black/10 mb-3.5 relative overflow-hidden">
+          <div class="grid grid-cols-2 gap-3 relative">
+            <div class="absolute left-1/2 top-0 bottom-0 w-[1px] -translate-x-1/2 bg-black/10"></div>
+            <div class="p-2.5 rounded-[10px] border border-dashed border-black/15 text-center">
+              <div class="text-[9px] font-mono-doc text-black/45">PAGE 08 · 签证页</div>
+              <div class="mt-2 py-2 px-1.5 rounded-[6px] bg-[#162642]/10 border border-[#162642]/20 text-[10px] font-mono-doc font-semibold text-[#162642]">
+                SCHENGEN MULT
+              </div>
+            </div>
+            <div class="p-2.5 rounded-[10px] border border-dashed border-black/15 flex flex-col items-center justify-center">
+              <div class="text-[9px] font-mono-doc text-black/45">PAGE 09 · 出入境章</div>
+              <div class="mt-2 flex items-center gap-1.5">
+                <span class="px-1.5 py-0.5 rounded-full border border-[#9B2C2C]/60 text-[#9B2C2C] text-[8.5px] font-mono-doc -rotate-6">CDG 18.09</span>
+                <span class="px-1.5 py-0.5 rounded border border-[#1E6049]/60 text-[#1E6049] text-[8.5px] font-mono-doc rotate-6">NRT 入境</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Legend -->
+        <div class="ios-group px-4 py-2.5 mb-3 flex items-center justify-between text-[12px] tabular-nums">
+          <div class="flex items-center gap-3.5">
+            <span class="inline-flex items-center gap-1.5"><i class="w-2 h-2 rounded-full bg-[#34C759]"></i>空白 <b id="sheetBlankCount">31</b></span>
+            <span class="inline-flex items-center gap-1.5"><i class="w-2 h-2 rounded-full bg-[#FF9F0A]"></i>盖章 <b id="sheetStampCount">8</b></span>
+            <span class="inline-flex items-center gap-1.5"><i class="w-2 h-2 rounded-full" style="background-color: var(--accent);"></i>贴签 <b id="sheetVisaCount">5</b></span>
+          </div>
+          <span style="color: var(--text-tertiary);">48 页</span>
+        </div>
+
+        <div id="pagesGridMount" class="grid grid-cols-6 gap-1.5"></div>
+      </div>
+    </div>
+
+    <!-- Sheet 8: Schengen 90/180 Rolling Simulator -->
+    <div id="schengenSheet" class="sheet-backdrop absolute inset-0 z-30 flex flex-col justify-end" onclick="closeSheetOnBg(event, 'schengenSheet')">
+      <div class="bottom-sheet px-5 pt-3 pb-7 max-h-[84%] overflow-y-auto no-scrollbar">
+        <div class="w-9 h-1 rounded-full bg-zinc-400/40 mx-auto mb-3.5"></div>
+
+        <div class="flex items-center justify-between mb-3.5">
+          <div>
+            <h3 class="text-[18px] font-semibold tracking-tight">申根 90/180 停留推演</h3>
+            <p class="text-[12px] mt-0.5" style="color: var(--text-secondary);">任意 180 天滚动窗口累计不超过 90 天</p>
+          </div>
+          <button onclick="closeSheet('schengenSheet')" class="text-[15px] font-semibold" style="color: var(--accent);">完成</button>
+        </div>
+
+        <div class="ios-group p-4 mb-3">
+          <div class="flex items-baseline justify-between tabular-nums">
+            <div>
+              <div class="text-[12px]" style="color: var(--text-secondary);">模拟后剩余可停留</div>
+              <div id="schengenSimRemain" class="text-[32px] font-bold tracking-tight mt-0.5 text-[#34C759]">54 天</div>
+            </div>
+            <div class="text-right">
+              <div class="text-[12px]" style="color: var(--text-secondary);">窗口累计占用</div>
+              <div id="schengenSimUsed" class="text-[14px] font-semibold mt-1">36 / 90 天 · 合规</div>
+            </div>
+          </div>
+
+          <div class="w-full h-2 rounded-full overflow-hidden mt-3.5 flex" style="background-color: var(--bg-fill);">
+            <div class="h-full bg-zinc-400" style="width: 24.4%"></div>
+            <div id="schengenSimBar" class="h-full transition-all" style="width: 15.5%; background-color: var(--accent);"></div>
+          </div>
+
+          <div class="mt-5">
+            <div class="flex justify-between text-[13px] mb-2 tabular-nums">
+              <span style="color: var(--text-secondary);">拟新增停留天数</span>
+              <span id="schengenSliderVal" class="font-semibold" style="color: var(--accent);">14 天</span>
+            </div>
+            <input type="range" min="1" max="75" value="14" oninput="updateSchengenSim(this.value)" class="ios-slider w-full"/>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sheet 9: Family Member Switcher -->
+    <div id="familySheet" class="sheet-backdrop absolute inset-0 z-30 flex flex-col justify-end" onclick="closeSheetOnBg(event, 'familySheet')">
+      <div class="bottom-sheet px-5 pt-3 pb-7">
+        <div class="w-9 h-1 rounded-full bg-zinc-400/40 mx-auto mb-3.5"></div>
+        <div class="flex items-center justify-between mb-3.5">
+          <h3 class="text-[18px] font-semibold tracking-tight">家庭成员</h3>
+          <button onclick="closeSheet('familySheet')" class="text-[15px] font-semibold" style="color: var(--accent);">完成</button>
+        </div>
+
+        <div class="ios-group overflow-hidden">
+          <button onclick="switchPerson('self'); closeSheet('familySheet')" class="ios-row-divider w-full px-4 py-3.5 flex items-center justify-between text-left active:opacity-75 transition">
+            <div class="flex items-center gap-3">
+              <span class="w-9 h-9 rounded-full flex items-center justify-center text-[13px] font-semibold" style="background-color: var(--bg-fill); color: var(--text-primary);">伟</span>
+              <div>
+                <div class="text-[15px] font-medium">王伟敏 · 本人</div>
+                <div class="text-[12px] tabular-nums" style="color: var(--text-secondary);">5 份证件 · NFC 已验真</div>
+              </div>
+            </div>
+            <span id="familyCheckSelf" class="text-[15px] font-semibold" style="color: var(--accent);">✓</span>
+          </button>
+
+          <button onclick="switchPerson('family'); closeSheet('familySheet')" class="ios-row-divider w-full px-4 py-3.5 flex items-center justify-between text-left active:opacity-75 transition">
+            <div class="flex items-center gap-3">
+              <span class="w-9 h-9 rounded-full bg-[#FF3B30]/12 text-[#FF3B30] text-[13px] font-semibold flex items-center justify-center">父</span>
+              <div>
+                <div class="text-[15px] font-medium">王建国 · 家人</div>
+                <div class="text-[12px] tabular-nums text-[#FF3B30]">仅剩 148 天 · 不足 6 个月</div>
+              </div>
+            </div>
+            <span id="familyCheckFamily" class="text-[15px] font-semibold hidden" style="color: var(--accent);">✓</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sheet 10: Encrypted Vault Backup Export -->
+    <div id="vaultBackupSheet" class="sheet-backdrop absolute inset-0 z-30 flex flex-col justify-end" onclick="closeSheetOnBg(event, 'vaultBackupSheet')">
+      <div class="bottom-sheet px-5 pt-3 pb-7">
+        <div class="w-9 h-1 rounded-full bg-zinc-400/40 mx-auto mb-3.5"></div>
+        <div class="flex items-center justify-between mb-3.5">
+          <h3 class="text-[18px] font-semibold tracking-tight">家庭出行证件包导出</h3>
+          <button onclick="closeSheet('vaultBackupSheet')" class="text-[15px] font-semibold" style="color: var(--accent);">关闭</button>
+        </div>
+        <div class="ios-group p-4 space-y-3.5">
+          <p class="text-[13px] leading-relaxed" style="color: var(--text-secondary);">
+            选择家庭成员一键生成受密码保护的 PDF 证件合集，或导出 .passportvault 离线加密归档。
+          </p>
+          <button onclick="showToast('已生成加密证件包'); closeSheet('vaultBackupSheet')" class="w-full py-3 rounded-[12px] text-white text-[14px] font-semibold" style="background-color: var(--accent);">
+            生成加密 PDF
+          </button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ==========================================================================
+       Self-Contained Interactive Application Script
+       ========================================================================== -->
+  <script>
+    /* -------------------- 1. Centralized App State -------------------- */
+    const state = {
+      mode: 'light',
+      person: 'self',
+      privacyMasked: false,
+      etchedAvatar: true,
+      docIndex: 0, // 0 = 护照, 1 = 港澳通行证
+      expandedVisaId: null,
+      addView: 'add-root', // 'add-root' | 'add-passport-mrz' | 'add-passport-nfc' | 'add-passport-manual' | 'add-visa' | 'add-endorse'
+      addManualVisaOpen: false,
+      addVisaMaterial: 'ivory', // 'ivory' | 'navy' | 'jade'
+      overlays: { usa: true, sch: true, jpn: true },
+      graceIdx: 1,
+      wmText: '仅用于酒店入住登记',
+      wmOpacity: 50,
+      wmFontSize: 12,
+      wmRedact: { avatar: true, sign: false, mrz: true, dob: false },
+      blankPages: Array.from({ length: 48 }, (_, i) => {
+        const p = i + 1;
+        if (p <= 4) return 'reserved';
+        if ([6, 8, 12, 16, 22].includes(p)) return 'visa';
+        if ([5, 7, 9, 10, 11, 14, 15, 19].includes(p)) return 'stamp';
+        return 'blank';
+      })
+    };
+
+    /* -------------------- 2. Member & Document Datasets -------------------- */
+    const personData = {
+      self: {
+        name: 'WANG, WEIMIN',
+        cnName: '王伟敏',
+        badge: '伟',
+        subDesc: '本人 · 5 份证件 · NFC 已验真',
+        passportNo: 'E123 4567 8',
+        passportRaw: 'E12345678',
+        passportMasked: 'E123 •••• 8',
+        oldPassportNo: 'G481 0293 8',
+        dob: '1985-01-01',
+        sex: 'M',
+        birthPlace: 'BEIJING',
+        issueDate: '2023.05.15',
+        expiryDate: '2033.05.14',
+        remainText: '余 6 年 171 天',
+        isUrgent: false,
+        mrz1: 'P<CHNWANG<<WEIMIN<<<<<<<<<<<<<<<<<<<<<<<<<<<<',
+        mrz2: 'E123456784CHN8501018M3305146<<<<<<<<<<<<<<08',
+        hkPermit: {
+          no: 'C819 2041 5',
+          masked: 'C819 •••• 5',
+          issueDate: '2021.08.20',
+          expiry: '2031.08.19',
+          remainText: '余 4 年 268 天'
+        }
+      },
+      family: {
+        name: 'WANG, JIANGUO',
+        cnName: '王建国',
+        badge: '父',
+        subDesc: '家人 · 仅剩 148 天 · 需换证',
+        passportNo: 'E310 8841 9',
+        passportRaw: 'E31088419',
+        passportMasked: 'E310 •••• 9',
+        oldPassportNo: null,
+        dob: '1958-09-12',
+        sex: 'M',
+        birthPlace: 'BEIJING',
+        issueDate: '2022.04.21',
+        expiryDate: '2027.04.20',
+        remainText: '仅剩 148 天 · 需换证',
+        isUrgent: true,
+        mrz1: 'P<CHNWANG<<JIANGUO<<<<<<<<<<<<<<<<<<<<<<<<<<<',
+        mrz2: 'E310884192CHN5809124M2704201<<<<<<<<<<<<<<04',
+        hkPermit: {
+          no: 'C309 1823 1',
+          masked: 'C309 •••• 1',
+          issueDate: '2022.05.11',
+          expiry: '2027.05.10',
+          remainText: '仅剩 167 天'
+        }
+      }
+    };
+
+    /* -------------------- 3. Wallet Stacked Visa & Endorsement Cards -------------------- */
+    const visas = [
+      {
+        id: 'usa',
+        docGroup: 'passport',
+        tone: 'tone-dark',
+        title: '美国 B1/B2 十年签',
+        subtitle: '多次往返',
+        rightLabel: 'EVUS',
+        rightValue: '14 天后到期',
+        rightValueColor: '#F5B942',
+        visaNo: 'K9812049',
+        stayDays: '180 天',
+        issueDate: '2019.11.04',
+        expiryDate: '2029.11.03',
+        cardGradient: 'linear-gradient(155deg, #162642 0%, #0D182C 100%)',
+        dividerColor: 'rgba(255, 255, 255, 0.12)',
+        mutedTextColor: 'rgba(255, 255, 255, 0.56)',
+        detailLinkColor: '#FFFFFF',
+        patternSvg: `
+          <svg class="pointer-events-none absolute inset-0 w-full h-full opacity-[0.05]" preserveAspectRatio="none" viewBox="0 0 360 180">
+            <defs>
+              <pattern id="usaDiag" width="10" height="10" patternUnits="userSpaceOnUse" patternTransform="rotate(35)">
+                <line x1="0" y1="0" x2="0" y2="10" stroke="#DABC86" stroke-width="0.9"/>
+              </pattern>
+            </defs>
+            <rect width="360" height="180" fill="url(#usaDiag)"/>
+          </svg>
+        `,
+        detailNote: '贴于旧护照 G48102938 第 12 页，值机与入境须新旧两本护照原件同带；请于 14 天内完成 EVUS 登记更新。'
+      },
+      {
+        id: 'sch',
+        docGroup: 'passport',
+        tone: 'tone-light',
+        title: '申根五年多次',
+        subtitle: 'C 类 · 法国签发',
+        rightLabel: '本期剩余',
+        rightValue: '68 天',
+        rightValueColor: '#1C1C1E',
+        visaNo: 'FRA00948120',
+        stayDays: '90 / 180 天',
+        issueDate: '2024.06.01',
+        expiryDate: '2029.05.31',
+        cardGradient: 'linear-gradient(155deg, #F7F4EC 0%, #EBE5D8 100%)',
+        dividerColor: 'rgba(28, 28, 30, 0.10)',
+        mutedTextColor: 'rgba(28, 28, 30, 0.52)',
+        detailLinkColor: '#1C1C1E',
+        patternSvg: `
+          <svg class="pointer-events-none absolute -right-5 -bottom-6 w-44 h-44 opacity-[0.09]" viewBox="0 0 140 140" fill="none" stroke="#5C5548" stroke-width="0.8">
+            <circle cx="70" cy="70" r="46" stroke-dasharray="1.5 5"/>
+            <circle cx="70" cy="70" r="34"/>
+            <g fill="#5C5548" stroke="none">
+              <circle cx="70" cy="24" r="1.8"/><circle cx="93" cy="30" r="1.8"/><circle cx="110" cy="47" r="1.8"/>
+              <circle cx="116" cy="70" r="1.8"/><circle cx="110" cy="93" r="1.8"/><circle cx="93" cy="110" r="1.8"/>
+              <circle cx="70" cy="116" r="1.8"/><circle cx="47" cy="110" r="1.8"/><circle cx="30" cy="93" r="1.8"/>
+              <circle cx="24" cy="70" r="1.8"/><circle cx="30" cy="47" r="1.8"/><circle cx="47" cy="30" r="1.8"/>
+            </g>
+          </svg>
+        `,
+        detailNote: '法国签发并已在巴黎完成首次激活。任意 180 天滚动窗口内累计停留不得超过 90 天。'
+      },
+      {
+        id: 'jpn',
+        docGroup: 'passport',
+        tone: 'tone-dark',
+        title: '日本五年多次签',
+        subtitle: '观光多次',
+        rightLabel: '状态',
+        rightValue: '有效',
+        rightValueColor: '#FFFFFF',
+        visaNo: 'JP202399104',
+        stayDays: '90 天',
+        issueDate: '2023.09.12',
+        expiryDate: '2028.09.11',
+        cardGradient: 'linear-gradient(155deg, #232638 0%, #151722 100%)',
+        dividerColor: 'rgba(255, 255, 255, 0.12)',
+        mutedTextColor: 'rgba(255, 255, 255, 0.56)',
+        detailLinkColor: '#FFFFFF',
+        patternSvg: `
+          <svg class="pointer-events-none absolute right-0 bottom-0 w-44 h-28 opacity-[0.07]" viewBox="0 0 160 100" fill="none" stroke="#E2E8F0" stroke-width="0.9">
+            <circle cx="136" cy="96" r="22"/><circle cx="136" cy="96" r="36"/><circle cx="136" cy="96" r="50"/><circle cx="136" cy="96" r="64"/>
+            <circle cx="88" cy="96" r="22"/><circle cx="88" cy="96" r="36"/><circle cx="88" cy="96" r="50"/>
+          </svg>
+        `,
+        detailNote: '每次停留最长 90 天，年累计不超过 180 天。入境可在底部「入境」页出示 Visit Japan Web 申报码。'
+      },
+      {
+        id: 'hkg_endorse',
+        docGroup: 'hkpermit',
+        tone: 'tone-dark',
+        title: '赴港个人旅游签注',
+        subtitle: 'G 签 · 一年两次',
+        rightLabel: '可用余次',
+        rightValue: '剩余 2 次',
+        rightValueColor: '#FFFFFF',
+        visaNo: 'HK-2026-8812',
+        stayDays: '7 天 / 次',
+        issueDate: '2026.03.10',
+        expiryDate: '2027.03.09',
+        cardGradient: 'linear-gradient(155deg, #0E4D4A 0%, #093533 100%)',
+        dividerColor: 'rgba(255, 255, 255, 0.12)',
+        mutedTextColor: 'rgba(255, 255, 255, 0.58)',
+        detailLinkColor: '#FFFFFF',
+        patternSvg: `
+          <svg class="pointer-events-none absolute right-0 bottom-0 w-40 h-28 opacity-[0.07]" viewBox="0 0 160 100" fill="none" stroke="#CCFBF1" stroke-width="0.9">
+            <path d="M20,100 Q90,20 160,60 M45,100 Q108,35 160,78 M70,100 Q125,55 160,94"/>
+          </svg>
+        `,
+        detailNote: '配合有效往来港澳通行证，支持人工及 e-Channel 自助通道直接通关。'
+      },
+      {
+        id: 'mac_endorse',
+        docGroup: 'hkpermit',
+        tone: 'tone-light',
+        title: '赴澳个人旅游签注',
+        subtitle: 'G 签 · 一年一次',
+        rightLabel: '可用余次',
+        rightValue: '剩余 1 次',
+        rightValueColor: '#1C1C1E',
+        visaNo: 'MO-2026-3319',
+        stayDays: '7 天 / 次',
+        issueDate: '2026.03.10',
+        expiryDate: '2027.03.09',
+        cardGradient: 'linear-gradient(155deg, #F5F4EE 0%, #E8E5DA 100%)',
+        dividerColor: 'rgba(28, 28, 30, 0.10)',
+        mutedTextColor: 'rgba(28, 28, 30, 0.52)',
+        detailLinkColor: '#1C1C1E',
+        patternSvg: `
+          <svg class="pointer-events-none absolute right-0 bottom-0 w-40 h-28 opacity-[0.08]" viewBox="0 0 160 100" fill="none" stroke="#5A5346" stroke-width="0.8">
+            <path d="M10,95 C55,40 115,40 160,95 M30,105 C70,60 110,60 150,105"/>
+          </svg>
+        `,
+        detailNote: '距离上次赴澳已满 60 天间隔期，凭通行证与本签注可直接通关。'
+      }
+    ];
+
+    /* -------------------- 4. Explore Destinations Dataset -------------------- */
+    const exploreCountries = [
+      {
+        code: 'MEX',
+        name: '墨西哥',
+        enName: 'Mexico',
+        rule: '持有效美签 / 申根 / 日签免签',
+        requires: ['usa', 'sch', 'jpn'],
+        maxStay: '180 天',
+        activationShort: '无需激活',
+        verifiedAt: '2026.11',
+        dim1: '持有有效且多次入境的美国 B1/B2、申根 C 类或日本多次实体贴纸签证。',
+        dim2: '无需提前激活，签证在整个墨西哥停留期内保持有效即可。',
+        dim3: '单次最长停留 180 天，具体天数以边检官章面标注为准。',
+        dim4: '美签贴在旧护照上时须新旧两本护照原件同带；电子签不适用。'
+      },
+      {
+        code: 'JPN',
+        name: '日本',
+        enName: 'Japan',
+        rule: '已持五年多次观光签',
+        requires: ['jpn'],
+        maxStay: '90 天',
+        activationShort: '已激活',
+        verifiedAt: '2026.11',
+        dim1: '卡包中已持有日本五年多次观光签证（有效期至 2028.09.11）。',
+        dim2: '已完成首次入境激活，不限后续入境口岸。',
+        dim3: '单次最长停留 90 天，全年累计不超过 180 天。',
+        dim4: '可在底部「入境」页直接出示 Visit Japan Web 申报二维码。'
+      },
+      {
+        code: 'MNE',
+        name: '黑山',
+        enName: 'Montenegro',
+        rule: '持有效美签 / 申根多次免签',
+        requires: ['usa', 'sch'],
+        maxStay: '30 天',
+        activationShort: '建议已激活',
+        verifiedAt: '2026.11',
+        dim1: '持有有效多次往返的美国签证或申根 C 类多次签证。',
+        dim2: '持申根签证建议先完成一次申根区首入激活。',
+        dim3: '单次停留不超过 30 天，且不得超过所持签证到期日。',
+        dim4: '入境后 24 小时内须由入住酒店完成外国人居留登记。'
+      },
+      {
+        code: 'SGP',
+        name: '新加坡',
+        enName: 'Singapore',
+        rule: '中国普通电子护照互免',
+        requires: [],
+        maxStay: '30 天',
+        activationShort: '无前置要求',
+        verifiedAt: '2026.11',
+        dim1: '持有效期 6 个月以上的中国普通电子护照即可直接免签入境。',
+        dim2: '无任何第三国签证或激活前置条件。',
+        dim3: '单次最长停留不超过 30 天。',
+        dim4: '入境前 3 天内须在线提交 SG Arrival Card 电子入境卡。'
+      },
+      {
+        code: 'PER',
+        name: '秘鲁',
+        enName: 'Peru',
+        rule: '持有效美签 / 申根多次免签',
+        requires: ['usa', 'sch'],
+        maxStay: '180 天',
+        activationShort: '剩余≥6个月',
+        verifiedAt: '2026.11',
+        dim1: '持有有效期不少于 6 个月的美国、加拿大、英国、澳洲或申根签证。',
+        dim2: '无强制首次激活要求，但建议携带着陆回程机票预订单。',
+        dim3: '单次或累计最长停留 180 天。',
+        dim4: '须确认护照有效期在入境时不少于 6 个月，备好酒店预订单。'
+      },
+      {
+        code: 'SRB',
+        name: '塞尔维亚',
+        enName: 'Serbia',
+        rule: '中国普通电子护照互免',
+        requires: [],
+        maxStay: '30 天',
+        activationShort: '无前置要求',
+        verifiedAt: '2026.11',
+        dim1: '持有效期 6 个月以上的中国普通电子护照即可直接免签入境。',
+        dim2: '无任何第三国签证前置要求。',
+        dim3: '每 60 天内累计停留不超过 30 天。',
+        dim4: '入境后 24 小时内须由酒店或房东办理「白卡」居留登记。'
+      }
+    ];
+
+    /* -------------------- 5. 56x21 Flighty Dot-Matrix World Map -------------------- */
+    // '.' = ocean, 'g' = locked/polar, 'u' = Americas (USA/SCH/JPN), 's' = Europe (SCH/USA), 'j' = East Asia/Japan (JPN), 'b' = Base visa-free (Asia/Africa/Oceania)
+    const WORLD_DOT_GRID = [
+      "........................................................",
+      ".........uuuu......ggg......ssss........................",
+      ".....uuuuuuuuuuu..ggggg...ssssssss...bbbbbbbbbbb........",
+      "...uuuuuuuuuuuuuuu.ggg...ssssssssss.bbbbbbbbbbbbbbbb....",
+      "....uuuuuuuuuuuuuu......sssssssssssbbbbbbbbbbbbbbbbbb...",
+      ".....uuuuuuuuuuuuu......ssssssssssbbbbbbbbbbbbbbbbbb....",
+      "......uuuuuuuuuuu........ssssssssbbbbbbbbbbbbbbbbbb..j..",
+      ".......uuuuuuuuu..........ssssssbbbbbbbbbbbbbbbbbb..jj..",
+      "........uuuuuuu...........bbbbb.bbbbbbbbbbbbbbbbb..jj...",
+      ".........uuuuu...........bbbbbbbbbbbbbbbbbbbbbbb...j....",
+      "..........uuu...........bbbbbbbbbbbbbbbbbbbbbb..........",
+      "...........uu..uu.......bbbbbbbbbbbb.bbbb..bb...........",
+      ".............uuuuu.......bbbbbbbbbb...bb....bb..........",
+      ".............uuuuuuu......bbbbbbbb...........bbb........",
+      "..............uuuuuuu......bbbbbbb.............bb.......",
+      "..............uuuuuu........bbbbbb.........bbbbbb.......",
+      "...............uuuuu........bbbbb.........bbbbbbbb......",
+      "...............uuuu..........bbbb.........bbbbbbbb......",
+      "...............uuu...........bbb...........bbbbbb.......",
+      "...............uu.......................................",
+      "........................................................"
+    ];
+
+    function renderDotMatrixMap() {
+      const svg = document.getElementById('dotMatrixMapSvg');
+      if (!svg) return;
+
+      const hasUsa = state.overlays.usa;
+      const hasSch = state.overlays.sch;
+      const hasJpn = state.overlays.jpn;
+
+      const step = 6; // 56*6 = 336, 21*6 = 126
+      let dots = '';
+
+      for (let r = 0; r < WORLD_DOT_GRID.length; r++) {
+        const row = WORLD_DOT_GRID[r];
+        for (let c = 0; c < row.length; c++) {
+          const ch = row[c];
+          if (ch === '.') continue;
+
+          const cx = c * step + 3;
+          const cy = r * step + 3;
+          let fill = '#2D323E'; // muted slate for locked
+
+          if (ch === 'b') {
+            fill = '#34C759'; // emerald base visa-free
+          } else if (ch === 'u' && (hasUsa || hasSch || hasJpn)) {
+            fill = '#0A84FF'; // Apple Blue visa-unlocked
+          } else if (ch === 's' && (hasSch || hasUsa)) {
+            fill = '#0A84FF';
+          } else if (ch === 'j' && hasJpn) {
+            fill = '#0A84FF';
+          }
+
+          dots += `<circle cx="${cx}" cy="${cy}" r="1.15" fill="${fill}"/>`;
+        }
+      }
+
+      svg.innerHTML = dots;
+    }
+
+    /* -------------------- 6. Tab 1: Wallet Renderer -------------------- */
+    function renderWalletTab() {
+      const mount = document.getElementById('walletDynamicMount');
+      if (!mount) return;
+
+      const p = personData[state.person];
+      const isHk = state.docIndex === 1;
+      const shownPassNo = state.privacyMasked ? p.passportMasked : p.passportNo;
+      const shownHkNo = state.privacyMasked ? p.hkPermit.masked : p.hkPermit.no;
+      const filteredVisas = visas.filter(v => isHk ? v.docGroup === 'hkpermit' : v.docGroup === 'passport');
+
+      const eyeIconSvg = state.privacyMasked
+        ? `<svg class="w-3.5 h-3.5 opacity-60 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>`
+        : `<svg class="w-3.5 h-3.5 opacity-45 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>`;
+
+      mount.innerHTML = `
+        <!-- Full-Width Native iOS Segmented Control -->
+        <div class="ios-segmented mb-4">
+          <button onclick="setDocIndex(0)" class="ios-segmented-btn ${!isHk ? 'active' : ''}">护照</button>
+          <button onclick="setDocIndex(1)" class="ios-segmented-btn ${isHk ? 'active' : ''}">港澳通行证</button>
+        </div>
+
+        <!-- Plan A: Minimalist Physical Cover Card (24px radius, NO Avatar, NO Neon Dot) -->
+        ${!isHk ? `
+          <div onclick="openPassportDetailSheet('passport')" class="passport-cover p-5 mb-6 cursor-pointer active:scale-[0.988]">
+            <!-- Subtle SVG Noise Grain Overlay -->
+            <svg class="pointer-events-none absolute inset-0 w-full h-full opacity-[0.06]">
+              <filter id="leatherNoise">
+                <feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="3" stitchTiles="stitch"/>
+              </filter>
+              <rect width="100%" height="100%" filter="url(#leatherNoise)"/>
+            </svg>
+
+            <div class="cover-inner-frame"></div>
+
+            <!-- Subtle Geometric Globe Meridian Lines on Right -->
+            <svg class="pointer-events-none absolute -right-7 top-1/2 -translate-y-1/2 w-44 h-44 opacity-[0.08]" viewBox="0 0 160 160" fill="none" stroke="#DABC86" stroke-width="0.9">
+              <circle cx="80" cy="80" r="58"/>
+              <ellipse cx="80" cy="80" rx="28" ry="58"/>
+              <ellipse cx="80" cy="80" rx="58" ry="24"/>
+              <line x1="22" y1="80" x2="138" y2="80"/>
+              <line x1="80" y1="22" x2="80" y2="138"/>
+              <circle cx="80" cy="80" r="68" stroke-dasharray="2 4"/>
+            </svg>
+
+            <!-- Top Row: Title + CHN + Champagne Gold ICAO Chip Symbol -->
+            <div class="flex items-center justify-between relative z-10">
+              <div class="flex items-baseline gap-2">
+                <span class="text-[12px] font-medium tracking-[0.08em] text-[#DABC86]">中华人民共和国护照</span>
+                <span class="text-[10px] font-mono-doc tracking-wider text-[#DABC86]/60">CHN</span>
+              </div>
+
+              <svg class="w-6 h-[15px] text-[#DABC86]/85" viewBox="0 0 28 18" fill="none" stroke="currentColor" stroke-width="1.35">
+                <rect x="1.5" y="2" width="25" height="14" rx="2"/>
+                <line x1="1.5" y1="9" x2="9.5" y2="9"/>
+                <line x1="18.5" y1="9" x2="26.5" y2="9"/>
+                <circle cx="14" cy="9" r="3.1"/>
+              </svg>
+            </div>
+
+            <!-- Middle: Holder Name with Generous Calm Breathing Room -->
+            <div class="mt-8 mb-7 relative z-10">
+              <div class="text-[20px] font-semibold tracking-[0.02em] text-[#FAF7F2] leading-snug">${p.name}</div>
+              <div class="text-[12px] font-normal text-[#DABC86]/75 mt-0.5">${p.cnName}</div>
+            </div>
+
+            <!-- Bottom Row: Tap-to-Mask Passport No. on Left | Expiry & Duration on Right -->
+            <div class="pt-3 relative z-10 flex items-end justify-between gap-2 tabular-nums" style="border-top: 0.5px solid rgba(218, 188, 134, 0.22);">
+              <button onclick="event.stopPropagation(); togglePrivacyMask()"
+                      class="inline-flex items-center gap-1.5 text-left font-mono-doc text-[14.5px] font-medium tracking-[0.08em] text-[#DABC86] active:opacity-60 transition">
+                <span>${shownPassNo}</span>
+                ${eyeIconSvg}
+              </button>
+
+              <div class="text-right">
+                <div class="text-[10.5px] font-normal text-[#FAF7F2]/60">有效期至 ${p.expiryDate}</div>
+                <div class="text-[12.5px] font-semibold mt-0.5 ${p.isUrgent ? 'text-[#FF8A65]' : 'text-[#FAF7F2]'}">
+                  ${p.remainText}
+                </div>
+              </div>
+            </div>
+          </div>
+        ` : `
+          <div onclick="openPassportDetailSheet('hkpermit')" class="permit-cover p-5 mb-6 cursor-pointer active:scale-[0.988]">
+            <div class="cover-inner-frame cover-inner-frame-silver"></div>
+
+            <svg class="pointer-events-none absolute -right-7 top-1/2 -translate-y-1/2 w-44 h-44 opacity-[0.08]" viewBox="0 0 160 160" fill="none" stroke="#CBD5E1" stroke-width="0.9">
+              <circle cx="80" cy="80" r="56"/>
+              <circle cx="80" cy="80" r="36"/>
+              <line x1="24" y1="80" x2="136" y2="80"/>
+              <line x1="80" y1="24" x2="80" y2="136"/>
+            </svg>
+
+            <div class="flex items-center justify-between relative z-10">
+              <div class="flex items-baseline gap-2">
+                <span class="text-[12px] font-medium tracking-[0.08em] text-[#D8E6EB]">往来港澳通行证</span>
+                <span class="text-[10px] font-mono-doc tracking-wider text-[#D8E6EB]/60">EEP</span>
+              </div>
+              <svg class="w-6 h-[15px] text-[#D8E6EB]/80" viewBox="0 0 28 18" fill="none" stroke="currentColor" stroke-width="1.35">
+                <rect x="1.5" y="2" width="25" height="14" rx="2"/>
+                <line x1="1.5" y1="9" x2="9.5" y2="9"/>
+                <line x1="18.5" y1="9" x2="26.5" y2="9"/>
+                <circle cx="14" cy="9" r="3.1"/>
+              </svg>
+            </div>
+
+            <div class="mt-8 mb-7 relative z-10">
+              <div class="text-[20px] font-semibold tracking-[0.02em] text-[#F8FAFC] leading-snug">${p.name}</div>
+              <div class="text-[12px] font-normal text-[#CBDCE2]/75 mt-0.5">${p.cnName}</div>
+            </div>
+
+            <div class="pt-3 relative z-10 flex items-end justify-between gap-2 tabular-nums" style="border-top: 0.5px solid rgba(226, 232, 240, 0.18);">
+              <button onclick="event.stopPropagation(); togglePrivacyMask()"
+                      class="inline-flex items-center gap-1.5 text-left font-mono-doc text-[14.5px] font-medium tracking-[0.08em] text-[#D8E6EB] active:opacity-60 transition">
+                <span>${shownHkNo}</span>
+                ${eyeIconSvg}
+              </button>
+
+              <div class="text-right">
+                <div class="text-[10.5px] font-normal text-[#F8FAFC]/60">有效期至 ${p.hkPermit.expiry}</div>
+                <div class="text-[12.5px] font-semibold mt-0.5 text-[#F8FAFC]">${p.hkPermit.remainText}</div>
+              </div>
+            </div>
+          </div>
+        `}
+
+        <!-- Clean Section Label -->
+        <div class="flex items-center justify-between px-1 mb-2.5">
+          <span class="text-[13px] font-medium" style="color: var(--text-secondary);">${isHk ? '有效签注' : '有效签证'}</span>
+          <span class="text-[12px] font-normal tabular-nums" style="color: var(--text-tertiary);">${filteredVisas.length}</span>
+        </div>
+
+        <!-- Apple Wallet Alternating Material Stacked Cards -->
+        <div class="visa-stack-container">
+          ${filteredVisas.map((v, idx) => {
+            const isExpanded = state.expandedVisaId === v.id;
+            return `
+              <div onclick="toggleVisaCardExpand('${v.id}')"
+                   class="visa-wallet-card ${v.tone} ${isExpanded ? 'expanded' : ''}"
+                   style="background: ${v.cardGradient}; z-index: ${idx + 1};">
+                ${v.patternSvg}
+
+                <!-- Fixed 56px Unobstructed Header Strip (No Wireframe Boxes, No Traffic-Light Dots) -->
+                <div class="visa-header-strip">
+                  <div class="min-w-0">
+                    <div class="text-[15px] font-semibold tracking-tight leading-tight truncate">${v.title}</div>
+                    <div class="text-[11px] font-normal mt-0.5 leading-tight truncate" style="color: ${v.mutedTextColor};">${v.subtitle}</div>
+                  </div>
+
+                  <div class="text-right tabular-nums shrink-0 ml-3">
+                    <div class="text-[10px] font-normal leading-tight" style="color: ${v.mutedTextColor};">${v.rightLabel}</div>
+                    <div class="text-[13px] font-semibold mt-0.5 leading-tight" style="color: ${v.rightValueColor};">${v.rightValue}</div>
+                  </div>
+                </div>
+
+                <!-- Lower Body (Swiss 3-Column Grid + Expanded Action Link) -->
+                <div class="visa-lower-body">
+                  <div class="grid grid-cols-3 gap-2 pt-3 tabular-nums" style="border-top: 0.5px solid ${v.dividerColor};">
+                    <div>
+                      <div class="text-[10px] font-normal" style="color: ${v.mutedTextColor};">签证号</div>
+                      <div class="text-[12px] font-mono-doc font-medium mt-1 truncate">${v.visaNo}</div>
+                    </div>
+                    <div>
+                      <div class="text-[10px] font-normal" style="color: ${v.mutedTextColor};">单次停留</div>
+                      <div class="text-[12px] font-medium mt-1 truncate">${v.stayDays}</div>
+                    </div>
+                    <div class="text-right">
+                      <div class="text-[10px] font-normal" style="color: ${v.mutedTextColor};">到期日</div>
+                      <div class="text-[12px] font-mono-doc font-medium mt-1">${v.expiryDate}</div>
+                    </div>
+                  </div>
+
+                  ${isExpanded ? `
+                    <div class="mt-3 pt-2.5 flex items-center justify-end" style="border-top: 0.5px solid ${v.dividerColor};">
+                      <button onclick="event.stopPropagation(); openVisaSheet('${v.id}')"
+                              class="text-[12.5px] font-medium inline-flex items-center gap-0.5 active:opacity-60 transition"
+                              style="color: ${v.detailLinkColor};">
+                        <span>查看完整信息</span>
+                        <span class="opacity-70">›</span>
+                      </button>
+                    </div>
+                  ` : `<div class="h-2"></div>`}
+                </div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      `;
+    }
+
+    function toggleVisaCardExpand(visaId) {
+      state.expandedVisaId = state.expandedVisaId === visaId ? null : visaId;
+      renderWalletTab();
+    }
+
+    /* -------------------- 7. Passport & Permit Detail Sheet -------------------- */
+    function openPassportDetailSheet(docType) {
+      const p = personData[state.person];
+      const body = document.getElementById('passportDetailBody');
+      if (!body) return;
+
+      if (docType === 'hkpermit') {
+        body.innerHTML = `
+          <div class="flex items-center justify-between mb-3.5">
+            <h3 class="text-[18px] font-semibold tracking-tight">往来港澳通行证</h3>
+            <button onclick="closeSheet('passportDetailSheet')" class="text-[15px] font-semibold" style="color: var(--accent);">完成</button>
+          </div>
+
+          <div class="ios-group divide-y divide-[var(--border-hairline)] mb-4 text-[14px] tabular-nums">
+            <div class="px-4 py-3 flex justify-between">
+              <span style="color: var(--text-secondary);">持证人</span>
+              <span class="font-medium">${p.name} · ${p.cnName}</span>
+            </div>
+            <div class="px-4 py-3 flex justify-between">
+              <span style="color: var(--text-secondary);">证件号码</span>
+              <span class="font-mono-doc font-semibold">${p.hkPermit.no}</span>
+            </div>
+            <div class="px-4 py-3 flex justify-between">
+              <span style="color: var(--text-secondary);">有效期</span>
+              <span class="font-mono-doc">${p.hkPermit.issueDate} — ${p.hkPermit.expiry}</span>
+            </div>
+          </div>
+
+          <div class="ios-group overflow-hidden">
+            <button onclick="closeSheet('passportDetailSheet'); openSheet('watermarkSheet')" class="w-full px-4 py-3.5 flex items-center justify-between text-left active:opacity-75 transition">
+              <span class="text-[15px] font-normal">安全水印与局部打码</span>
+              <svg class="w-3.5 h-3.5 opacity-30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M9 18l6-6-6-6"/></svg>
+            </button>
+          </div>
+        `;
+        openSheet('passportDetailSheet');
+        return;
+      }
+
+      body.innerHTML = `
+        <div class="flex items-center justify-between mb-3.5">
+          <h3 class="text-[18px] font-semibold tracking-tight">护照资料页</h3>
+          <button onclick="closeSheet('passportDetailSheet')" class="text-[15px] font-semibold" style="color: var(--accent);">完成</button>
+        </div>
+
+        <!-- Polycarbonate Data Page with Seamless Dark Laser-Etched Portrait -->
+        <div class="polycarbonate-card p-4 mb-4">
+          <svg class="pointer-events-none absolute inset-0 w-full h-full opacity-[0.07]" viewBox="0 0 340 210" fill="none" stroke="currentColor" stroke-width="0.7">
+            <path d="M0,45 Q85,15 170,45 T340,45 M0,75 Q85,45 170,75 T340,75 M0,105 Q85,75 170,105 T340,105 M0,135 Q85,105 170,135 T340,135"/>
+          </svg>
+
+          <div class="flex items-center justify-between text-[10px] font-mono-doc tracking-[0.08em] opacity-55 mb-3 relative z-10">
+            <span>PASSPORT · CHN</span>
+            <span>NFC VERIFIED</span>
+          </div>
+
+          <div class="flex gap-4 relative z-10">
+            <!-- Seamless Laser-Etched / Color Portrait (Tap to Toggle) -->
+            <div onclick="toggleBiodataPortrait()" title="轻点切换蚀刻 / 原彩"
+                 class="w-[74px] h-[94px] rounded-[12px] overflow-hidden shrink-0 flex items-end justify-center cursor-pointer active:scale-95 transition"
+                 style="background: ${state.etchedAvatar ? 'linear-gradient(180deg, rgba(120,120,128,0.12) 0%, rgba(120,120,128,0.24) 100%)' : 'linear-gradient(180deg, #64748B 0%, #475569 100%)'};">
+              ${state.etchedAvatar ? `
+                <svg viewBox="0 0 80 100" class="w-full h-full opacity-80">
+                  <path d="M12,100 C12,76 25,69 40,69 C55,69 68,76 68,100 Z" fill="currentColor" fill-opacity="0.65"/>
+                  <rect x="34" y="54" width="12" height="16" rx="4" fill="currentColor" fill-opacity="0.34"/>
+                  <ellipse cx="40" cy="40" rx="14.5" ry="17.5" fill="currentColor" fill-opacity="0.28"/>
+                  <path d="M25.5,36 C25.5,20 33,17 42,17 C51,17 55.5,22 54.5,35 C51.5,28 45,25 36,26 C30,26 27,31 25.5,36 Z" fill="currentColor" fill-opacity="0.72"/>
+                  <circle cx="34.5" cy="39.5" r="1.4" fill="currentColor" fill-opacity="0.65"/>
+                  <circle cx="45.5" cy="39.5" r="1.4" fill="currentColor" fill-opacity="0.65"/>
+                  <path d="M36,48.5 Q40,51 44,48.5" stroke="currentColor" stroke-opacity="0.55" stroke-width="1.3" fill="none" stroke-linecap="round"/>
+                </svg>
+              ` : `
+                <svg viewBox="0 0 80 100" class="w-full h-full">
+                  <path d="M12,100 C12,76 25,69 40,69 C55,69 68,76 68,100 Z" fill="#1E293B"/>
+                  <path d="M33,69 L40,86 L47,69 Z" fill="#F8FAFC"/>
+                  <rect x="34" y="54" width="12" height="16" rx="4" fill="#D9B190"/>
+                  <ellipse cx="40" cy="40" rx="14.5" ry="17.5" fill="#E5C0A1"/>
+                  <path d="M25.5,36 C25.5,20 33,17 42,17 C51,17 55.5,22 54.5,35 C51.5,28 45,25 36,26 C30,26 27,31 25.5,36 Z" fill="#1E2024"/>
+                  <circle cx="34.5" cy="39.5" r="1.4" fill="#1E2024"/>
+                  <circle cx="45.5" cy="39.5" r="1.4" fill="#1E2024"/>
+                  <path d="M36,48.5 Q40,51 44,48.5" stroke="#8C5843" stroke-width="1.3" fill="none" stroke-linecap="round"/>
+                </svg>
+              `}
+            </div>
+
+            <!-- Biodata Fields -->
+            <div class="flex-1 min-w-0 flex flex-col justify-between py-0.5 tabular-nums">
+              <div>
+                <div class="text-[9.5px] uppercase tracking-wider opacity-50">NAME / 姓名</div>
+                <div class="text-[14px] font-semibold tracking-tight leading-tight mt-0.5 truncate">${p.name} · ${p.cnName}</div>
+              </div>
+              <div class="grid grid-cols-2 gap-2">
+                <div>
+                  <div class="text-[9.5px] uppercase tracking-wider opacity-50">PASSPORT NO.</div>
+                  <div class="text-[13px] font-mono-doc font-semibold mt-0.5">${p.passportNo}</div>
+                </div>
+                <div>
+                  <div class="text-[9.5px] uppercase tracking-wider opacity-50">DOB / 出生</div>
+                  <div class="text-[13px] font-mono-doc font-medium mt-0.5">${p.dob}</div>
+                </div>
+              </div>
+              <div class="grid grid-cols-2 gap-2">
+                <div>
+                  <div class="text-[9.5px] uppercase tracking-wider opacity-50">ISSUED / 签发</div>
+                  <div class="text-[12px] font-mono-doc mt-0.5 opacity-85">${p.issueDate}</div>
+                </div>
+                <div>
+                  <div class="text-[9.5px] uppercase tracking-wider opacity-50">EXPIRY / 到期</div>
+                  <div class="text-[12px] font-mono-doc font-medium mt-0.5">${p.expiryDate}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 2-Line Machine Readable Zone (MRZ) -->
+          <div class="mt-3.5 pt-2.5 font-mono-doc text-[9.5px] leading-[1.45] tracking-[0.06em] opacity-65 overflow-hidden relative z-10" style="border-top: 0.5px solid rgba(128,128,128,0.22);">
+            <div class="truncate">${p.mrz1}</div>
+            <div class="truncate">${p.mrz2}</div>
+          </div>
+        </div>
+
+        <!-- Secondary Metadata Group -->
+        ${p.oldPassportNo ? `
+          <div class="ios-group px-4 py-3 mb-4 flex items-center justify-between text-[13.5px] tabular-nums">
+            <span style="color: var(--text-secondary);">关联旧护照号</span>
+            <button onclick="copyText('${p.oldPassportNo.replace(/\s+/g, '')}', '旧护照号已复制')" class="font-mono-doc font-medium" style="color: var(--text-primary);">
+              ${p.oldPassportNo}
+            </button>
+          </div>
+        ` : ''}
+
+        <!-- Clean iOS Grouped Actions -->
+        <div class="ios-group overflow-hidden">
+          <button onclick="closeSheet('passportDetailSheet'); openSheet('watermarkSheet')" class="ios-row-divider w-full px-4 py-3.5 flex items-center justify-between text-left active:opacity-75 transition">
+            <div class="flex items-center gap-3">
+              <div class="w-[29px] h-[29px] rounded-[7px] flex items-center justify-center shrink-0" style="background-color: var(--bg-fill); color: var(--text-primary);">
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7">
+                  <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/>
+                </svg>
+              </div>
+              <span class="text-[15px] font-normal">安全水印与局部打码</span>
+            </div>
+            <svg class="w-3.5 h-3.5 opacity-30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M9 18l6-6-6-6"/></svg>
+          </button>
+
+          <button onclick="closeSheet('passportDetailSheet'); openNfcSheet()" class="ios-row-divider w-full px-4 py-3.5 flex items-center justify-between text-left active:opacity-75 transition">
+            <div class="flex items-center gap-3">
+              <div class="w-[29px] h-[29px] rounded-[7px] flex items-center justify-center shrink-0" style="background-color: var(--bg-fill); color: var(--text-primary);">
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7">
+                  <path d="M6 8.5a6.5 6.5 0 0 1 12 0M8.5 11.5a3.5 3.5 0 0 1 7 0M12 14.5h.01"/>
+                </svg>
+              </div>
+              <span class="text-[15px] font-normal">NFC 芯片验真</span>
+            </div>
+            <svg class="w-3.5 h-3.5 opacity-30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M9 18l6-6-6-6"/></svg>
+          </button>
+        </div>
+      `;
+
+      openSheet('passportDetailSheet');
+    }
+
+    function toggleBiodataPortrait() {
+      state.etchedAvatar = !state.etchedAvatar;
+      openPassportDetailSheet('passport');
+      showToast(state.etchedAvatar ? '已切换为激光蚀刻人像' : '已切换为原彩人像');
+    }
+
+    /* -------------------- 8. Apple Wallet "添加到卡包" Multi-View Sheet -------------------- */
+    let addNfcTimers = [];
+
+    function clearAddNfcTimers() {
+      addNfcTimers.forEach(t => clearTimeout(t));
+      addNfcTimers = [];
+    }
+
+    function openAddSheet(view) {
+      clearAddNfcTimers();
+      state.addView = view || 'add-root';
+      state.addManualVisaOpen = false;
+      renderAddSheet();
+      openSheet('addSheet');
+    }
+
+    function closeAddSheet() {
+      clearAddNfcTimers();
+      closeSheet('addSheet');
+    }
+
+    function setAddView(view) {
+      clearAddNfcTimers();
+      state.addView = view;
+      if (view !== 'add-visa') state.addManualVisaOpen = false;
+      renderAddSheet();
+      if (view === 'add-passport-nfc') {
+        startAddPassportNfcSequence();
+      }
+    }
+
+    function navigateAddBack() {
+      if (state.addView === 'add-passport-nfc' || state.addView === 'add-passport-manual') {
+        setAddView('add-passport-mrz');
+      } else {
+        setAddView('add-root');
+      }
+    }
+
+    function renderAddSheet() {
+      const view = state.addView;
+      const body = document.getElementById('addSheetBody');
+      const titleEl = document.getElementById('addSheetTitle');
+      const backBtn = document.getElementById('addSheetBackBtn');
+      if (!body || !titleEl || !backBtn) return;
+
+      const titles = {
+        'add-root': '添加到卡包',
+        'add-passport-mrz': '电子普通护照',
+        'add-passport-nfc': 'NFC 芯片验真',
+        'add-passport-manual': '手动录入护照',
+        'add-visa': '各国签证 / 电子签',
+        'add-endorse': '港澳签注'
+      };
+
+      titleEl.textContent = titles[view] || '添加到卡包';
+      if (view === 'add-root') {
+        backBtn.classList.add('hidden');
+        backBtn.classList.remove('inline-flex');
+        titleEl.className = 'text-[20px] font-bold tracking-tight truncate';
+      } else {
+        backBtn.classList.remove('hidden');
+        backBtn.classList.add('inline-flex');
+        titleEl.className = 'text-[17px] font-semibold tracking-tight truncate';
+      }
+
+      if (view === 'add-root') {
+        body.innerHTML = `
+          <!-- Group 1: 主证件 -->
+          <div class="px-3 mb-1.5 text-[12px] font-medium" style="color: var(--text-secondary);">主证件</div>
+          <div class="ios-group overflow-hidden mb-5">
+            <button onclick="setAddView('add-passport-mrz')" class="ios-row-divider w-full px-4 py-3.5 flex items-center justify-between text-left active:opacity-75 transition">
+              <div class="flex items-center gap-3.5 min-w-0">
+                <div class="w-[34px] h-[34px] rounded-[9px] flex items-center justify-center shrink-0"
+                     style="background: linear-gradient(145deg, #641B2B 0%, #300A13 100%);">
+                  <svg class="w-4 h-4 text-[#DABC86]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+                    <rect x="4.5" y="3" width="15" height="18" rx="2"/>
+                    <circle cx="12" cy="10.5" r="2.8"/>
+                    <path d="M8.5 16.5h7"/>
+                  </svg>
+                </div>
+                <div class="min-w-0">
+                  <div class="text-[15px] font-medium leading-snug">电子普通护照</div>
+                  <div class="text-[12px] font-normal mt-0.5 truncate" style="color: var(--text-secondary);">扫描资料页，支持 NFC 芯片验真</div>
+                </div>
+              </div>
+              <svg class="w-3.5 h-3.5 opacity-30 shrink-0 ml-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M9 18l6-6-6-6"/></svg>
+            </button>
+
+            <button onclick="quickSwitchHkPermit()" class="ios-row-divider w-full px-4 py-3.5 flex items-center justify-between text-left active:opacity-75 transition">
+              <div class="flex items-center gap-3.5 min-w-0">
+                <div class="w-[34px] h-[34px] rounded-[9px] flex items-center justify-center shrink-0"
+                     style="background: linear-gradient(145deg, #213C44 0%, #102026 100%);">
+                  <svg class="w-4 h-4 text-[#D8E6EB]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+                    <rect x="3" y="5.5" width="18" height="13" rx="2"/>
+                    <line x1="6.5" y1="10" x2="11.5" y2="10"/>
+                    <line x1="6.5" y1="13.5" x2="15" y2="13.5"/>
+                  </svg>
+                </div>
+                <div class="min-w-0">
+                  <div class="text-[15px] font-medium leading-snug">往来港澳通行证</div>
+                  <div class="text-[12px] font-normal mt-0.5 truncate" style="color: var(--text-secondary);">识别卡面与签注信息</div>
+                </div>
+              </div>
+              <svg class="w-3.5 h-3.5 opacity-30 shrink-0 ml-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M9 18l6-6-6-6"/></svg>
+            </button>
+          </div>
+
+          <!-- Group 2: 签证与签注 -->
+          <div class="px-3 mb-1.5 text-[12px] font-medium" style="color: var(--text-secondary);">签证与签注</div>
+          <div class="ios-group overflow-hidden mb-5">
+            <button onclick="setAddView('add-visa')" class="ios-row-divider w-full px-4 py-3.5 flex items-center justify-between text-left active:opacity-75 transition">
+              <div class="flex items-center gap-3.5 min-w-0">
+                <div class="w-[34px] h-[34px] rounded-[9px] flex items-center justify-center shrink-0"
+                     style="background: linear-gradient(145deg, #162642 0%, #0D182C 100%);">
+                  <svg class="w-4 h-4 text-[#F7F4EC]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+                    <rect x="3.5" y="5" width="17" height="14" rx="2"/>
+                    <circle cx="9.5" cy="12" r="2.5"/>
+                    <path d="M14.5 10h3M14.5 14h2.5"/>
+                  </svg>
+                </div>
+                <div class="min-w-0">
+                  <div class="text-[15px] font-medium leading-snug">各国签证 / 电子签</div>
+                  <div class="text-[12px] font-normal mt-0.5 truncate" style="color: var(--text-secondary);">导入 PDF、拍摄贴纸或手动录入</div>
+                </div>
+              </div>
+              <svg class="w-3.5 h-3.5 opacity-30 shrink-0 ml-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M9 18l6-6-6-6"/></svg>
+            </button>
+
+            <button onclick="setAddView('add-endorse')" class="ios-row-divider w-full px-4 py-3.5 flex items-center justify-between text-left active:opacity-75 transition">
+              <div class="flex items-center gap-3.5 min-w-0">
+                <div class="w-[34px] h-[34px] rounded-[9px] flex items-center justify-center shrink-0"
+                     style="background: linear-gradient(145deg, #0E4D4A 0%, #093533 100%);">
+                  <svg class="w-4 h-4 text-[#D1FAE5]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+                    <path d="M9 12l2 2 4-4"/>
+                    <circle cx="12" cy="12" r="8.5"/>
+                  </svg>
+                </div>
+                <div class="min-w-0">
+                  <div class="text-[15px] font-medium leading-snug">港澳签注</div>
+                  <div class="text-[12px] font-normal mt-0.5 truncate" style="color: var(--text-secondary);">记录赴港或赴澳有效签注余次</div>
+                </div>
+              </div>
+              <svg class="w-3.5 h-3.5 opacity-30 shrink-0 ml-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M9 18l6-6-6-6"/></svg>
+            </button>
+          </div>
+
+          <!-- Group 3: 备份与迁移 -->
+          <div class="px-3 mb-1.5 text-[12px] font-medium" style="color: var(--text-secondary);">备份与迁移</div>
+          <div class="ios-group overflow-hidden">
+            <button onclick="triggerBackupRestore()" class="w-full px-4 py-3.5 flex items-center justify-between text-left active:opacity-75 transition">
+              <div class="flex items-center gap-3.5 min-w-0">
+                <div class="w-[34px] h-[34px] rounded-[9px] flex items-center justify-center shrink-0" style="background-color: var(--bg-fill); color: var(--text-primary);">
+                  <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+                    <rect x="5" y="11" width="14" height="10" rx="2"/>
+                    <path d="M8 11V7a4 4 0 0 1 8 0v4"/>
+                  </svg>
+                </div>
+                <div class="min-w-0">
+                  <div class="text-[15px] font-medium leading-snug">导入加密备份</div>
+                  <div class="text-[12px] font-normal mt-0.5 truncate" style="color: var(--text-secondary);">从 .passportvault 离线恢复</div>
+                </div>
+              </div>
+              <svg class="w-3.5 h-3.5 opacity-30 shrink-0 ml-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M9 18l6-6-6-6"/></svg>
+            </button>
+          </div>
+        `;
+      } else if (view === 'add-passport-mrz') {
+        body.innerHTML = `
+          <!-- Step Indicator -->
+          <div class="flex items-center justify-center gap-3 mb-4 text-[12px]">
+            <div class="flex items-center gap-1.5 font-semibold" style="color: var(--text-primary);">
+              <span class="w-5 h-5 rounded-full text-[11px] flex items-center justify-center text-white" style="background-color: var(--accent);">1</span>
+              <span>扫描 MRZ</span>
+            </div>
+            <div class="w-8 h-[1px]" style="background-color: var(--border-hairline);"></div>
+            <div class="flex items-center gap-1.5 font-normal" style="color: var(--text-tertiary);">
+              <span class="w-5 h-5 rounded-full text-[11px] flex items-center justify-center" style="background-color: var(--bg-fill);">2</span>
+              <span>NFC 读芯</span>
+            </div>
+          </div>
+
+          <!-- Realistic Dark Optical Camera Viewfinder -->
+          <div class="relative rounded-[20px] bg-[#101216] p-4 mb-4 overflow-hidden text-white" style="box-shadow: inset 0 0 0 0.5px rgba(255,255,255,0.12);">
+            <div class="flex items-center justify-between text-[10px] font-mono-doc text-white/45 mb-3">
+              <span>ICAO MRZ VIEWFINDER</span>
+              <span>BAC KEY</span>
+            </div>
+
+            <div class="rounded-[12px] border border-white/15 bg-white/[0.03] p-3.5 mb-3">
+              <div class="flex items-center gap-3 opacity-35">
+                <div class="w-11 h-14 rounded-[6px] border border-white/30 bg-white/5 shrink-0"></div>
+                <div class="flex-1 space-y-2">
+                  <div class="h-2 w-2/3 rounded bg-white/30"></div>
+                  <div class="h-1.5 w-1/2 rounded bg-white/20"></div>
+                  <div class="h-1.5 w-3/4 rounded bg-white/20"></div>
+                </div>
+              </div>
+
+              <!-- Highlighted MRZ Frame with Scanning Line -->
+              <div class="relative mt-4 px-2.5 py-2 rounded-[8px] border border-[#0A84FF]/70 bg-[#0A84FF]/[0.08] overflow-hidden">
+                <div class="mrz-scan-laser pointer-events-none absolute left-0 right-0 top-1 h-[1.5px] bg-[#0A84FF]" style="box-shadow: 0 0 8px #0A84FF;"></div>
+                <div class="font-mono-doc text-[9px] leading-[1.45] tracking-[0.06em] text-white/85 truncate">
+                  P&lt;CHNWANG&lt;&lt;WEIMIN&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;
+                </div>
+                <div class="font-mono-doc text-[9px] leading-[1.45] tracking-[0.06em] text-white/85 truncate">
+                  E123456784CHN8501018M3305146&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;08
+                </div>
+              </div>
+            </div>
+
+            <div class="text-center text-[11.5px] text-white/55">
+              对准资料页底部两行机读码以提取芯片访问密钥
+            </div>
+          </div>
+
+          <button onclick="setAddView('add-passport-nfc')" class="w-full py-3.5 rounded-[12px] text-white text-[15px] font-semibold active:scale-[0.99] transition" style="background-color: var(--accent);">
+            扫描 MRZ 获取密钥
+          </button>
+
+          <button onclick="setAddView('add-passport-manual')" class="w-full py-3 mt-1.5 text-center text-[13px] font-medium active:opacity-60 transition" style="color: var(--text-secondary);">
+            护照不在手边？手动录入
+          </button>
+        `;
+      } else if (view === 'add-passport-nfc') {
+        body.innerHTML = `
+          <!-- Step Indicator -->
+          <div class="flex items-center justify-center gap-3 mb-2 text-[12px]">
+            <div class="flex items-center gap-1.5 font-medium text-[#34C759]">
+              <span class="w-5 h-5 rounded-full text-[11px] flex items-center justify-center bg-[#34C759]/15 text-[#34C759]">✓</span>
+              <span>MRZ 密钥</span>
+            </div>
+            <div class="w-8 h-[1px]" style="background-color: var(--border-hairline);"></div>
+            <div class="flex items-center gap-1.5 font-semibold" style="color: var(--text-primary);">
+              <span class="w-5 h-5 rounded-full text-[11px] flex items-center justify-center text-white" style="background-color: var(--accent);">2</span>
+              <span>NFC 读芯</span>
+            </div>
+          </div>
+
+          <!-- Scanning Stage -->
+          <div id="addNfcScanning" class="py-6 flex flex-col items-center text-center">
+            <div onclick="completeAddPassportNfc()" class="relative w-36 h-36 flex items-center justify-center cursor-pointer">
+              <div class="nfc-ripple-1 absolute w-28 h-28 rounded-full border" style="border-color: var(--accent);"></div>
+              <div class="nfc-ripple-2 absolute w-28 h-28 rounded-full border" style="border-color: var(--accent);"></div>
+
+              <div class="w-28 h-28 rounded-full flex items-center justify-center" style="background-color: var(--accent-soft);">
+                <div class="w-20 h-20 rounded-full flex items-center justify-center" style="background-color: var(--bg-surface); box-shadow: var(--surface-shadow);">
+                  <svg class="w-9 h-9" style="color: var(--accent);" viewBox="0 0 36 36" fill="none" stroke="currentColor" stroke-linecap="round">
+                    <path class="nfc-arc-1" d="M13 14.5a5.5 5.5 0 0 1 0 7" stroke-width="2.2"/>
+                    <path class="nfc-arc-2" d="M17.5 11.5a9.5 9.5 0 0 1 0 13" stroke-width="2.2"/>
+                    <path class="nfc-arc-3" d="M22 8.5a13.5 13.5 0 0 1 0 19" stroke-width="2.2"/>
+                  </svg>
+                </div>
+              </div>
+            </div>
+
+            <div class="mt-4 text-[16px] font-semibold tracking-tight">将电子护照贴近手机顶部背面</div>
+            <div id="addNfcSubText" class="mt-1.5 text-[13px] leading-relaxed" style="color: var(--text-secondary);">
+              BAC 密钥验证中...
+            </div>
+
+            <div class="w-48 h-1 rounded-full overflow-hidden mt-5" style="background-color: var(--bg-fill);">
+              <div id="addNfcProgress" class="h-full transition-all duration-300 rounded-full" style="width: 22%; background-color: var(--accent);"></div>
+            </div>
+
+            <button onclick="skipAddNfc()" class="mt-5 text-[13px] font-medium active:opacity-60 transition" style="color: var(--accent);">
+              跳过读芯，先以 MRZ 建档
+            </button>
+          </div>
+
+          <!-- Verified Stage -->
+          <div id="addNfcVerified" class="py-5 hidden flex flex-col items-center text-center">
+            <div class="nfc-success-pop w-20 h-20 rounded-full bg-[#34C759]/15 flex items-center justify-center text-[#34C759]">
+              <svg class="w-10 h-10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M20 6L9 17l-5-5"/>
+              </svg>
+            </div>
+
+            <div class="mt-3.5 text-[17px] font-semibold tracking-tight">芯片验真通过</div>
+            <p class="text-[13px] mt-1" style="color: var(--text-secondary);">已读取 DG1/DG2 并通过 SOD 国家签名校验</p>
+
+            <div class="w-full ios-group p-4 mt-4 text-left flex items-center justify-between tabular-nums">
+              <div>
+                <div class="text-[14px] font-semibold">${personData[state.person].name}</div>
+                <div class="text-[12px] font-mono-doc mt-0.5" style="color: var(--text-secondary);">${personData[state.person].passportNo} · ICAO 9303</div>
+              </div>
+              <span class="text-[12px] font-medium text-[#34C759]">已验真</span>
+            </div>
+
+            <button onclick="finishAddPassportVerified()" class="w-full py-3.5 mt-4 rounded-[12px] text-white text-[15px] font-semibold active:scale-[0.99] transition" style="background-color: var(--accent);">
+              添加到卡包
+            </button>
+          </div>
+        `;
+      } else if (view === 'add-passport-manual') {
+        const p = personData[state.person];
+        body.innerHTML = `
+          <div class="ios-group divide-y divide-[var(--border-hairline)] mb-4">
+            <div class="px-4 py-3 flex items-center justify-between">
+              <span class="text-[14px] font-normal">英文姓名</span>
+              <input id="manualPassName" type="text" value="${p.name}" class="ios-field-input font-medium" />
+            </div>
+            <div class="px-4 py-3 flex items-center justify-between">
+              <span class="text-[14px] font-normal">护照号码</span>
+              <input id="manualPassNo" type="text" value="${p.passportNo}" class="ios-field-input font-mono-doc" />
+            </div>
+            <div class="px-4 py-3 flex items-center justify-between">
+              <span class="text-[14px] font-normal">有效期至</span>
+              <input id="manualPassExp" type="text" value="${p.expiryDate}" class="ios-field-input font-mono-doc" />
+            </div>
+          </div>
+
+          <button onclick="submitManualPassport()" class="w-full py-3.5 rounded-[12px] text-white text-[15px] font-semibold active:scale-[0.99] transition" style="background-color: var(--accent);">
+            保存并添加到卡包
+          </button>
+        `;
+      } else if (view === 'add-visa') {
+        body.innerHTML = `
+          <!-- Quick Import Grouped Options -->
+          <div class="ios-group overflow-hidden mb-4">
+            <button onclick="quickImportVisa('pdf')" class="ios-row-divider w-full px-4 py-3.5 flex items-center justify-between text-left active:opacity-75 transition">
+              <div class="flex items-center gap-3.5 min-w-0">
+                <div class="w-[32px] h-[32px] rounded-[8px] flex items-center justify-center shrink-0" style="background-color: var(--bg-fill); color: var(--text-primary);">
+                  <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                    <polyline points="14 2 14 8 20 8"/>
+                  </svg>
+                </div>
+                <div class="min-w-0">
+                  <div class="text-[15px] font-medium leading-snug">从文件导入电子签 PDF</div>
+                  <div class="text-[12px] font-normal mt-0.5 truncate" style="color: var(--text-secondary);">导入英国两年多次签</div>
+                </div>
+              </div>
+              <svg class="w-3.5 h-3.5 opacity-30 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M9 18l6-6-6-6"/></svg>
+            </button>
+
+            <button onclick="quickImportVisa('ocr')" class="ios-row-divider w-full px-4 py-3.5 flex items-center justify-between text-left active:opacity-75 transition">
+              <div class="flex items-center gap-3.5 min-w-0">
+                <div class="w-[32px] h-[32px] rounded-[8px] flex items-center justify-center shrink-0" style="background-color: var(--bg-fill); color: var(--text-primary);">
+                  <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7">
+                    <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                    <circle cx="12" cy="13" r="4"/>
+                  </svg>
+                </div>
+                <div class="min-w-0">
+                  <div class="text-[15px] font-medium leading-snug">拍摄纸质签证贴纸</div>
+                  <div class="text-[12px] font-normal mt-0.5 truncate" style="color: var(--text-secondary);">识别加拿大十年多次签</div>
+                </div>
+              </div>
+              <svg class="w-3.5 h-3.5 opacity-30 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M9 18l6-6-6-6"/></svg>
+            </button>
+
+            <button onclick="toggleManualVisaForm()" class="w-full px-4 py-3.5 flex items-center justify-between text-left active:opacity-75 transition">
+              <div class="flex items-center gap-3.5 min-w-0">
+                <div class="w-[32px] h-[32px] rounded-[8px] flex items-center justify-center shrink-0" style="background-color: var(--bg-fill); color: var(--text-primary);">
+                  <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7">
+                    <path d="M12 20h9"/>
+                    <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
+                  </svg>
+                </div>
+                <div class="min-w-0">
+                  <div class="text-[15px] font-medium leading-snug">手动录入签证</div>
+                  <div class="text-[12px] font-normal mt-0.5 truncate" style="color: var(--text-secondary);">自定义签证信息与卡面材质</div>
+                </div>
+              </div>
+              <svg class="w-3.5 h-3.5 opacity-30 shrink-0 transition-transform ${state.addManualVisaOpen ? 'rotate-90' : ''}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M9 18l6-6-6-6"/></svg>
+            </button>
+          </div>
+
+          <!-- Collapsible Manual Visa Form -->
+          ${state.addManualVisaOpen ? `
+            <div class="ios-group divide-y divide-[var(--border-hairline)] mb-3.5">
+              <div class="px-4 py-3 flex items-center justify-between">
+                <span class="text-[14px] font-normal">国家与签证名</span>
+                <input id="inputVisaTitle" type="text" placeholder="澳大利亚三年多次" class="ios-field-input" />
+              </div>
+              <div class="px-4 py-3 flex items-center justify-between">
+                <span class="text-[14px] font-normal">签证号</span>
+                <input id="inputVisaNo" type="text" placeholder="AU8820149" class="ios-field-input font-mono-doc" />
+              </div>
+              <div class="px-4 py-3 flex items-center justify-between">
+                <span class="text-[14px] font-normal">单次停留</span>
+                <input id="inputVisaStay" type="text" value="90 天" class="ios-field-input" />
+              </div>
+              <div class="px-4 py-3 flex items-center justify-between">
+                <span class="text-[14px] font-normal">到期日</span>
+                <input id="inputVisaExp" type="text" value="2029.11.24" class="ios-field-input font-mono-doc" />
+              </div>
+              <div class="px-4 py-3">
+                <div class="text-[13px] font-normal mb-2.5" style="color: var(--text-secondary);">卡面材质</div>
+                <div class="grid grid-cols-3 gap-2">
+                  <button onclick="setAddVisaMaterial('ivory')" class="py-2 px-2 rounded-[10px] text-[12px] font-medium transition border ${state.addVisaMaterial === 'ivory' ? 'border-[var(--accent)] ring-1 ring-[var(--accent)]' : 'border-transparent'}" style="background: #F5F2EA; color: #1C1C1E;">
+                    浅色防伪纸
+                  </button>
+                  <button onclick="setAddVisaMaterial('navy')" class="py-2 px-2 rounded-[10px] text-[12px] font-medium transition border ${state.addVisaMaterial === 'navy' ? 'border-[var(--accent)] ring-1 ring-[var(--accent)]' : 'border-transparent'}" style="background: #162642; color: #FFFFFF;">
+                    深色外交蓝
+                  </button>
+                  <button onclick="setAddVisaMaterial('jade')" class="py-2 px-2 rounded-[10px] text-[12px] font-medium transition border ${state.addVisaMaterial === 'jade' ? 'border-[var(--accent)] ring-1 ring-[var(--accent)]' : 'border-transparent'}" style="background: #0E4D4A; color: #FFFFFF;">
+                    深色墨绿
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <button onclick="submitManualVisa()" class="w-full py-3.5 rounded-[12px] text-white text-[15px] font-semibold active:scale-[0.99] transition" style="background-color: var(--accent);">
+              添加到卡包
+            </button>
+          ` : ''}
+        `;
+      } else if (view === 'add-endorse') {
+        body.innerHTML = `
+          <div class="ios-group overflow-hidden mb-3">
+            <button onclick="quickAddEndorsement('HKG')" class="ios-row-divider w-full px-4 py-3.5 flex items-center justify-between text-left active:opacity-75 transition">
+              <div class="flex items-center gap-3.5">
+                <div class="w-[32px] h-[32px] rounded-[8px] flex items-center justify-center shrink-0 text-[11px] font-mono-doc font-semibold text-white" style="background: #0E4D4A;">
+                  HK
+                </div>
+                <div>
+                  <div class="text-[15px] font-medium">赴港 1 年 2 次签注</div>
+                  <div class="text-[12px]" style="color: var(--text-secondary);">个人旅游签注 (G) · 每次 7 天</div>
+                </div>
+              </div>
+              <span class="text-[13px] font-medium" style="color: var(--accent);">添加</span>
+            </button>
+
+            <button onclick="quickAddEndorsement('MAC')" class="w-full px-4 py-3.5 flex items-center justify-between text-left active:opacity-75 transition">
+              <div class="flex items-center gap-3.5">
+                <div class="w-[32px] h-[32px] rounded-[8px] flex items-center justify-center shrink-0 text-[11px] font-mono-doc font-semibold text-[#1C1C1E] border border-black/10" style="background: #F5F4EE;">
+                  MO
+                </div>
+                <div>
+                  <div class="text-[15px] font-medium">赴澳 1 年 1 次签注</div>
+                  <div class="text-[12px]" style="color: var(--text-secondary);">个人旅游签注 (G) · 每次 7 天</div>
+                </div>
+              </div>
+              <span class="text-[13px] font-medium" style="color: var(--accent);">添加</span>
+            </button>
+          </div>
+        `;
+      }
+    }
+
+    function quickSwitchHkPermit() {
+      state.docIndex = 1;
+      state.expandedVisaId = null;
+      renderWalletTab();
+      closeAddSheet();
+      showToast('已切换至往来港澳通行证');
+    }
+
+    function triggerBackupRestore() {
+      closeAddSheet();
+      showToast('已从 .passportvault 恢复本地加密归档');
+    }
+
+    function startAddPassportNfcSequence() {
+      clearAddNfcTimers();
+      const sub = document.getElementById('addNfcSubText');
+      const bar = document.getElementById('addNfcProgress');
+      if (!sub || !bar) return;
+
+      addNfcTimers.push(setTimeout(() => {
+        bar.style.width = '56%';
+        sub.textContent = '正在读取 DG1 身份信息与 DG2 高清人像...';
+      }, 850));
+
+      addNfcTimers.push(setTimeout(() => {
+        bar.style.width = '90%';
+        sub.textContent = '正在校验 SOD 国家数字签名...';
+      }, 1700));
+
+      addNfcTimers.push(setTimeout(() => {
+        completeAddPassportNfc();
+      }, 2400));
+    }
+
+    function completeAddPassportNfc() {
+      clearAddNfcTimers();
+      const scan = document.getElementById('addNfcScanning');
+      const done = document.getElementById('addNfcVerified');
+      if (scan) scan.classList.add('hidden');
+      if (done) done.classList.remove('hidden');
+    }
+
+    function skipAddNfc() {
+      clearAddNfcTimers();
+      state.docIndex = 0;
+      renderWalletTab();
+      closeAddSheet();
+      showToast('已按 MRZ 完成建档');
+    }
+
+    function finishAddPassportVerified() {
+      clearAddNfcTimers();
+      state.docIndex = 0;
+      renderWalletTab();
+      closeAddSheet();
+      showToast('电子普通护照已验真并加入卡包');
+    }
+
+    function submitManualPassport() {
+      const nameVal = (document.getElementById('manualPassName')?.value || '').trim();
+      const noVal = (document.getElementById('manualPassNo')?.value || '').trim();
+      const expVal = (document.getElementById('manualPassExp')?.value || '').trim();
+      const p = personData[state.person];
+      if (nameVal) p.name = nameVal.toUpperCase();
+      if (noVal) {
+        p.passportNo = noVal;
+        p.passportRaw = noVal.replace(/\s+/g, '');
+      }
+      if (expVal) p.expiryDate = expVal;
+
+      state.docIndex = 0;
+      renderWalletTab();
+      syncPersonDisplays();
+      closeAddSheet();
+      showToast('护照信息已保存');
+    }
+
+    function toggleManualVisaForm() {
+      state.addManualVisaOpen = !state.addManualVisaOpen;
+      renderAddSheet();
+    }
+
+    function setAddVisaMaterial(mat) {
+      state.addVisaMaterial = mat;
+      renderAddSheet();
+    }
+
+    function appendVisaAndFocus(card, msg) {
+      const idx = visas.findIndex(v => v.id === card.id);
+      if (idx >= 0) {
+        visas[idx] = card;
+      } else {
+        visas.push(card);
+      }
+      state.docIndex = card.docGroup === 'hkpermit' ? 1 : 0;
+      state.expandedVisaId = card.id;
+      renderWalletTab();
+      closeAddSheet();
+      showToast(msg);
+    }
+
+    function quickImportVisa(type) {
+      if (type === 'pdf') {
+        appendVisaAndFocus({
+          id: 'gbr_pdf',
+          docGroup: 'passport',
+          tone: 'tone-light',
+          title: '英国两年多次签',
+          subtitle: '标准访客电子签 · eVisa',
+          rightLabel: '有效期余',
+          rightValue: '730 天',
+          rightValueColor: '#1C1C1E',
+          visaNo: 'UK202690418',
+          stayDays: '180 天',
+          issueDate: '2026.11.24',
+          expiryDate: '2028.11.23',
+          cardGradient: 'linear-gradient(155deg, #F7F4EC 0%, #EBE5D8 100%)',
+          dividerColor: 'rgba(28, 28, 30, 0.10)',
+          mutedTextColor: 'rgba(28, 28, 30, 0.52)',
+          detailLinkColor: '#1C1C1E',
+          patternSvg: `
+            <svg class="pointer-events-none absolute -right-5 -bottom-6 w-40 h-40 opacity-[0.08]" viewBox="0 0 120 120" fill="none" stroke="#5C5548" stroke-width="0.9">
+              <circle cx="60" cy="60" r="22"/><circle cx="60" cy="60" r="38"/><circle cx="60" cy="60" r="54"/>
+              <line x1="6" y1="60" x2="114" y2="60"/><line x1="60" y1="6" x2="60" y2="114"/>
+            </svg>
+          `,
+          detailNote: '已从电子签 PDF 导入并关联当前电子普通护照，单次入境最长停留 180 天。'
+        }, '已导入英国两年多次签');
+      } else {
+        appendVisaAndFocus({
+          id: 'can_ocr',
+          docGroup: 'passport',
+          tone: 'tone-dark',
+          title: '加拿大十年多次签',
+          subtitle: 'V-1 访客贴纸签',
+          rightLabel: '状态',
+          rightValue: '有效',
+          rightValueColor: '#FFFFFF',
+          visaNo: 'CA55812093',
+          stayDays: '180 天',
+          issueDate: '2026.11.24',
+          expiryDate: '2033.05.13',
+          cardGradient: 'linear-gradient(155deg, #2D1A22 0%, #1B0E14 100%)',
+          dividerColor: 'rgba(255, 255, 255, 0.12)',
+          mutedTextColor: 'rgba(255, 255, 255, 0.56)',
+          detailLinkColor: '#FFFFFF',
+          patternSvg: `
+            <svg class="pointer-events-none absolute -right-4 -bottom-4 w-40 h-40 opacity-[0.07]" viewBox="0 0 120 120" fill="none" stroke="#F1D4D4" stroke-width="0.9">
+              <polygon points="60,14 72,44 104,44 78,64 88,96 60,76 32,96 42,64 16,44 48,44"/>
+            </svg>
+          `,
+          detailNote: '已通过拍摄识别纸质贴纸信息，签证有效期与当前护照同步。'
+        }, '已识别加拿大十年多次签');
+      }
+    }
+
+    function submitManualVisa() {
+      const title = (document.getElementById('inputVisaTitle')?.value || '').trim();
+      const visaNo = (document.getElementById('inputVisaNo')?.value || '').trim() || 'V20268819';
+      const stay = (document.getElementById('inputVisaStay')?.value || '').trim() || '90 天';
+      const exp = (document.getElementById('inputVisaExp')?.value || '').trim() || '2029.11.24';
+
+      if (!title) {
+        showToast('请填写国家与签证名称');
+        return;
+      }
+
+      const matMap = {
+        ivory: {
+          tone: 'tone-light',
+          grad: 'linear-gradient(155deg, #F7F4EC 0%, #EBE5D8 100%)',
+          divider: 'rgba(28, 28, 30, 0.10)',
+          muted: 'rgba(28, 28, 30, 0.52)',
+          valColor: '#1C1C1E',
+          stroke: '#5C5548'
+        },
+        navy: {
+          tone: 'tone-dark',
+          grad: 'linear-gradient(155deg, #162642 0%, #0D182C 100%)',
+          divider: 'rgba(255, 255, 255, 0.12)',
+          muted: 'rgba(255, 255, 255, 0.56)',
+          valColor: '#FFFFFF',
+          stroke: '#DABC86'
+        },
+        jade: {
+          tone: 'tone-dark',
+          grad: 'linear-gradient(155deg, #0E4D4A 0%, #093533 100%)',
+          divider: 'rgba(255, 255, 255, 0.12)',
+          muted: 'rgba(255, 255, 255, 0.56)',
+          valColor: '#FFFFFF',
+          stroke: '#CCFBF1'
+        }
+      };
+
+      const cfg = matMap[state.addVisaMaterial] || matMap.ivory;
+      appendVisaAndFocus({
+        id: 'manual_' + Date.now(),
+        docGroup: 'passport',
+        tone: cfg.tone,
+        title: title,
+        subtitle: '多次往返',
+        rightLabel: '状态',
+        rightValue: '有效',
+        rightValueColor: cfg.valColor,
+        visaNo: visaNo.toUpperCase(),
+        stayDays: stay,
+        issueDate: '2026.11.24',
+        expiryDate: exp,
+        cardGradient: cfg.grad,
+        dividerColor: cfg.divider,
+        mutedTextColor: cfg.muted,
+        detailLinkColor: cfg.valColor,
+        patternSvg: `
+          <svg class="pointer-events-none absolute -right-6 -bottom-6 w-40 h-40 opacity-[0.08]" viewBox="0 0 120 120" fill="none" stroke="${cfg.stroke}" stroke-width="0.9">
+            <circle cx="60" cy="60" r="24"/><circle cx="60" cy="60" r="40"/><circle cx="60" cy="60" r="56"/>
+          </svg>
+        `,
+        detailNote: `${title}（签证号 ${visaNo.toUpperCase()}），单次停留 ${stay}，有效期至 ${exp}。`
+      }, `已添加 ${title}`);
+    }
+
+    function quickAddEndorsement(region) {
+      const isHk = region === 'HKG';
+      const newCard = isHk ? {
+        id: 'hkg_new_' + Date.now(),
+        docGroup: 'hkpermit',
+        tone: 'tone-dark',
+        title: '赴港个人旅游签注',
+        subtitle: 'G 签 · 一年两次',
+        rightLabel: '可用余次',
+        rightValue: '剩余 2 次',
+        rightValueColor: '#FFFFFF',
+        visaNo: 'HK-2026-9921',
+        stayDays: '7 天 / 次',
+        issueDate: '2026.11.24',
+        expiryDate: '2027.11.23',
+        cardGradient: 'linear-gradient(155deg, #0E4D4A 0%, #093533 100%)',
+        dividerColor: 'rgba(255, 255, 255, 0.12)',
+        mutedTextColor: 'rgba(255, 255, 255, 0.58)',
+        detailLinkColor: '#FFFFFF',
+        patternSvg: `
+          <svg class="pointer-events-none absolute right-0 bottom-0 w-40 h-28 opacity-[0.07]" viewBox="0 0 160 100" fill="none" stroke="#CCFBF1" stroke-width="0.9">
+            <path d="M20,100 Q90,20 160,60 M45,100 Q108,35 160,78"/>
+          </svg>
+        `,
+        detailNote: '新录入赴港 1 年 2 次个人旅游签注，每次可停留 7 天。'
+      } : {
+        id: 'mac_new_' + Date.now(),
+        docGroup: 'hkpermit',
+        tone: 'tone-light',
+        title: '赴澳个人旅游签注',
+        subtitle: 'G 签 · 一年一次',
+        rightLabel: '可用余次',
+        rightValue: '剩余 1 次',
+        rightValueColor: '#1C1C1E',
+        visaNo: 'MO-2026-7741',
+        stayDays: '7 天 / 次',
+        issueDate: '2026.11.24',
+        expiryDate: '2027.11.23',
+        cardGradient: 'linear-gradient(155deg, #F5F4EE 0%, #E8E5DA 100%)',
+        dividerColor: 'rgba(28, 28, 30, 0.10)',
+        mutedTextColor: 'rgba(28, 28, 30, 0.52)',
+        detailLinkColor: '#1C1C1E',
+        patternSvg: `
+          <svg class="pointer-events-none absolute right-0 bottom-0 w-40 h-28 opacity-[0.08]" viewBox="0 0 160 100" fill="none" stroke="#5A5346" stroke-width="0.8">
+            <path d="M10,95 C55,40 115,40 160,95"/>
+          </svg>
+        `,
+        detailNote: '新录入赴澳 1 年 1 次个人旅游签注，每次可停留 7 天。'
+      };
+
+      appendVisaAndFocus(newCard, isHk ? '已添加赴港 1 年 2 次签注' : '已添加赴澳 1 年 1 次签注');
+    }
+
+    /* -------------------- 9. Tab 2: Explore Renderer -------------------- */
+    function renderExploreTab() {
+      const hasUsa = state.overlays.usa;
+      const hasSch = state.overlays.sch;
+      const hasJpn = state.overlays.jpn;
+
+      let bonus = 0;
+      if (hasUsa) bonus += 22;
+      if (hasSch) bonus += 15;
+      if (hasJpn) bonus += 9;
+      const total = 48 + bonus;
+
+      const totalBadge = document.getElementById('totalVisaFreeBadge');
+      const heroCount = document.getElementById('mapHeroCount');
+      const bonusNum = document.getElementById('bonusCountNum');
+      if (totalBadge) totalBadge.textContent = `已解锁 ${total} 国`;
+      if (heroCount) heroCount.textContent = total;
+      if (bonusNum) bonusNum.textContent = `+${bonus}`;
+
+      renderDotMatrixMap();
+
+      const filtered = exploreCountries.filter(c => {
+        if (c.requires.length === 0) return true;
+        return c.requires.some(req => state.overlays[req]);
+      });
+
+      const listCount = document.getElementById('exploreListCount');
+      const listEl = document.getElementById('exploreCountryList');
+      if (listCount) listCount.textContent = filtered.length;
+      if (!listEl) return;
+
+      listEl.innerHTML = filtered.map(c => `
+        <button onclick="openCountrySheet('${c.code}')" class="ios-row-divider ios-row-divider-dest w-full px-4 py-3.5 flex items-center justify-between text-left active:opacity-75 transition">
+          <div class="flex items-center gap-3 min-w-0 pr-2">
+            <span class="w-9 h-7 rounded-[8px] flex items-center justify-center font-mono-doc text-[11px] font-semibold shrink-0"
+                  style="background-color: var(--bg-fill); color: var(--text-primary);">
+              ${c.code}
+            </span>
+            <div class="min-w-0">
+              <div class="text-[15px] font-medium leading-snug truncate">${c.name}</div>
+              <div class="text-[12px] font-normal mt-0.5 truncate" style="color: var(--text-secondary);">${c.rule}</div>
+            </div>
+          </div>
+
+          <div class="flex items-center gap-1.5 shrink-0 tabular-nums">
+            <span class="text-[14px] font-medium" style="color: var(--text-secondary);">${c.maxStay}</span>
+            <svg class="w-3.5 h-3.5 opacity-30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M9 18l6-6-6-6"/></svg>
+          </div>
+        </button>
+      `).join('');
+    }
+
+    function toggleOverlayFilter(key) {
+      state.overlays[key] = !state.overlays[key];
+      const mapId = { usa: 'filterPillUsa', sch: 'filterPillSch', jpn: 'filterPillJpn' };
+      const el = document.getElementById(mapId[key]);
+      if (el) {
+        el.className = state.overlays[key]
+          ? 'py-1.5 px-2 rounded-[12px] text-[12px] font-medium transition text-center bg-white text-black'
+          : 'py-1.5 px-2 rounded-[12px] text-[12px] font-medium transition text-center bg-white/10 text-white/50';
+      }
+      renderExploreTab();
+    }
+
+    function openCountrySheet(code) {
+      const c = exploreCountries.find(item => item.code === code);
+      const body = document.getElementById('countryDetailSheetBody');
+      if (!c || !body) return;
+
+      body.innerHTML = `
+        <div class="flex items-start justify-between mb-4">
+          <div class="flex items-center gap-3">
+            <div class="w-11 h-11 rounded-[12px] flex items-center justify-center font-mono-doc text-[13px] font-semibold" style="background-color: var(--bg-surface); box-shadow: var(--surface-shadow);">
+              ${c.code}
+            </div>
+            <div>
+              <h3 class="text-[20px] font-bold tracking-tight leading-tight">${c.name}</h3>
+              <p class="text-[12px] mt-0.5" style="color: var(--text-secondary);">${c.enName} · ${c.rule}</p>
+            </div>
+          </div>
+          <button onclick="closeSheet('countryDetailSheet')" class="text-[15px] font-semibold" style="color: var(--accent);">完成</button>
+        </div>
+
+        <div class="ios-group grid grid-cols-3 divide-x divide-[var(--border-hairline)] py-3 mb-4 text-center tabular-nums">
+          <div>
+            <div class="text-[11px]" style="color: var(--text-tertiary);">停留期限</div>
+            <div class="text-[15px] font-semibold mt-0.5">${c.maxStay}</div>
+          </div>
+          <div>
+            <div class="text-[11px]" style="color: var(--text-tertiary);">激活要求</div>
+            <div class="text-[14px] font-semibold mt-0.5">${c.activationShort}</div>
+          </div>
+          <div>
+            <div class="text-[11px]" style="color: var(--text-tertiary);">核验日期</div>
+            <div class="text-[14px] font-mono-doc font-medium mt-0.5">${c.verifiedAt}</div>
+          </div>
+        </div>
+
+        <div class="ios-group divide-y divide-[var(--border-hairline)]">
+          <div class="px-4 py-3">
+            <div class="text-[12px] font-medium" style="color: var(--text-secondary);">签证门槛</div>
+            <p class="text-[14px] font-normal leading-relaxed mt-1">${c.dim1}</p>
+          </div>
+          <div class="px-4 py-3">
+            <div class="text-[12px] font-medium" style="color: var(--text-secondary);">激活要求</div>
+            <p class="text-[14px] font-normal leading-relaxed mt-1">${c.dim2}</p>
+          </div>
+          <div class="px-4 py-3">
+            <div class="text-[12px] font-medium" style="color: var(--text-secondary);">停留期限</div>
+            <p class="text-[14px] font-normal leading-relaxed mt-1">${c.dim3}</p>
+          </div>
+          <div class="px-4 py-3">
+            <div class="text-[12px] font-medium" style="color: var(--text-secondary);">附加前提</div>
+            <p class="text-[14px] font-normal leading-relaxed mt-1">${c.dim4}</p>
+          </div>
+        </div>
+      `;
+      openSheet('countryDetailSheet');
+    }
+
+    /* -------------------- 10. Visa Detail Sheet -------------------- */
+    function openVisaSheet(visaId) {
+      const v = visas.find(item => item.id === visaId);
+      const body = document.getElementById('visaDetailSheetBody');
+      if (!v || !body) return;
+
+      body.innerHTML = `
+        <div class="flex items-center justify-between mb-4">
+          <div>
+            <h3 class="text-[19px] font-semibold tracking-tight">${v.title}</h3>
+            <p class="text-[12px] mt-0.5" style="color: var(--text-secondary);">${v.subtitle} · ${v.rightLabel} ${v.rightValue}</p>
+          </div>
+          <button onclick="closeSheet('visaDetailSheet')" class="text-[15px] font-semibold" style="color: var(--accent);">完成</button>
+        </div>
+
+        <div class="ios-group divide-y divide-[var(--border-hairline)] mb-4 text-[14px] tabular-nums">
+          <div class="px-4 py-3 flex justify-between">
+            <span style="color: var(--text-secondary);">签证号</span>
+            <span class="font-mono-doc font-semibold">${v.visaNo}</span>
+          </div>
+          <div class="px-4 py-3 flex justify-between">
+            <span style="color: var(--text-secondary);">单次停留</span>
+            <span class="font-medium">${v.stayDays}</span>
+          </div>
+          <div class="px-4 py-3 flex justify-between">
+            <span style="color: var(--text-secondary);">有效期</span>
+            <span class="font-mono-doc">${v.issueDate} — ${v.expiryDate}</span>
+          </div>
+        </div>
+
+        <div class="ios-group p-4 text-[13px] font-normal leading-relaxed" style="color: var(--text-secondary);">
+          ${v.detailNote}
+        </div>
+      `;
+      openSheet('visaDetailSheet');
+    }
+
+    /* -------------------- 11. Watermark Workbench Logic -------------------- */
+    function renderTiledWatermarks() {
+      const container = document.getElementById('wmTiledOverlay');
+      if (!container) return;
+      const unit = `${state.wmText} · 2026-11-24`;
+      const rowStr = Array(5).fill(unit).join('   ·   ');
+      container.style.opacity = (state.wmOpacity / 100).toFixed(2);
+      container.style.fontSize = `${state.wmFontSize}px`;
+
+      container.innerHTML = Array.from({ length: 9 }, (_, idx) => `
+        <div class="whitespace-nowrap font-semibold tracking-wider text-white/90" style="margin-left: ${(idx % 2) * -42}px;">
+          ${rowStr}
+        </div>
+      `).join('');
+    }
+
+    function updateWmTagStyles(activeIndex) {
+      for (let i = 0; i < 4; i++) {
+        const btn = document.getElementById('wmTagBtn' + i);
+        if (!btn) continue;
+        if (i === activeIndex) {
+          btn.style.backgroundColor = 'var(--accent)';
+          btn.style.color = '#FFFFFF';
+        } else {
+          btn.style.backgroundColor = 'var(--bg-surface)';
+          btn.style.color = 'var(--text-primary)';
+        }
+      }
+    }
+
+    function selectWmTag(index, text) {
+      state.wmText = text;
+      const box = document.getElementById('wmCustomInputBox');
+      if (box) box.classList.add('hidden');
+      updateWmTagStyles(index);
+      renderTiledWatermarks();
+    }
+
+    function selectWmCustom() {
+      updateWmTagStyles(3);
+      const box = document.getElementById('wmCustomInputBox');
+      const input = document.getElementById('wmCustomInput');
+      if (box) box.classList.remove('hidden');
+      if (input) state.wmText = input.value.trim() || '自定义用途';
+      renderTiledWatermarks();
+    }
+
+    function updateCustomWatermarkText(val) {
+      state.wmText = val.trim() || '自定义用途';
+      const lbl = document.getElementById('wmCustomBtnLabel');
+      if (lbl) lbl.textContent = state.wmText.length > 8 ? state.wmText.slice(0, 7) + '…' : state.wmText;
+      renderTiledWatermarks();
+    }
+
+    function updateWmOpacity(val) {
+      state.wmOpacity = parseInt(val, 10);
+      const el = document.getElementById('wmOpacityVal');
+      if (el) el.textContent = state.wmOpacity + '%';
+      renderTiledWatermarks();
+    }
+
+    function updateWmFontSize(val) {
+      state.wmFontSize = parseInt(val, 10);
+      const el = document.getElementById('wmSizeVal');
+      if (el) el.textContent = state.wmFontSize + 'px';
+      renderTiledWatermarks();
+    }
+
+    function toggleWmRedact(field, checked) {
+      state.wmRedact[field] = checked;
+      if (field === 'avatar') {
+        document.getElementById('wmAvatarRedacted')?.classList.toggle('hidden', !checked);
+        document.getElementById('wmAvatarRaw')?.classList.toggle('hidden', checked);
+      } else if (field === 'mrz') {
+        document.getElementById('wmMrzRedacted')?.classList.toggle('hidden', !checked);
+        document.getElementById('wmMrzRaw')?.classList.toggle('hidden', checked);
+      } else if (field === 'sign') {
+        const signEl = document.getElementById('wmSignBox');
+        if (!signEl) return;
+        if (checked) {
+          signEl.textContent = 'REDACTED';
+          signEl.className = 'text-[10px] font-mono-doc bg-[#09090B] text-[#09090B] px-2 py-0.5 rounded select-none';
+        } else {
+          signEl.textContent = 'Wang Weimin';
+          signEl.className = 'text-[12px] font-serif italic text-[#DABC86] px-1 py-0.5 rounded';
+        }
+      } else if (field === 'dob') {
+        const dobEl = document.getElementById('wmDobBox');
+        if (!dobEl) return;
+        if (checked) {
+          dobEl.textContent = '██████████';
+          dobEl.className = 'text-[11px] font-mono-doc bg-[#09090B] text-[#09090B] px-1.5 rounded select-none mt-0.5 inline-block';
+        } else {
+          dobEl.textContent = personData[state.person].dob;
+          dobEl.className = 'text-[12px] font-mono-doc font-medium tabular-nums leading-tight mt-0.5';
+        }
+      }
+    }
+
+    /* -------------------- 12. Standalone NFC Modal Logic -------------------- */
+    let standaloneNfcTimers = [];
+
+    function clearStandaloneNfcTimers() {
+      standaloneNfcTimers.forEach(t => clearTimeout(t));
+      standaloneNfcTimers = [];
+    }
+
+    function openNfcSheet() {
+      const p = personData[state.person];
+      const nameEl = document.getElementById('nfcVerifiedName');
+      const metaEl = document.getElementById('nfcVerifiedMeta');
+      if (nameEl) nameEl.textContent = p.name;
+      if (metaEl) metaEl.textContent = `SOD · CN-8920-4410 · ${p.passportRaw}`;
+      openSheet('nfcSheet');
+      restartStandaloneNfc();
+    }
+
+    function closeNfcSheet() {
+      clearStandaloneNfcTimers();
+      closeSheet('nfcSheet');
+    }
+
+    function restartStandaloneNfc() {
+      clearStandaloneNfcTimers();
+      const scanStage = document.getElementById('nfcScanningStage');
+      const successStage = document.getElementById('nfcSuccessStage');
+      const bar = document.getElementById('nfcProgressBar');
+      const subText = document.getElementById('nfcStepSubText');
+      if (!scanStage || !successStage || !bar || !subText) return;
+
+      scanStage.classList.remove('hidden');
+      successStage.classList.add('hidden');
+      bar.style.width = '18%';
+      subText.innerHTML = '正在校验 BAC 访问密钥<br/>准备读取 DG1 与 DG2 数据组';
+
+      standaloneNfcTimers.push(setTimeout(() => {
+        bar.style.width = '58%';
+        subText.innerHTML = '已识别 ICAO 9303 芯片<br/>正在校验 DG2 人像与 SOD 数字签名';
+      }, 900));
+
+      standaloneNfcTimers.push(setTimeout(() => {
+        bar.style.width = '92%';
+      }, 1750));
+
+      standaloneNfcTimers.push(setTimeout(() => {
+        triggerStandaloneNfcSuccess();
+      }, 2400));
+    }
+
+    function triggerStandaloneNfcSuccess() {
+      clearStandaloneNfcTimers();
+      document.getElementById('nfcScanningStage')?.classList.add('hidden');
+      document.getElementById('nfcSuccessStage')?.classList.remove('hidden');
+    }
+
+    /* -------------------- 13. 48-Page Ledger & Schengen Simulator -------------------- */
+    function renderPagesGrid() {
+      const mount = document.getElementById('pagesGridMount');
+      if (!mount) return;
+
+      let blank = 0, stamp = 0, visa = 0;
+
+      mount.innerHTML = state.blankPages.map((st, idx) => {
+        const pageNum = idx + 1;
+        if (st === 'blank') blank++;
+        if (st === 'stamp') stamp++;
+        if (st === 'visa') visa++;
+
+        let styleStr = 'background-color: rgba(52,199,89,0.14); color: #248A3D;';
+        let tag = '空';
+        if (st === 'reserved') {
+          styleStr = 'background-color: var(--bg-fill); color: var(--text-tertiary); cursor: not-allowed;';
+          tag = '资';
+        } else if (st === 'stamp') {
+          styleStr = 'background-color: rgba(255,159,10,0.16); color: #C97A00;';
+          tag = '章';
+        } else if (st === 'visa') {
+          styleStr = 'background-color: var(--accent); color: #FFFFFF;';
+          tag = '签';
+        }
+
+        return `
+          <button onclick="cyclePageState(${idx})" class="h-10 rounded-[10px] text-[11px] font-mono-doc tabular-nums flex flex-col items-center justify-center transition active:scale-95" style="${styleStr}">
+            <span class="font-semibold leading-none">${pageNum}</span>
+            <span class="text-[9px] opacity-80 mt-0.5">${tag}</span>
+          </button>
+        `;
+      }).join('');
+
+      document.getElementById('sheetBlankCount').textContent = blank;
+      document.getElementById('sheetStampCount').textContent = stamp;
+      document.getElementById('sheetVisaCount').textContent = visa;
+      document.getElementById('exploreAvailablePagesNum').textContent = blank;
+
+      const usable = 44;
+      document.getElementById('barBlankSeg').style.width = ((blank / usable) * 100).toFixed(1) + '%';
+      document.getElementById('barStampSeg').style.width = ((stamp / usable) * 100).toFixed(1) + '%';
+      document.getElementById('barVisaSeg').style.width = ((visa / usable) * 100).toFixed(1) + '%';
+    }
+
+    function cyclePageState(idx) {
+      if (idx < 4) return;
+      const order = ['blank', 'stamp', 'visa'];
+      const cur = state.blankPages[idx];
+      state.blankPages[idx] = order[(order.indexOf(cur) + 1) % order.length];
+      renderPagesGrid();
+    }
+
+    function updateSchengenSim(val) {
+      const addDays = parseInt(val, 10);
+      const totalUsed = 22 + addDays;
+      const remain = Math.max(0, 90 - totalUsed);
+      const isOver = totalUsed > 90;
+
+      document.getElementById('schengenSliderVal').textContent = `${addDays} 天`;
+      const remainEl = document.getElementById('schengenSimRemain');
+      remainEl.textContent = isOver ? `超期 ${totalUsed - 90} 天` : `${remain} 天`;
+      remainEl.style.color = isOver ? 'var(--sem-red)' : 'var(--sem-green)';
+
+      document.getElementById('schengenSimUsed').textContent = `${totalUsed} / 90 天 · ${isOver ? '超期预警' : '合规'}`;
+      const bar = document.getElementById('schengenSimBar');
+      bar.style.width = Math.min(75.6, (addDays / 90) * 100) + '%';
+      bar.style.backgroundColor = isOver ? 'var(--sem-red)' : 'var(--accent)';
+    }
+
+    /* -------------------- 14. Global Navigation, Theme & Utilities -------------------- */
+    function switchTab(tabId) {
+      ['wallet', 'explore', 'arrival', 'settings'].forEach(t => {
+        document.getElementById('tab-' + t)?.classList.toggle('hidden', t !== tabId);
+      });
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.getAttribute('data-tabbtn') === tabId);
+      });
+      const scroller = document.getElementById('mainScroll');
+      if (scroller) scroller.scrollTop = 0;
+    }
+
+    function toggleDarkMode() {
+      state.mode = state.mode === 'light' ? 'dark' : 'light';
+      document.getElementById('phoneRoot')?.setAttribute('data-mode', state.mode);
+      const lbl = document.getElementById('labelThemeMode');
+      if (lbl) lbl.textContent = state.mode === 'light' ? '浅色模式' : '深色模式';
+      renderWalletTab();
+    }
+
+    function syncPersonDisplays() {
+      const p = personData[state.person];
+      document.getElementById('currentPersonBadge').textContent = p.badge;
+      document.getElementById('settingsAvatarCircle').textContent = p.badge;
+      document.getElementById('settingsProfileName').textContent = p.cnName;
+      document.getElementById('settingsProfileSub').textContent = p.subDesc;
+
+      document.getElementById('wmCardName').textContent = p.name;
+      document.getElementById('wmCardNo').textContent = p.passportNo;
+      if (!state.wmRedact.dob) {
+        document.getElementById('wmDobBox').textContent = p.dob;
+      }
+
+      document.getElementById('arrivalPassNoText').textContent = p.passportNo;
+      document.getElementById('arrivalNameText').textContent = p.name;
+      document.getElementById('arrivalDobText').textContent = p.dob;
+      const oldPassRow = document.getElementById('arrivalOldPassRow');
+      if (p.oldPassportNo) {
+        oldPassRow.classList.remove('hidden');
+        document.getElementById('arrivalOldPassNo').textContent = p.oldPassportNo;
+      } else {
+        oldPassRow.classList.add('hidden');
+      }
+    }
+
+    function switchPerson(who) {
+      state.person = who;
+      syncPersonDisplays();
+
+      document.getElementById('familyCheckSelf')?.classList.toggle('hidden', who !== 'self');
+      document.getElementById('familyCheckFamily')?.classList.toggle('hidden', who !== 'family');
+
+      document.getElementById('btnPersonSelf').className = who === 'self'
+        ? 'px-2.5 py-1 rounded-[9px] text-[11px] font-medium transition bg-white text-black'
+        : 'px-2.5 py-1 rounded-[9px] text-[11px] font-medium transition text-zinc-400 hover:text-white';
+      document.getElementById('btnPersonFamily').className = who === 'family'
+        ? 'px-2.5 py-1 rounded-[9px] text-[11px] font-medium transition bg-[#FF453A] text-white'
+        : 'px-2.5 py-1 rounded-[9px] text-[11px] font-medium transition text-zinc-400 hover:text-white';
+
+      renderWalletTab();
+      showToast(who === 'family' ? '已切换至家人 · 预警态' : '已切换至本人 · 正常态');
+    }
+
+    function setDocIndex(idx) {
+      state.docIndex = idx;
+      state.expandedVisaId = null;
+      renderWalletTab();
+    }
+
+    function togglePrivacyMask() {
+      state.privacyMasked = !state.privacyMasked;
+      renderWalletTab();
+      showToast(state.privacyMasked ? '证件号码已隐藏' : '证件号码已显示');
+    }
+
+    function cycleGracePeriod() {
+      const options = ['立即锁定', '1 分钟', '5 分钟'];
+      state.graceIdx = (state.graceIdx + 1) % options.length;
+      document.getElementById('gracePeriodLabel').textContent = options[state.graceIdx];
+      showToast('后台免密宽限期：' + options[state.graceIdx]);
+    }
+
+    function toggleMaxBrightness() {
+      const phone = document.getElementById('phoneRoot');
+      const isMax = phone.classList.toggle('max-bright');
+      document.getElementById('txtMaxBright').textContent = isMax ? '已增亮' : '高亮扫码';
+      showToast(isMax ? '屏幕已调至最高亮度' : '已恢复正常亮度');
+    }
+
+    function switchQrTab(type) {
+      const immBtn = document.getElementById('qrBtnImm');
+      const taxBtn = document.getElementById('qrBtnTax');
+      const title = document.getElementById('qrTypeTitle');
+      const dataGroup = document.getElementById('qrDataGroup');
+
+      if (type === 'immigration') {
+        immBtn.classList.add('active');
+        taxBtn.classList.remove('active');
+        title.textContent = 'Visit Japan Web · 入境与海关申报';
+        dataGroup.setAttribute('transform', '');
+      } else {
+        taxBtn.classList.add('active');
+        immBtn.classList.remove('active');
+        title.textContent = 'Visit Japan Web · 免税购物专用码';
+        dataGroup.setAttribute('transform', 'translate(100, 0) scale(-1, 1)');
+      }
+    }
+
+    function copyCurrentPassportNo() {
+      copyText(personData[state.person].passportRaw, '护照号码已复制');
+    }
+
+    function copyText(txt, msg) {
+      try {
+        const ta = document.createElement('textarea');
+        ta.value = txt;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+      } catch (err) {
+        // Fallback silently
+      }
+      showToast(msg || '已复制');
+    }
+
+    function openSheet(id) {
+      document.getElementById(id)?.classList.add('open');
+    }
+
+    function closeSheet(id) {
+      document.getElementById(id)?.classList.remove('open');
+    }
+
+    function closeSheetOnBg(e, id) {
+      if (e.target.id === id) {
+        if (id === 'nfcSheet') closeNfcSheet();
+        else if (id === 'addSheet') closeAddSheet();
+        else closeSheet(id);
+      }
+    }
+
+    let toastTimer = null;
+    function showToast(msg) {
+      const t = document.getElementById('iosToast');
+      if (!t) return;
+      t.textContent = msg;
+      t.classList.remove('opacity-0');
+      t.classList.add('opacity-100');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => {
+        t.classList.remove('opacity-100');
+        t.classList.add('opacity-0');
+      }, 2000);
+    }
+
+    /* -------------------- 15. Bootstrap -------------------- */
+    window.addEventListener('DOMContentLoaded', () => {
+      syncPersonDisplays();
+      renderWalletTab();
+      renderExploreTab();
+      renderPagesGrid();
+      renderTiledWatermarks();
+    });
+  </script>
+</body>
+</html>
