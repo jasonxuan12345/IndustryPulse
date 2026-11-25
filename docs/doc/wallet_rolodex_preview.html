@@ -1,0 +1,1923 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Passport Holder — 卡包 3D 滚轮交互预览（真纸质签证版式）</title>
+  <script src="https://www.gstatic.com/antigravity/web/dev/tailwindcss.min.js"></script>
+  <style>
+    :root {
+      --font-sans: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'PingFang SC', 'Helvetica Neue', sans-serif;
+      --font-mono: 'SF Mono', ui-monospace, Menlo, Monaco, monospace;
+
+      --bg-canvas: #F2F2F7;
+      --bg-surface: #FFFFFF;
+      --bg-fill: rgba(118, 118, 128, 0.12);
+      --border-hairline: rgba(60, 60, 67, 0.12);
+
+      --text-primary: #000000;
+      --text-secondary: #636366;
+      --text-tertiary: #8E8E93;
+
+      --accent: #007AFF;
+      --accent-soft: rgba(0, 122, 255, 0.10);
+      --sem-green: #34C759;
+
+      --surface-shadow: 0 1px 2px rgba(0, 0, 0, 0.03), 0 0 0 0.5px rgba(0, 0, 0, 0.06);
+      --seg-active: #FFFFFF;
+      --seg-shadow: 0 1px 2px rgba(0, 0, 0, 0.10), 0 0 0 0.5px rgba(0, 0, 0, 0.04);
+
+      --tabbar-bg: rgba(255, 255, 255, 0.84);
+      --tabbar-border: rgba(0, 0, 0, 0.08);
+      --tabbar-active: rgba(0, 0, 0, 0.055);
+      --sheet-bg: #F2F2F7;
+    }
+
+    [data-mode="dark"] {
+      --bg-canvas: #000000;
+      --bg-surface: #1C1C1E;
+      --bg-fill: rgba(118, 118, 128, 0.24);
+      --border-hairline: rgba(84, 84, 88, 0.45);
+
+      --text-primary: #FFFFFF;
+      --text-secondary: #98989F;
+      --text-tertiary: #636366;
+
+      --accent: #0A84FF;
+      --accent-soft: rgba(10, 132, 255, 0.18);
+      --sem-green: #30D158;
+
+      --surface-shadow: inset 0 0.5px 0 rgba(255, 255, 255, 0.08), inset 0 0 0 0.5px rgba(255, 255, 255, 0.05);
+      --seg-active: #3A3A3C;
+      --seg-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+
+      --tabbar-bg: rgba(28, 28, 30, 0.82);
+      --tabbar-border: rgba(255, 255, 255, 0.10);
+      --tabbar-active: rgba(255, 255, 255, 0.11);
+      --sheet-bg: #121214;
+    }
+
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+
+    body {
+      font-family: var(--font-sans);
+      background-color: #0B0B0D;
+      color: var(--text-primary);
+      margin: 0;
+      padding: 0;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .tabular-nums { font-variant-numeric: tabular-nums; font-feature-settings: "tnum" 1; }
+    .font-mono-doc { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+    .phone-viewport {
+      width: 393px;
+      height: 852px;
+      max-width: 100%;
+      background-color: var(--bg-canvas);
+      color: var(--text-primary);
+      border-radius: 52px;
+      position: relative;
+      overflow: hidden;
+      box-shadow:
+        0 0 0 10px #1A1A1D,
+        0 0 0 11.5px #333339,
+        0 32px 84px -18px rgba(0, 0, 0, 0.85);
+      transition: background-color 0.24s ease, color 0.24s ease;
+    }
+
+    .ios-group {
+      background-color: var(--bg-surface);
+      border-radius: 16px;
+      box-shadow: var(--surface-shadow);
+    }
+
+    .ios-row-divider { position: relative; }
+    .ios-row-divider:not(:last-child)::after {
+      content: "";
+      position: absolute;
+      bottom: 0;
+      right: 0;
+      left: 56px;
+      height: 0.5px;
+      background-color: var(--border-hairline);
+    }
+
+    /* Frosted Glass Capsule Filter */
+    .rolodex-capsule-bar {
+      position: relative;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      padding: 3px;
+      border-radius: 999px;
+      background-color: rgba(118, 118, 128, 0.12);
+      backdrop-filter: blur(22px) saturate(180%);
+      -webkit-backdrop-filter: blur(22px) saturate(180%);
+      border: 0.5px solid rgba(60, 60, 67, 0.10);
+    }
+    [data-mode="dark"] .rolodex-capsule-bar {
+      background-color: rgba(118, 118, 128, 0.24);
+      border-color: rgba(255, 255, 255, 0.10);
+    }
+    .rolodex-capsule-thumb {
+      position: absolute;
+      top: 3px;
+      bottom: 3px;
+      left: 3px;
+      width: calc((100% - 6px) / 3);
+      border-radius: 999px;
+      background-color: var(--seg-active);
+      box-shadow: var(--seg-shadow);
+      transition: transform 0.38s cubic-bezier(0.22, 1.18, 0.36, 1);
+      pointer-events: none;
+    }
+    .rolodex-capsule-btn {
+      position: relative;
+      z-index: 2;
+      padding: 6px 4px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      text-align: center;
+      white-space: nowrap;
+      transition: color 0.2s ease;
+    }
+    .rolodex-capsule-btn.active {
+      color: var(--text-primary);
+      font-weight: 600;
+    }
+
+    /* 3D Vertical Rolodex Stage */
+    .rolodex-stage {
+      position: relative;
+      width: 100%;
+      flex: 1;
+      min-height: 460px;
+      perspective: 1150px;
+      touch-action: none;
+      cursor: grab;
+      overflow: visible;
+    }
+    .rolodex-stage.is-dragging { cursor: grabbing; }
+
+    .rolodex-card {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 50%;
+      height: 222px;
+      margin-top: -111px;
+      border-radius: 24px;
+      overflow: hidden;
+      will-change: transform, opacity;
+      transform-origin: center center;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      transition: box-shadow 0.28s ease;
+    }
+
+    .rolodex-card.tone-dark {
+      color: #FFFFFF;
+      box-shadow:
+        inset 0 0.5px 0 rgba(255, 255, 255, 0.22),
+        inset 0 0 0 0.5px rgba(255, 255, 255, 0.08),
+        0 10px 26px -6px rgba(0, 0, 0, 0.24),
+        0 2px 6px rgba(0, 0, 0, 0.12);
+    }
+    .rolodex-card.tone-light {
+      color: #1C1C1E;
+      box-shadow:
+        inset 0 0.5px 0 rgba(255, 255, 255, 0.92),
+        inset 0 0 0 0.5px rgba(28, 28, 30, 0.11),
+        0 10px 26px -6px rgba(0, 0, 0, 0.12),
+        0 2px 6px rgba(0, 0, 0, 0.06);
+    }
+    [data-mode="dark"] .rolodex-card.tone-dark {
+      box-shadow:
+        inset 0 0.5px 0 rgba(255, 255, 255, 0.20),
+        inset 0 0 0 0.5px rgba(255, 255, 255, 0.10),
+        0 14px 32px -4px rgba(0, 0, 0, 0.72),
+        0 2px 8px rgba(0, 0, 0, 0.45);
+    }
+    [data-mode="dark"] .rolodex-card.tone-light {
+      box-shadow:
+        inset 0 0.5px 0 rgba(255, 255, 255, 0.85),
+        inset 0 0 0 0.5px rgba(255, 255, 255, 0.16),
+        0 14px 32px -4px rgba(0, 0, 0, 0.72),
+        0 2px 8px rgba(0, 0, 0, 0.45);
+    }
+    .rolodex-card.is-active.tone-dark {
+      box-shadow:
+        inset 0 0.5px 0 rgba(255, 255, 255, 0.26),
+        inset 0 0 0 0.5px rgba(255, 255, 255, 0.12),
+        0 18px 40px -8px rgba(0, 0, 0, 0.34),
+        0 4px 12px rgba(0, 0, 0, 0.14);
+    }
+    .rolodex-card.is-active.tone-light {
+      box-shadow:
+        inset 0 0.5px 0 rgba(255, 255, 255, 0.96),
+        inset 0 0 0 0.5px rgba(28, 28, 30, 0.12),
+        0 18px 40px -8px rgba(0, 0, 0, 0.16),
+        0 4px 12px rgba(0, 0, 0, 0.08);
+    }
+
+    .card-top-horizon {
+      height: 42px;
+      padding: 9px 18px 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: relative;
+      z-index: 4;
+      flex-shrink: 0;
+    }
+    .card-mid-zone {
+      flex: 1;
+      padding: 6px 18px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      position: relative;
+      z-index: 4;
+    }
+    .card-bottom-horizon {
+      height: 34px;
+      padding: 0 18px 9px;
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      position: relative;
+      z-index: 4;
+      flex-shrink: 0;
+    }
+
+    .passport-cover-bg { background: linear-gradient(145deg, #641B2B 0%, #48111E 55%, #300A13 100%); }
+    .permit-cover-bg { background: linear-gradient(135deg, #DDEEF9 0%, #E8DCF0 48%, #D4E4F2 100%); }
+    .cover-inner-frame {
+      position: absolute;
+      inset: 8px;
+      border-radius: 16px;
+      pointer-events: none;
+      border: 0.5px solid rgba(218, 188, 134, 0.26);
+      z-index: 2;
+    }
+    .cover-inner-frame-silver { border-color: rgba(45, 72, 105, 0.16); }
+    .cover-inner-frame-debossed {
+      border: 1px solid rgba(28, 28, 30, 0.075);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
+    }
+
+    /* Schengen Right Kinegram & Left Vertical Holographic Strips (Korea / Australia) */
+    .kinegram-strip,
+    .kinegram-left-strip {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      z-index: 3;
+      pointer-events: none;
+      background: linear-gradient(180deg,
+        rgba(205, 214, 224, 0.45) 0%,
+        rgba(236, 241, 246, 0.72) 28%,
+        rgba(190, 202, 214, 0.48) 60%,
+        rgba(224, 232, 240, 0.65) 100%);
+      border-left: 0.5px solid rgba(255, 255, 255, 0.65);
+      border-right: 0.5px solid rgba(0, 0, 0, 0.08);
+      opacity: 0.68;
+      transition: opacity 0.3s ease;
+      overflow: hidden;
+    }
+    .kinegram-strip {
+      right: 14px;
+      width: 17px;
+    }
+    .kinegram-left-strip {
+      left: 0;
+      width: 18px;
+      border-left: none;
+    }
+    .kinegram-strip::after,
+    .kinegram-left-strip::after {
+      content: "";
+      position: absolute;
+      inset: -40% 0;
+      background: linear-gradient(160deg,
+        transparent 15%,
+        rgba(56, 189, 248, 0.34) 32%,
+        rgba(192, 132, 252, 0.32) 48%,
+        rgba(250, 204, 21, 0.28) 62%,
+        rgba(52, 211, 153, 0.30) 76%,
+        transparent 90%);
+      opacity: 0;
+      transform: translateY(-20%);
+      transition: opacity 0.35s ease;
+    }
+    .rolodex-card.is-active .kinegram-strip,
+    .rolodex-card.is-active .kinegram-left-strip { opacity: 0.96; }
+    .rolodex-card.is-active .kinegram-strip::after,
+    .rolodex-card.is-active .kinegram-left-strip::after {
+      opacity: 1;
+      animation: kinegramSweep 3.8s ease-in-out infinite alternate;
+    }
+
+    /* UK Top-Right Silver Circular Crown Hologram */
+    .holo-uk-seal {
+      width: 24px;
+      height: 24px;
+      border-radius: 999px;
+      background: conic-gradient(from 120deg, #CBD5E1, #F8FAFC, #BAE6FD, #E2E8F0, #FEF3C7, #CBD5E1);
+      border: 0.5px solid rgba(255, 255, 255, 0.9);
+      box-shadow: inset 0 0 3px rgba(0, 0, 0, 0.14);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: transform 0.35s ease;
+    }
+    .rolodex-card.is-active .holo-uk-seal {
+      transform: rotate(-10deg) scale(1.04);
+    }
+
+    /* Thailand Left Segmented Metallic Security Thread */
+    .thai-thread {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: 11px;
+      width: 4px;
+      z-index: 3;
+      pointer-events: none;
+      background: repeating-linear-gradient(
+        180deg,
+        rgba(148, 163, 184, 0.65) 0px,
+        rgba(226, 232, 240, 0.9) 8px,
+        transparent 8px,
+        transparent 14px
+      );
+    }
+
+    /* Japan Sakura Holographic Seal */
+    .holo-sakura-seal {
+      width: 26px;
+      height: 26px;
+      border-radius: 999px;
+      background: conic-gradient(from 40deg, #E2E8F0, #FBCFE8, #BAE6FD, #DDD6FE, #E2E8F0);
+      border: 0.5px solid rgba(255, 255, 255, 0.88);
+      box-shadow: inset 0 0 4px rgba(0, 0, 0, 0.08);
+      opacity: 0.72;
+      transition: opacity 0.3s ease, transform 0.35s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .rolodex-card.is-active .holo-sakura-seal {
+      opacity: 0.96;
+      transform: rotate(14deg);
+    }
+
+    @keyframes kinegramSweep {
+      0% { transform: translateY(-18%); }
+      100% { transform: translateY(18%); }
+    }
+
+    /* Floating Tab Bar */
+    .floating-tabbar {
+      position: absolute;
+      bottom: 14px;
+      left: 16px;
+      right: 16px;
+      z-index: 20;
+      padding: 4px;
+      border-radius: 28px;
+      background-color: var(--tabbar-bg);
+      backdrop-filter: blur(28px) saturate(180%);
+      -webkit-backdrop-filter: blur(28px) saturate(180%);
+      border: 0.5px solid var(--tabbar-border);
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
+    }
+    [data-mode="dark"] .floating-tabbar {
+      box-shadow: inset 0 0.5px 0 rgba(255, 255, 255, 0.10);
+    }
+    .tab-btn {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 6px 0;
+      border-radius: 24px;
+      color: var(--text-tertiary);
+    }
+    .tab-btn.active {
+      background-color: var(--tabbar-active);
+      color: var(--accent);
+    }
+
+    /* Bottom Sheets */
+    .sheet-backdrop {
+      background: rgba(0, 0, 0, 0.38);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.24s ease;
+    }
+    .sheet-backdrop.open { opacity: 1; pointer-events: auto; }
+    .bottom-sheet {
+      transform: translateY(100%);
+      transition: transform 0.34s cubic-bezier(0.22, 1, 0.36, 1);
+      background-color: var(--sheet-bg);
+      border-top-left-radius: 32px;
+      border-top-right-radius: 32px;
+      box-shadow: inset 0 0.5px 0 rgba(255, 255, 255, 0.14);
+    }
+    .sheet-backdrop.open .bottom-sheet { transform: translateY(0); }
+
+    .polycarbonate-card {
+      position: relative;
+      border-radius: 24px;
+      overflow: hidden;
+      background: linear-gradient(145deg, #ECEBE6 0%, #E1DFD8 55%, #D7D5CE 100%);
+      color: #1C1C1E;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85), inset 0 0 0 0.5px rgba(28, 28, 30, 0.10);
+    }
+    [data-mode="dark"] .polycarbonate-card {
+      background: linear-gradient(145deg, #2A2A2E 0%, #202024 60%, #19191C 100%);
+      color: #F5F5F7;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), inset 0 0 0 0.5px rgba(255, 255, 255, 0.08);
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col items-center justify-start py-5 px-4">
+
+  <!-- Top Interactive Preview Bar -->
+  <header class="w-full max-w-[680px] mb-5 bg-[#151517] border border-white/10 rounded-2xl px-4 py-2.5 flex flex-wrap items-center justify-between gap-3">
+    <div class="flex items-center gap-2.5">
+      <div class="w-7 h-7 rounded-lg bg-[#48111E] border border-[#DABC86]/35 flex items-center justify-center text-[#DABC86]">
+        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <rect x="4" y="2.5" width="16" height="19" rx="2.5"/>
+          <circle cx="12" cy="10.5" r="3"/>
+          <path d="M8.5 17h7"/>
+        </svg>
+      </div>
+      <div class="flex items-baseline gap-2">
+        <span class="text-white text-[13px] font-semibold tracking-tight">Passport Holder</span>
+        <span class="text-[11px] text-zinc-400">iOS 26 物理弹簧 · 10 国真纸质签证版式</span>
+      </div>
+    </div>
+
+    <div class="flex items-center gap-2">
+      <div class="inline-flex rounded-xl bg-black/50 p-0.5 border border-white/10">
+        <button onclick="switchPerson('self')" id="btnPersonSelf" class="px-2.5 py-1 rounded-[9px] text-[11px] font-medium transition bg-white text-black">
+          本人 · 正常态
+        </button>
+        <button onclick="switchPerson('family')" id="btnPersonFamily" class="px-2.5 py-1 rounded-[9px] text-[11px] font-medium transition text-zinc-400 hover:text-white">
+          家人 · &lt;6个月预警
+        </button>
+      </div>
+
+      <button onclick="toggleDarkMode()" class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/15 text-[11px] text-white font-medium border border-white/10 transition">
+        <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+          <circle cx="12" cy="12" r="4"/>
+          <path d="M12 2v2m0 16v2M4.93 4.93l1.41 1.41m11.32 11.32l1.41 1.41M2 12h2m16 0h2M4.93 19.07l1.41-1.41m11.32-11.32l1.41-1.41"/>
+        </svg>
+        <span id="labelThemeMode">浅色模式</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- 393 x 852 iPhone Viewport -->
+  <div id="phoneRoot" class="phone-viewport flex flex-col" data-mode="light">
+    <!-- Status Bar + Dynamic Island -->
+    <div class="relative z-20 px-7 pt-3 pb-2 flex items-center justify-between shrink-0">
+      <span class="text-[14px] font-semibold tracking-tight tabular-nums w-12">9:41</span>
+      <div class="h-[29px] px-3.5 rounded-full bg-black text-white flex items-center justify-center gap-2">
+        <span class="w-1.5 h-1.5 rounded-full bg-[#30D158] shrink-0"></span>
+        <span class="text-[11px] font-medium tracking-wide tabular-nums whitespace-nowrap">JPN · NRT 就绪</span>
+      </div>
+      <div class="flex items-center justify-end gap-1.5 w-12">
+        <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
+          <rect x="2" y="15" width="3" height="6" rx="1"/><rect x="7" y="11" width="3" height="10" rx="1"/><rect x="12" y="7" width="3" height="14" rx="1"/><rect x="17" y="3" width="3" height="18" rx="1"/>
+        </svg>
+        <svg class="w-5 h-5" viewBox="0 0 26 16" fill="none">
+          <rect x="1" y="2.5" width="20" height="11" rx="3" stroke="currentColor" stroke-width="1.3" opacity="0.45"/>
+          <rect x="3" y="4.5" width="16" height="7" rx="1.6" fill="currentColor"/>
+          <path d="M23 6v4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" opacity="0.5"/>
+        </svg>
+      </div>
+    </div>
+
+    <!-- Main Rolodex Wallet Area -->
+    <main class="relative z-10 flex-1 overflow-hidden">
+      <section class="px-4 pt-1.5 pb-[82px] h-full flex flex-col">
+        <div class="flex items-center justify-between mb-3 shrink-0">
+          <h1 class="text-[32px] font-bold tracking-tight leading-none">卡包</h1>
+          <div class="flex items-center gap-2">
+            <button onclick="openSheet('familySheet')" title="切换成员"
+                    class="w-[34px] h-[34px] rounded-full flex items-center justify-center text-[13px] font-semibold transition active:scale-95"
+                    style="background-color: var(--bg-surface); color: var(--text-primary); box-shadow: var(--surface-shadow);">
+              <span id="currentPersonBadge">伟</span>
+            </button>
+            <button onclick="showToast('点击 + 可新增护照/签证或导入加密包')" title="添加到卡包"
+                    class="w-[34px] h-[34px] rounded-full flex items-center justify-center transition active:scale-95"
+                    style="background-color: var(--bg-surface); color: var(--text-primary); box-shadow: var(--surface-shadow);">
+              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                <path d="M12 5v14M5 12h14"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+        <div id="walletDynamicMount" class="flex-1 flex flex-col min-h-0"></div>
+      </section>
+    </main>
+
+    <!-- Floating Translucent Bottom Tab Bar -->
+    <nav class="floating-tabbar">
+      <div class="grid grid-cols-4 gap-1">
+        <button class="tab-btn active">
+          <svg class="w-[21px] h-[21px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="M3 10h18"/></svg>
+          <span class="text-[10px] font-medium mt-0.5">卡包</span>
+        </button>
+        <button onclick="showToast('当前为「卡包页」专项交互预览，完整 4 Tab 已同步至主文件')" class="tab-btn">
+          <svg class="w-[21px] h-[21px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M14.8 9.2l-2 5.6-5.6 2 2-5.6 5.6-2z"/></svg>
+          <span class="text-[10px] font-medium mt-0.5">探索</span>
+        </button>
+        <button onclick="showToast('当前为「卡包页」专项交互预览，完整 4 Tab 已同步至主文件')" class="tab-btn">
+          <svg class="w-[21px] h-[21px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="4" width="16" height="16" rx="2.5"/><path d="M4 9h16"/><path d="M9 14h6"/></svg>
+          <span class="text-[10px] font-medium mt-0.5">入境</span>
+        </button>
+        <button onclick="showToast('当前为「卡包页」专项交互预览，完整 4 Tab 已同步至主文件')" class="tab-btn">
+          <svg class="w-[21px] h-[21px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9c.26.6.85 1 1.51 1H21a2 2 0 0 1 0 4h-.09c-.66 0-1.25.4-1.51 1z"/></svg>
+          <span class="text-[10px] font-medium mt-0.5">设置</span>
+        </button>
+      </div>
+    </nav>
+
+    <div id="iosToast" class="pointer-events-none opacity-0 transition-all duration-200 absolute top-14 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-full bg-[#1C1C1E]/95 text-white text-[12px] font-medium border border-white/10 whitespace-nowrap">
+      已复制
+    </div>
+
+    <!-- Passport / Permit Detail Sheet -->
+    <div id="passportDetailSheet" class="sheet-backdrop absolute inset-0 z-30 flex flex-col justify-end" onclick="closeSheetOnBg(event, 'passportDetailSheet')">
+      <div class="bottom-sheet px-5 pt-3 pb-7 max-h-[90%] overflow-y-auto no-scrollbar">
+        <div class="w-9 h-1 rounded-full bg-zinc-400/40 mx-auto mb-3.5"></div>
+        <div id="passportDetailBody"></div>
+      </div>
+    </div>
+
+    <!-- Visa Detail Sheet -->
+    <div id="visaDetailSheet" class="sheet-backdrop absolute inset-0 z-30 flex flex-col justify-end" onclick="closeSheetOnBg(event, 'visaDetailSheet')">
+      <div class="bottom-sheet px-5 pt-3 pb-7 max-h-[84%] overflow-y-auto no-scrollbar">
+        <div class="w-9 h-1 rounded-full bg-zinc-400/40 mx-auto mb-3.5"></div>
+        <div id="visaDetailSheetBody"></div>
+      </div>
+    </div>
+
+    <!-- Family Sheet -->
+    <div id="familySheet" class="sheet-backdrop absolute inset-0 z-30 flex flex-col justify-end" onclick="closeSheetOnBg(event, 'familySheet')">
+      <div class="bottom-sheet px-5 pt-3 pb-7">
+        <div class="w-9 h-1 rounded-full bg-zinc-400/40 mx-auto mb-3.5"></div>
+        <div class="flex items-center justify-between mb-3.5">
+          <h3 class="text-[18px] font-semibold tracking-tight">家庭成员</h3>
+          <button onclick="closeSheet('familySheet')" class="text-[15px] font-semibold" style="color: var(--accent);">完成</button>
+        </div>
+        <div class="ios-group overflow-hidden">
+          <button onclick="switchPerson('self'); closeSheet('familySheet')" class="ios-row-divider w-full px-4 py-3.5 flex items-center justify-between text-left active:opacity-75 transition">
+            <div class="flex items-center gap-3">
+              <span class="w-9 h-9 rounded-full flex items-center justify-center text-[13px] font-semibold" style="background-color: var(--bg-fill); color: var(--text-primary);">伟</span>
+              <div>
+                <div class="text-[15px] font-medium">王伟敏 · 本人</div>
+                <div class="text-[12px] tabular-nums" style="color: var(--text-secondary);">13 份卡证 · NFC 已验真</div>
+              </div>
+            </div>
+            <span id="familyCheckSelf" class="text-[15px] font-semibold" style="color: var(--accent);">✓</span>
+          </button>
+          <button onclick="switchPerson('family'); closeSheet('familySheet')" class="ios-row-divider w-full px-4 py-3.5 flex items-center justify-between text-left active:opacity-75 transition">
+            <div class="flex items-center gap-3">
+              <span class="w-9 h-9 rounded-full bg-[#FF3B30]/12 text-[#FF3B30] text-[13px] font-semibold flex items-center justify-center">父</span>
+              <div>
+                <div class="text-[15px] font-medium">王建国 · 家人</div>
+                <div class="text-[12px] tabular-nums text-[#FF3B30]">仅剩 148 天 · 不足 6 个月</div>
+              </div>
+            </div>
+            <span id="familyCheckFamily" class="text-[15px] font-semibold hidden" style="color: var(--accent);">✓</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const state = {
+      mode: 'light',
+      person: 'self',
+      privacyMasked: false,
+      etchedAvatar: true,
+      walletFilter: 'all',
+      activeCardId: 'usa'
+    };
+
+    const personData = {
+      self: {
+        name: 'WANG, WEIMIN', cnName: '王伟敏', badge: '伟',
+        passportNo: 'E123 4567 8', passportRaw: 'E12345678', passportMasked: 'E123 •••• 8', oldPassportNo: 'G481 0293 8',
+        dob: '1985-01-01', issueDate: '2023.05.15', expiryDate: '2033.05.14', remainText: '余 6 年 171 天', isUrgent: false,
+        mrz1: 'P<CHNWANG<<WEIMIN<<<<<<<<<<<<<<<<<<<<<<<<<<<<', mrz2: 'E123456784CHN8501018M3305146<<<<<<<<<<<<<<08',
+        hkPermit: { no: 'C819 2041 5', masked: 'C819 •••• 5', issueDate: '2021.08.20', expiry: '2031.08.19', hkLeft: 2, moLeft: 1, endorseSummary: '港 2 次 · 澳 1 次' }
+      },
+      family: {
+        name: 'WANG, JIANGUO', cnName: '王建国', badge: '父',
+        passportNo: 'E310 8841 9', passportRaw: 'E31088419', passportMasked: 'E310 •••• 9', oldPassportNo: null,
+        dob: '1958-09-12', issueDate: '2022.04.21', expiryDate: '2027.04.20', remainText: '仅剩 148 天 · 需换证', isUrgent: true,
+        mrz1: 'P<CHNWANG<<JIANGUO<<<<<<<<<<<<<<<<<<<<<<<<<<<', mrz2: 'E310884192CHN5809124M2704201<<<<<<<<<<<<<<04',
+        hkPermit: { no: 'C309 1823 1', masked: 'C309 •••• 1', issueDate: '2022.05.11', expiry: '2027.05.10', hkLeft: 1, moLeft: 1, endorseSummary: '港 1 次 · 澳 1 次' }
+      }
+    };
+
+    /* 11-Visa Authentic Paper Dataset (ordered for rich banknote paper contrast in stack) */
+    const visas = [
+      {
+        id: 'usa', docGroup: 'passport', countryCode: 'US', tone: 'tone-light',
+        title: '美国签证 · B1/B2 十年多次', midHeader: 'UNITED STATES OF AMERICA · VISA',
+        controlNo: '20241183920018', visaNo: 'K9812049', stayDays: '180 天',
+        issueDate: '2019.11.04', expiryDate: '2029.11.03',
+        emblemSvg: `<svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" fill="#152B52"/><path d="M12 5.5l1.6 3.5 3.8.5-2.8 2.6.7 3.8L12 14l-3.3 1.9.7-3.8-2.8-2.6 3.8-.5z" fill="#F8FAFC"/></svg>`,
+        mrz1: 'VNCHNWANG<<WEIMIN<<<<<<<<<<<<<<<<<<<<<<<<<<<',
+        mrz2: 'K9812049<8CHN8501018M2911034<<<<<<<<<<<<<<<8',
+        detailNote: '贴于旧护照 G48102938 第 12 页，值机与入境须新旧两本护照原件同带；请于 14 天内完成 EVUS 登记更新。'
+      },
+      {
+        id: 'nzl', docGroup: 'passport', countryCode: 'NZ', tone: 'tone-light',
+        title: '新西兰签证 · 五年多次', midHeader: 'NEW ZEALAND VISA · IMMIGRATION NZ',
+        controlNo: 'NZ-INZ-8841209', visaNo: 'NZ61094822', stayDays: '90 天',
+        issueDate: '2025.02.18', expiryDate: '2030.02.17',
+        emblemSvg: `<svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" fill="#0F3554"/><path d="M8.5 7.5h7v5.5c0 2.5-3.5 4.2-3.5 4.2s-3.5-1.7-3.5-4.2V7.5z" stroke="#E0F2FE" stroke-width="1.1"/><path d="M10 6l2-1.5L14 6" stroke="#FDE68A" stroke-width="1.1" stroke-linecap="round"/></svg>`,
+        mrz1: 'V<NZLWANG<<WEIMIN<<<<<<<<<<<<<<<<<<<<<<<<<<<',
+        mrz2: 'NZ61094822CHN8501018M3002174<<<<<<<<<<<<<<<6',
+        detailNote: '新西兰五年多次访客签证（贴签/电子双态归档），支持奥克兰及惠灵顿机场 eGate 自助通关。'
+      },
+      {
+        id: 'jpn', docGroup: 'passport', countryCode: 'JP', tone: 'tone-light',
+        title: '日本国査証 · 五年多次', midHeader: '日本国査証 · JAPAN VISA',
+        controlNo: 'TOKYO · 外務省査証', visaNo: 'JP202399104', stayDays: '90 天',
+        issueDate: '2023.09.12', expiryDate: '2028.09.11',
+        emblemSvg: `<svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" fill="#FFFFFF" stroke="rgba(190,18,60,0.22)" stroke-width="0.9"/><circle cx="12" cy="12" r="4.6" fill="#BE123C"/></svg>`,
+        mrz1: 'V<JPNWANG<<WEIMIN<<<<<<<<<<<<<<<<<<<<<<<<<<<',
+        mrz2: 'JP20239910CHN8501018M2809114<<<<<<<<<<<<<<<4',
+        detailNote: '每次停留最长 90 天，全年累计不超过 180 天。入境可在底部「入境」页直接出示 Visit Japan Web 申报码。'
+      },
+      {
+        id: 'aus', docGroup: 'passport', countryCode: 'AU', tone: 'tone-light',
+        title: '澳大利亚签证 · Subclass 600', midHeader: 'AUSTRALIAN VISA · SUBCLASS 600',
+        controlNo: '8820149360015', visaNo: 'AU88201493', stayDays: '3 个月',
+        issueDate: '2025.07.01', expiryDate: '2028.06.30',
+        emblemSvg: `<svg class="w-4.5 h-4.5 shrink-0" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" fill="#1E4631"/><path d="M9 9.5h6v4.8c0 2.1-3 3.4-3 3.4s-3-1.3-3-3.4V9.5z" stroke="#FDE68A" stroke-width="1.1"/><path d="M5.5 15c1-2.5 2-4.2 3.2-4.8M18.5 15c-1-2.5-2-4.2-3.2-4.8" stroke="#FDE68A" stroke-width="1" stroke-linecap="round"/><circle cx="12" cy="6.8" r="1.1" fill="#FDE68A"/></svg>`,
+        mrz1: 'V<AUSWANG<<WEIMIN<<<<<<<<<<<<<<<<<<<<<<<<<<<',
+        mrz2: 'AU88201493CHN8501018M2806304<<<<<<<<<<<<<<<5',
+        detailNote: '澳洲三年多次访客签（Subclass 600 · No Work 8101），凭电子护照可直接走 SmartGate 自助入境。'
+      },
+      {
+        id: 'sch', docGroup: 'passport', countryCode: 'FR', tone: 'tone-light',
+        title: '申根签证 · 法国五年多次', midHeader: 'VALABLE POUR · ETATS SCHENGEN',
+        controlNo: 'FRA 00948120', visaNo: 'FRA00948120', stayDays: '90 / 180 天',
+        issueDate: '2024.06.01', expiryDate: '2029.05.31',
+        emblemSvg: `<svg class="w-4.5 h-4.5 shrink-0" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" fill="#1D3D7A"/><g fill="#FACC15"><circle cx="12" cy="4.6" r="0.9"/><circle cx="15.7" cy="5.6" r="0.9"/><circle cx="18.4" cy="8.3" r="0.9"/><circle cx="19.4" cy="12" r="0.9"/><circle cx="18.4" cy="15.7" r="0.9"/><circle cx="15.7" cy="18.4" r="0.9"/><circle cx="12" cy="19.4" r="0.9"/><circle cx="8.3" cy="18.4" r="0.9"/><circle cx="5.6" cy="15.7" r="0.9"/><circle cx="4.6" cy="12" r="0.9"/><circle cx="5.6" cy="8.3" r="0.9"/><circle cx="8.3" cy="5.6" r="0.9"/></g><text x="12" y="13.8" text-anchor="middle" font-size="4.6" font-weight="700" fill="#FFFFFF" font-family="monospace">FRA</text></svg>`,
+        mrz1: 'V<FRAWANG<<WEIMIN<<<<<<<<<<<<<<<<<<<<<<<<<<<',
+        mrz2: 'FRA0094812CHN8501018M2905314<<<<<<<<<<<<<<<2',
+        detailNote: '法国签发并已在巴黎完成首次激活。任意 180 天滚动窗口内累计停留不得超过 90 天。'
+      },
+      {
+        id: 'gbr', docGroup: 'passport', countryCode: 'GB', tone: 'tone-light',
+        title: '英国签证 · UK Entry Clearance', midHeader: 'UK ENTRY CLEARANCE · C-VISIT',
+        controlNo: 'UKVI-2026-90418', visaNo: 'UK202690418', stayDays: '180 天',
+        issueDate: '2026.05.12', expiryDate: '2028.05.11',
+        emblemSvg: `<svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" fill="#2E4736"/><path d="M8 10l2 3 2-4 2 4 2-3v6H8v-6z" stroke="#E9D5A1" stroke-width="1.2" stroke-linejoin="round"/></svg>`,
+        mrz1: 'V<GBRWANG<<WEIMIN<<<<<<<<<<<<<<<<<<<<<<<<<<<',
+        mrz2: 'UK20269041CHN8501018M2805114<<<<<<<<<<<<<<<9',
+        detailNote: '英国两年多次访客签（CAT: C-VISIT，NO WORK OR RECOURSE TO PUBLIC FUNDS），单次入境最长停留 180 天。'
+      },
+      {
+        id: 'kor', docGroup: 'passport', countryCode: 'KR', tone: 'tone-light',
+        title: '韩国签证 · 五年多次 C-3-9', midHeader: '대한민국 사증 · REPUBLIC OF KOREA VISA',
+        controlNo: 'KR-SEO-551920', visaNo: 'KR90184421', stayDays: '90 天',
+        issueDate: '2024.03.22', expiryDate: '2029.03.21',
+        emblemSvg: `<svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" fill="#FFFFFF" stroke="rgba(30,58,138,0.18)" stroke-width="0.9"/><path d="M12 6a6 6 0 0 1 0 12 3 3 0 0 1 0-6 3 3 0 0 0 0-6z" fill="#DC2626"/><path d="M12 18a6 6 0 0 1 0-12 3 3 0 0 1 0 6 3 3 0 0 0 0 6z" fill="#1D4ED8"/></svg>`,
+        mrz1: 'V<KORWANG<<WEIMIN<<<<<<<<<<<<<<<<<<<<<<<<<<<',
+        mrz2: 'KR90184421CHN8501018M2903214<<<<<<<<<<<<<<<1',
+        detailNote: '韩国五年多次个人旅游签证（C-3-9），仁川/金浦机场支持自助通关登记。'
+      },
+      {
+        id: 'tha', docGroup: 'passport', countryCode: 'TH', tone: 'tone-light',
+        title: '泰国签证 · 多次旅游 TR', midHeader: 'KINGDOM OF THAILAND · VISA',
+        controlNo: 'A 7740192', visaNo: 'TH202677401', stayDays: '60 天',
+        issueDate: '2026.01.10', expiryDate: '2027.01.09',
+        emblemSvg: `<svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" fill="#991B1B"/><path d="M12 5.5l2.2 3.8 4.3-.8-2.8 3.8 2.3 3.4-4-.6-2 3.4-2-3.4-4 .6 2.3-3.4-2.8-3.8 4.3.8L12 5.5z" stroke="#FDE68A" stroke-width="1" stroke-linejoin="round"/></svg>`,
+        mrz1: 'V<THAWANG<<WEIMIN<<<<<<<<<<<<<<<<<<<<<<<<<<<',
+        mrz2: 'TH20267740CHN8501018M2701094<<<<<<<<<<<<<<<3',
+        detailNote: '泰王国多次旅游签证（CATEGORY TR），每次入境最长停留 60 天。'
+      },
+      {
+        id: 'phl', docGroup: 'passport', countryCode: 'PH', tone: 'tone-light',
+        title: '菲律宾签证 · 旅游 9(A)', midHeader: 'REPUBLIC OF THE PHILIPPINES · VISA',
+        controlNo: 'PH-301984', visaNo: 'PH30198422', stayDays: '59 天',
+        issueDate: '2026.08.05', expiryDate: '2027.02.04',
+        emblemSvg: `<svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" fill="#1D4ED8"/><circle cx="12" cy="12" r="3.4" fill="#FACC15"/><path d="M12 5v2.5M12 16.5V19M5 12h2.5M16.5 12H19M7 7l1.8 1.8M15.2 15.2L17 17M17 7l-1.8 1.8M8.8 15.2L7 17" stroke="#FACC15" stroke-width="1.2" stroke-linecap="round"/></svg>`,
+        mrz1: 'V<PHLWANG<<WEIMIN<<<<<<<<<<<<<<<<<<<<<<<<<<<',
+        mrz2: 'PH30198422CHN8501018M2702044<<<<<<<<<<<<<<<0',
+        detailNote: '菲律宾驻华使馆签发 9(A) 临时访客签证，入境须同步填写 eTravel 电子申报码。'
+      },
+      {
+        id: 'sgp', docGroup: 'passport', countryCode: 'SG', tone: 'tone-light',
+        title: '新加坡签证 · 两年多次', midHeader: 'REPUBLIC OF SINGAPORE · VISA',
+        controlNo: 'SGP 4491028', visaNo: 'SG202644910', stayDays: '30 天',
+        issueDate: '2025.10.14', expiryDate: '2027.10.13',
+        emblemSvg: `<svg class="w-4.5 h-4.5 shrink-0" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" fill="#B81D33"/><path d="M8.8 8.2h6.4v5.2c0 2.3-3.2 3.8-3.2 3.8s-3.2-1.5-3.2-3.8V8.2z" stroke="#FFFFFF" stroke-width="1.1"/><path d="M5.8 14.5c.8-2.2 1.6-3.8 2.6-4.5M18.2 14.5c-.8-2.2-1.6-3.8-2.6-4.5" stroke="#FDE68A" stroke-width="1" stroke-linecap="round"/></svg>`,
+        mrz1: 'V<SGPWANG<<WEIMIN<<<<<<<<<<<<<<<<<<<<<<<<<<<',
+        mrz2: 'SG20264491CHN8501018M2710134<<<<<<<<<<<<<<<7',
+        detailNote: '新加坡两年多次入境签证，入境前 3 天内须提交 SG Arrival Card 电子入境卡。'
+      },
+      {
+        id: 'generic', docGroup: 'passport', countryCode: 'CA', tone: 'tone-light', isZurichPaper: true,
+        title: '加拿大十年多次 · 通用模板', midHeader: 'STANDARD COTTON TEMPLATE · ZURICH GRID',
+        controlNo: 'CA55812093', visaNo: 'CA55812093', stayDays: '180 天',
+        issueDate: '2024.05.14', expiryDate: '2033.05.13',
+        emblemSvg: `<span class="px-1.5 py-0.5 rounded-[5px] border border-zinc-900/20 font-mono-doc text-[10px] font-bold tracking-wider text-zinc-900 bg-white/75">CA</span>`,
+        mrz1: 'V<CANWANG<<WEIMIN<<<<<<<<<<<<<<<<<<<<<<<<<<<',
+        mrz2: 'CA55812093CHN8501018M3305134<<<<<<<<<<<<<<<5',
+        detailNote: '高克重暖白棉纸通用模板（用于加拿大 / 瑞士 / 巴西等未单独定制底纹的国家）：零国家背景插画，完全依靠 1px 压印细框、印刷十字准星与瑞士等宽排版网格维持秩序感。'
+      }
+    ];
+
+    const rolodex = { scrollPos: 2, targetPos: 2, vel: 0, dragging: false, lastY: 0, lastTime: 0, movedDist: 0, lastTickTime: 0, wheelTimer: null, rafId: null, cards: [] };
+
+    function getAllDeckCards() {
+      const p = personData[state.person];
+      const mainDocs = [
+        { id: 'passport', kind: 'doc', docType: 'passport', tone: 'tone-dark', person: p },
+        { id: 'hkpermit', kind: 'doc', docType: 'hkpermit', tone: 'tone-light', person: p }
+      ];
+      const visaCards = visas.map(v => ({ ...v, kind: 'visa' }));
+      if (state.walletFilter === 'docs') return mainDocs;
+      if (state.walletFilter === 'visas') return visaCards;
+      return [...mainDocs, ...visaCards];
+    }
+
+    function buildPortraitBox(code, opts = {}) {
+      const w = opts.w || 46;
+      const h = opts.h || 58;
+      const r = opts.r || 5;
+      const bg = opts.bg || 'linear-gradient(180deg, rgba(28,36,52,0.06) 0%, rgba(28,36,52,0.14) 100%)';
+      const border = opts.border || 'rgba(28,36,52,0.22)';
+      const ink = opts.ink || 'rgba(28,36,52,0.46)';
+      const stars = opts.stars || false;
+      const footer = opts.footer || code;
+      return `
+        <div class="relative overflow-hidden shrink-0 flex items-end justify-center"
+             style="width:${w}px; height:${h}px; border-radius:${r}px; background:${bg}; border:0.5px solid ${border};">
+          <svg viewBox="0 0 60 76" class="w-full h-full">
+            <path d="M7,76 C7,57 17,51 30,51 C43,51 53,57 53,76 Z" fill="${ink}"/>
+            <ellipse cx="30" cy="30" rx="11" ry="13.5" fill="${ink}" fill-opacity="0.72"/>
+            <path d="M19,27 C19,16 25,14 31,14 C37,14 41,18 40.5,27 C38,22 33,20 26,21 C22,21 20,24 19,27 Z" fill="${ink}" fill-opacity="0.88"/>
+          </svg>
+          <div class="absolute inset-x-0 bottom-0 h-[11px] flex items-center justify-center font-mono-doc text-[5.5px] font-bold tracking-[0.14em]"
+               style="background: rgba(255,255,255,0.72); color: ${opts.footerColor || '#1E293B'};">
+            ${stars ? '★ ★ ★ ★' : footer}
+          </div>
+        </div>
+      `;
+    }
+
+    function buildRolodexCardHtml(card, idx) {
+      const eyeIconSvg = state.privacyMasked
+        ? `<svg class="w-3.5 h-3.5 opacity-60 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>`
+        : `<svg class="w-3.5 h-3.5 opacity-45 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>`;
+
+      const p = card.person || personData[state.person];
+
+      /* 1. China e-Passport */
+      if (card.id === 'passport') {
+        const shownPassNo = state.privacyMasked ? p.passportMasked : p.passportNo;
+        return `
+          <div data-ridx="${idx}" data-cid="${card.id}" onclick="handleRolodexCardClick(${idx})"
+               class="rolodex-card tone-dark passport-cover-bg cursor-pointer">
+            <svg class="pointer-events-none absolute inset-0 w-full h-full opacity-[0.06]"><filter id="leatherNoise"><feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="3" stitchTiles="stitch"/></filter><rect width="100%" height="100%" filter="url(#leatherNoise)"/></svg>
+            <div class="cover-inner-frame"></div>
+            <svg class="pointer-events-none absolute -right-5 top-1/2 -translate-y-1/2 w-44 h-44 opacity-[0.09]" viewBox="0 0 160 160" fill="none" stroke="#DABC86" stroke-width="0.9">
+              <circle cx="80" cy="80" r="56"/><ellipse cx="80" cy="80" rx="26" ry="56"/><ellipse cx="80" cy="80" rx="56" ry="22"/>
+              <line x1="24" y1="80" x2="136" y2="80"/><line x1="80" y1="24" x2="80" y2="136"/><circle cx="80" cy="80" r="66" stroke-dasharray="2 4"/>
+            </svg>
+            <div class="card-top-horizon">
+              <div class="flex items-center gap-2 min-w-0">
+                <span class="w-4 h-4 rounded-full bg-[#DABC86]/20 border border-[#DABC86]/45 flex items-center justify-center text-[8px] font-mono-doc font-bold text-[#DABC86] shrink-0">★</span>
+                <span class="text-[13.5px] font-semibold tracking-tight text-[#F6EBD5] truncate">中华人民共和国护照</span>
+                <span class="text-[10px] font-mono-doc text-[#DABC86]/65 shrink-0">CHN</span>
+              </div>
+              <span class="text-[11.5px] font-semibold tabular-nums shrink-0 ${p.isUrgent ? 'text-[#FF8A65]' : 'text-[#DABC86]'}">${p.remainText}</span>
+            </div>
+            <div class="card-mid-zone">
+              <div class="flex items-center justify-between">
+                <div>
+                  <div class="text-[19px] font-semibold tracking-[0.02em] text-[#FAF7F2] leading-tight">${p.name}</div>
+                  <div class="text-[12px] text-[#DABC86]/75 mt-1">${p.cnName} · NFC 电子芯片已验真</div>
+                </div>
+                <svg class="w-6 h-[15px] text-[#DABC86]/80 shrink-0" viewBox="0 0 28 18" fill="none" stroke="currentColor" stroke-width="1.35">
+                  <rect x="1.5" y="2" width="25" height="14" rx="2"/><line x1="1.5" y1="9" x2="9.5" y2="9"/><line x1="18.5" y1="9" x2="26.5" y2="9"/><circle cx="14" cy="9" r="3.1"/>
+                </svg>
+              </div>
+            </div>
+            <div class="card-bottom-horizon tabular-nums" style="border-top: 0.5px solid rgba(218, 188, 134, 0.20);">
+              <button onclick="event.stopPropagation(); togglePrivacyMask()" class="inline-flex items-center gap-1.5 font-mono-doc text-[12.5px] font-medium tracking-[0.06em] text-[#DABC86] active:opacity-60 transition"><span>${shownPassNo}</span>${eyeIconSvg}</button>
+              <span class="text-[11.5px] font-mono-doc text-[#FAF7F2]/75">有效至 ${p.expiryDate}</span>
+            </div>
+          </div>`;
+      }
+
+      /* 2. HK & Macau Travel Permit */
+      if (card.id === 'hkpermit') {
+        const shownHkNo = state.privacyMasked ? p.hkPermit.masked : p.hkPermit.no;
+        return `
+          <div data-ridx="${idx}" data-cid="${card.id}" onclick="handleRolodexCardClick(${idx})"
+               class="rolodex-card tone-light permit-cover-bg cursor-pointer">
+            <div class="cover-inner-frame cover-inner-frame-silver"></div>
+            <svg class="pointer-events-none absolute right-0 bottom-0 w-48 h-40 opacity-[0.17]" style="mix-blend-mode: multiply;" viewBox="0 0 180 150" fill="none" stroke="#2D4A6A" stroke-width="0.9">
+              <path d="M10 120c28-14 56-14 84 0s56 14 84 0M10 132c28-14 56-14 84 0s56 14 84 0" stroke-dasharray="2 2"/>
+              <path d="M68 106l12-38 14 4 12-30 16 6 14-26 24 12v72H68z"/>
+              <path d="M80 68v-7h5v7h6v-7h5v7M106 42v-6h5v6h5v-6h5v6"/>
+              <circle cx="136" cy="52" r="24" stroke-dasharray="1.5 3.5" stroke="#7E3AF2"/>
+            </svg>
+            <div class="card-top-horizon">
+              <div class="flex items-center gap-2 min-w-0">
+                <span class="w-4 h-4 rounded-full bg-[#24466B]/15 border border-[#24466B]/30 flex items-center justify-center text-[8px] font-mono-doc font-bold text-[#24466B] shrink-0">HK</span>
+                <span class="text-[13.5px] font-semibold tracking-tight text-[#1A314A] truncate">往来港澳通行证</span>
+                <span class="text-[10px] font-mono-doc text-[#24466B]/60 shrink-0">EEP</span>
+              </div>
+              <span class="px-2 py-0.5 rounded-full text-[11px] font-semibold tabular-nums bg-[#1A314A]/10 text-[#1A314A] shrink-0">${p.hkPermit.endorseSummary}</span>
+            </div>
+            <div class="card-mid-zone">
+              <div class="text-[19px] font-semibold tracking-[0.02em] text-[#172B42] leading-tight">${p.name}</div>
+              <div class="text-[12px] text-[#2B4868]/75 mt-1">${p.cnName} · 聚碳酸酯卡 · 赴港/赴澳 G 签有效</div>
+            </div>
+            <div class="card-bottom-horizon tabular-nums" style="border-top: 0.5px solid rgba(36, 70, 107, 0.14);">
+              <button onclick="event.stopPropagation(); togglePrivacyMask()" class="inline-flex items-center gap-1.5 font-mono-doc text-[12.5px] font-medium tracking-[0.06em] text-[#1D3551] active:opacity-60 transition"><span>${shownHkNo}</span>${eyeIconSvg}</button>
+              <span class="text-[11.5px] font-mono-doc text-[#1D3551]/75">有效至 ${p.hkPermit.expiry}</span>
+            </div>
+          </div>`;
+      }
+
+      const nameParts = (p.name || 'WANG, WEIMIN').split(',');
+      const surname = (nameParts[0] || 'WANG').trim();
+      const givenName = (nameParts[1] || 'WEIMIN').trim();
+
+      /* 3. USA Paper Visa */
+      if (card.id === 'usa') {
+        return `
+          <div data-ridx="${idx}" data-cid="${card.id}" onclick="handleRolodexCardClick(${idx})"
+               class="rolodex-card tone-light cursor-pointer"
+               style="background: linear-gradient(106deg, #F6DCD5 0%, #F5F1E7 45%, #D7E5F6 100%);">
+            <div class="pointer-events-none absolute top-0 inset-x-0 h-[4.5px] z-10" style="background: linear-gradient(90deg, #152B52 0%, #152B52 56%, #8F1D2C 56%, #8F1D2C 100%);"></div>
+            <svg class="pointer-events-none absolute inset-0 w-full h-full opacity-[0.16]" style="mix-blend-mode: multiply;" viewBox="0 0 340 222" fill="none">
+              <path d="M0 152 Q85 136 170 152 T340 152 M0 162 Q85 146 170 162 T340 162" stroke="#1E3A6D" stroke-width="0.6"/>
+              <path d="M188 158 H324 M194 151 H318 M192 108 H320 M200 101 H312" stroke="#7F1D1D" stroke-width="0.75"/>
+              <path d="M202 108 V151 M216 108 V151 M230 108 V151 M244 108 V151 M268 108 V151 M282 108 V151 M296 108 V151 M310 108 V151" stroke="#7F1D1D" stroke-width="0.7"/>
+              <path d="M251 146 V125 C251 121 256 118 256 118 C256 118 261 121 261 125 V146 Z" stroke="#152B52" stroke-width="0.85"/>
+              <path d="M224 62 Q242 74 256 60 Q270 74 288 62 M242 68 L256 82 L270 68" stroke="#152B52" stroke-width="0.8"/>
+              <circle cx="256" cy="68" r="24" stroke="#991B1B" stroke-width="0.55" stroke-dasharray="2 3"/>
+            </svg>
+            <div class="card-top-horizon">
+              <div class="flex items-center gap-2 min-w-0">
+                ${card.emblemSvg}
+                <span class="text-[12.5px] font-bold tracking-[0.03em] text-[#152B52] truncate">UNITED STATES OF AMERICA</span>
+              </div>
+              <span class="text-[10.5px] font-mono-doc font-bold tracking-[0.14em] text-[#8F1D2C] shrink-0">VISA</span>
+            </div>
+            <div class="card-mid-zone py-0.5">
+              <div class="flex items-stretch gap-2.5">
+                ${buildPortraitBox('USA', { w: 48, h: 66, r: 4, stars: true, border: 'rgba(21,43,82,0.30)', ink: 'rgba(21,43,82,0.48)', footerColor: '#8F1D2C' })}
+                <div class="flex-1 min-w-0 flex flex-col justify-between py-0.5 tabular-nums">
+                  <div class="leading-none">
+                    <span class="text-[6.2px] font-mono-doc uppercase tracking-wider text-[#152B52]/60 block">ISSUING POST NAME</span>
+                    <span class="text-[10px] font-mono-doc font-bold text-[#111827]">BEIJING</span>
+                  </div>
+                  <div class="grid grid-cols-2 gap-1 leading-none">
+                    <div class="min-w-0">
+                      <span class="text-[6.2px] font-mono-doc uppercase tracking-wider text-[#152B52]/60 block">SURNAME</span>
+                      <span class="text-[10px] font-mono-doc font-bold text-[#111827] truncate block">${surname}</span>
+                    </div>
+                    <div class="min-w-0">
+                      <span class="text-[6.2px] font-mono-doc uppercase tracking-wider text-[#152B52]/60 block">GIVEN NAME</span>
+                      <span class="text-[10px] font-mono-doc font-bold text-[#111827] truncate block">${givenName}</span>
+                    </div>
+                  </div>
+                  <div class="leading-none">
+                    <span class="text-[6.2px] font-mono-doc uppercase tracking-wider text-[#152B52]/60 block">PASSPORT NUMBER</span>
+                    <span class="text-[10px] font-mono-doc font-bold text-[#1E293B]">${p.passportRaw}</span>
+                  </div>
+                </div>
+                <div class="w-[114px] shrink-0 flex flex-col justify-between items-end text-right py-0.5 tabular-nums">
+                  <div class="leading-none">
+                    <span class="text-[6.2px] font-mono-doc uppercase text-[#152B52]/60 block">CONTROL NUMBER</span>
+                    <span class="text-[9.2px] font-mono-doc font-bold text-[#111827] tracking-[0.02em]">${card.controlNo}</span>
+                  </div>
+                  <div class="flex items-center justify-end gap-2.5 leading-none">
+                    <div>
+                      <span class="text-[6px] font-mono-doc uppercase text-[#152B52]/60 block">VISA TYPE / CLASS</span>
+                      <span class="text-[10px] font-mono-doc font-extrabold text-[#152B52]">R &nbsp;B1/B2</span>
+                    </div>
+                    <div>
+                      <span class="text-[6px] font-mono-doc uppercase text-[#152B52]/60 block">ENTRIES</span>
+                      <span class="text-[10px] font-mono-doc font-extrabold text-[#152B52]">M</span>
+                    </div>
+                  </div>
+                  <div class="font-mono-doc text-[15px] font-extrabold tracking-[0.07em] leading-none" style="color: #C81E1E; text-shadow: 0 0 0.5px rgba(200,30,30,0.45);">${card.visaNo}</div>
+                </div>
+              </div>
+              <div class="mt-1.5 pt-1 flex items-center justify-between text-[7.5px] font-mono-doc text-[#152B52]/75 tabular-nums" style="border-top: 0.5px dashed rgba(21,43,82,0.18);">
+                <span>04NOV2019 — 03NOV2029</span>
+                <span>ANNOTATION: EVUS REQ</span>
+              </div>
+            </div>
+            <div class="card-bottom-horizon flex-col !items-stretch !justify-center !py-1 tabular-nums" style="height: 36px; border-top: 0.5px solid rgba(21,43,82,0.14); background: rgba(255,255,255,0.42);">
+              <div class="font-mono-doc text-[7.6px] leading-[1.22] tracking-[0.055em] text-[#111827]/85 truncate">${card.mrz1}</div>
+              <div class="font-mono-doc text-[7.6px] leading-[1.22] tracking-[0.055em] text-[#111827]/85 truncate">${card.mrz2}</div>
+            </div>
+          </div>`;
+      }
+
+      /* 4. Schengen France Paper Visa */
+      if (card.id === 'sch') {
+        return `
+          <div data-ridx="${idx}" data-cid="${card.id}" onclick="handleRolodexCardClick(${idx})"
+               class="rolodex-card tone-light cursor-pointer"
+               style="background: linear-gradient(132deg, #CFECE2 0%, #EFE0EE 50%, #EEF2D2 100%);">
+            <svg class="pointer-events-none absolute inset-0 w-full h-full opacity-[0.16]" style="mix-blend-mode: multiply;" viewBox="0 0 340 222" fill="none">
+              <path d="M-10 74 C70 44 150 104 230 74 C290 52 320 80 350 66" stroke="#1E4D45" stroke-width="0.65"/>
+              <path d="M-10 90 C70 60 150 120 230 90 C290 68 320 96 350 82" stroke="#833875" stroke-width="0.6"/>
+              <path d="M-10 106 C70 76 150 136 230 106 C290 84 320 112 350 98" stroke="#1E4D45" stroke-width="0.65"/>
+              <circle cx="242" cy="124" r="40" stroke="#1D3D7A" stroke-width="0.55" stroke-dasharray="1.8 3.2"/>
+            </svg>
+            <div class="kinegram-strip flex flex-col items-center justify-around py-4">
+              <span class="text-[6px] font-mono-doc font-bold tracking-widest text-slate-700/65 -rotate-90">EU</span>
+              <span class="text-[6px] font-mono-doc font-bold tracking-widest text-slate-700/65 -rotate-90">SCH</span>
+              <span class="text-[6px] font-mono-doc font-bold tracking-widest text-slate-700/65 -rotate-90">FRA</span>
+            </div>
+            <div class="card-top-horizon pr-10">
+              <div class="flex items-center gap-2 min-w-0">
+                ${card.emblemSvg}
+                <span class="text-[12.5px] font-bold tracking-[0.04em] text-[#1D3D7A] truncate">SCHENGEN · FRANCE</span>
+              </div>
+              <span class="font-mono-doc text-[11.5px] font-extrabold tracking-[0.05em] text-[#5C131F] shrink-0">${card.visaNo}</span>
+            </div>
+            <div class="card-mid-zone pr-10 py-0.5">
+              <div class="flex items-start gap-2.5">
+                <div class="-mt-1 shrink-0">
+                  ${buildPortraitBox('FRA', { w: 46, h: 64, r: 4, border: 'rgba(29,61,122,0.30)', ink: 'rgba(29,61,122,0.45)', footerColor: '#1D3D7A' })}
+                </div>
+                <div class="flex-1 min-w-0 space-y-1.5 tabular-nums pt-0.5">
+                  <div class="flex items-baseline gap-1.5 leading-none">
+                    <span class="text-[7.5px] italic text-[#264653]/80 shrink-0">VALABLE POUR</span>
+                    <span class="font-mono-doc text-[11px] font-extrabold text-[#0F3F2F] tracking-[0.02em] truncate">ETATS SCHENGEN</span>
+                  </div>
+                  <div class="flex items-baseline gap-1.5 leading-none">
+                    <span class="text-[7.5px] italic text-[#264653]/80">DU</span>
+                    <span class="font-mono-doc text-[10px] font-bold text-[#0F3F2F]">01-06-24</span>
+                    <span class="text-[7.5px] italic text-[#264653]/80 ml-1">AU</span>
+                    <span class="font-mono-doc text-[10px] font-bold text-[#0F3F2F]">31-05-29</span>
+                  </div>
+                  <div class="leading-snug">
+                    <div class="flex items-baseline flex-wrap gap-x-1.5 gap-y-0.5">
+                      <span class="text-[7px] italic text-[#264653]/80">TYPE DE VISA</span>
+                      <span class="font-mono-doc text-[10px] font-extrabold text-[#0F3F2F]">C</span>
+                      <span class="text-[7px] text-[#264653]/45">·</span>
+                      <span class="text-[7px] italic text-[#264653]/80">NOMBRE D'ENTREES</span>
+                      <span class="font-mono-doc text-[10px] font-extrabold text-[#0F3F2F]">MULT</span>
+                    </div>
+                    <div class="flex items-baseline gap-1.5 mt-0.5">
+                      <span class="text-[7px] italic text-[#264653]/80">DUREE DU SEJOUR</span>
+                      <span class="font-mono-doc text-[10px] font-extrabold text-[#0F3F2F]">90 JOURS</span>
+                    </div>
+                  </div>
+                  <div class="flex items-baseline justify-between gap-1 leading-none pt-0.5">
+                    <span class="text-[7.2px] italic text-[#264653]/75 truncate">DELIVRE A <strong class="not-italic font-mono-doc text-[#111827]">PEKIN</strong></span>
+                    <span class="font-mono-doc text-[8.5px] font-bold text-[#111827]/85 truncate">${p.name}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="card-bottom-horizon pr-10 tabular-nums" style="border-top: 0.5px solid rgba(15,63,47,0.14); background: rgba(255,255,255,0.34);">
+              <span class="font-mono-doc text-[8.2px] tracking-[0.05em] text-[#0F3F2F]/80 truncate pr-2">${card.mrz1.slice(0, 28)}</span>
+              <span class="font-mono-doc text-[9.5px] font-bold text-[#0F3F2F] shrink-0">90 JOURS</span>
+            </div>
+          </div>`;
+      }
+
+      /* 5. Japan Paper Visa */
+      if (card.id === 'jpn') {
+        return `
+          <div data-ridx="${idx}" data-cid="${card.id}" onclick="handleRolodexCardClick(${idx})"
+               class="rolodex-card tone-light cursor-pointer"
+               style="background: linear-gradient(135deg, #FBF0F3 0%, #F7F5F6 48%, #EBF3F1 100%);">
+            <svg class="pointer-events-none absolute inset-0 w-full h-full opacity-[0.16]" style="mix-blend-mode: multiply;" viewBox="0 0 340 222" fill="none">
+              <path d="M168 182 L232 126 Q246 118 260 126 L326 182" stroke="#334155" stroke-width="0.9"/>
+              <path d="M222 135 Q234 142 246 135 Q258 142 270 135" stroke="#334155" stroke-width="0.7"/>
+              <g stroke="#9F1239" stroke-width="0.75" transform="translate(238, 86)">
+                <path d="M-16 8 C-16 -2 16 -2 16 8 C16 18 -16 18 -16 8 Z"/>
+                <line x1="0" y1="-22" x2="0" y2="4"/><line x1="-9" y1="-17" x2="-9" y2="4"/><line x1="9" y1="-17" x2="9" y2="4"/>
+                <circle cx="0" cy="-22" r="2"/><circle cx="0" cy="-16" r="2"/><circle cx="0" cy="-10" r="2"/>
+                <circle cx="-9" cy="-17" r="1.8"/><circle cx="-9" cy="-11" r="1.8"/>
+                <circle cx="9" cy="-17" r="1.8"/><circle cx="9" cy="-11" r="1.8"/>
+              </g>
+              <g stroke="#BE123C" stroke-width="0.65" transform="translate(292, 66)">
+                <circle cx="0" cy="-11" r="4.5"/><circle cx="-10" cy="-3" r="4.5"/><circle cx="10" cy="-3" r="4.5"/>
+                <circle cx="-6" cy="9" r="4.5"/><circle cx="6" cy="9" r="4.5"/>
+              </g>
+            </svg>
+            <div class="card-top-horizon">
+              <div class="flex items-baseline gap-2 min-w-0">
+                <span class="text-[15px] font-black tracking-[0.08em] text-[#111827]">VISA</span>
+                <span class="font-mono-doc text-[10.5px] font-bold text-[#334155] truncate">No. ${card.visaNo}</span>
+              </div>
+              <div class="flex items-center gap-1.5 shrink-0">
+                <span class="text-[13px] font-bold tracking-[0.14em] text-[#1E293B]" style="font-family: 'Hiragino Mincho ProN', 'Songti SC', serif;">日本国査証</span>
+              </div>
+            </div>
+            <div class="card-mid-zone py-0.5">
+              <div class="flex items-end gap-3">
+                <div class="w-[46px] shrink-0 flex flex-col items-center justify-end gap-1.5 pb-0.5">
+                  <div class="holo-sakura-seal">
+                    <svg class="w-3.5 h-3.5 text-rose-800/70" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M12 2.5c1.5 3.6 1.5 5.8 0 9.5-1.5-3.7-1.5-5.9 0-9.5zm9.5 9.5c-3.7 1.5-5.9 1.5-9.5 0 3.6-1.5 5.8-1.5 9.5 0zM12 21.5c-1.5-3.6-1.5-5.8 0-9.5 1.5 3.7 1.5 5.9 0 9.5zM2.5 12c3.7-1.5 5.9-1.5 9.5 0-3.6 1.5-5.8 1.5-9.5 0z"/>
+                    </svg>
+                  </div>
+                  <div class="w-[40px] h-[40px] p-[3px] rounded-[4px] bg-white/90 border border-slate-800/20">
+                    <svg viewBox="0 0 21 21" class="w-full h-full" fill="#1E293B">
+                      <path d="M0 0h7v7H0V0zm1 1v5h5V1H1zm1 1h3v3H2V2zM14 0h7v7h-7V0zm1 1v5h5V1h-5zm1 1h3v3h-3V2zM0 14h7v7H0v-7zm1 1v5h5v-5H1zm1 1h3v3H2v-3z"/>
+                      <rect x="9" y="1" width="2" height="2"/><rect x="11" y="3" width="2" height="2"/><rect x="8" y="5" width="3" height="2"/>
+                      <rect x="1" y="9" width="3" height="2"/><rect x="6" y="8" width="2" height="4"/><rect x="10" y="9" width="3" height="2"/>
+                      <rect x="15" y="9" width="2" height="3"/><rect x="18" y="8" width="3" height="2"/><rect x="9" y="13" width="2" height="3"/>
+                      <rect x="13" y="13" width="3" height="2"/><rect x="17" y="14" width="3" height="2"/><rect x="10" y="17" width="4" height="2"/>
+                      <rect x="16" y="18" width="4" height="2"/><rect x="12" y="11" width="2" height="2"/>
+                    </svg>
+                  </div>
+                </div>
+                <div class="flex-1 min-w-0 space-y-1.5 tabular-nums">
+                  <div class="grid grid-cols-2 gap-2 pb-1" style="border-bottom: 0.5px solid rgba(30,41,59,0.26);">
+                    <div>
+                      <div class="text-[6.8px] text-[#64748B] leading-none">Date of issue</div>
+                      <div class="font-mono-doc text-[10px] font-bold text-[#0F172A] mt-0.5">12 SEP 23</div>
+                    </div>
+                    <div>
+                      <div class="text-[6.8px] text-[#64748B] leading-none">Date of expiry</div>
+                      <div class="font-mono-doc text-[10px] font-bold text-[#BE123C] mt-0.5">11 SEP 28</div>
+                    </div>
+                  </div>
+                  <div class="pb-1" style="border-bottom: 0.5px solid rgba(30,41,59,0.26);">
+                    <div class="text-[6.8px] text-[#64748B] leading-none">Category:</div>
+                    <div class="font-mono-doc text-[10px] font-extrabold text-[#0F172A] truncate mt-0.5">(V) AS TEMPORARY VISITOR</div>
+                  </div>
+                  <div class="grid grid-cols-2 gap-2 pb-1" style="border-bottom: 0.5px solid rgba(30,41,59,0.26);">
+                    <div>
+                      <div class="text-[6.8px] text-[#64748B] leading-none">No. of entries:</div>
+                      <div class="font-mono-doc text-[10px] font-extrabold text-[#0F172A] mt-0.5">MULTIPLE</div>
+                    </div>
+                    <div>
+                      <div class="text-[6.8px] text-[#64748B] leading-none">For stay(s) of</div>
+                      <div class="font-mono-doc text-[10px] font-extrabold text-[#0F172A] mt-0.5">90 DAYS</div>
+                    </div>
+                  </div>
+                  <div class="flex items-center justify-between text-[8.8px] font-mono-doc text-[#334155]">
+                    <span class="truncate">${p.name}</span>
+                    <span class="text-[7.5px] text-[#64748B] shrink-0">ISSUED AT BEIJING</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="card-bottom-horizon tabular-nums" style="border-top: 0.5px solid rgba(30,41,59,0.12); background: rgba(255,255,255,0.36);">
+              <span class="font-mono-doc text-[8.2px] tracking-[0.05em] text-[#334155]/80 truncate pr-2">${card.mrz1.slice(0, 28)}</span>
+              <span class="font-mono-doc text-[9.5px] font-bold text-[#BE123C] shrink-0">90 DAYS · MULT</span>
+            </div>
+          </div>`;
+      }
+
+      /* 6. UK Paper Visa */
+      if (card.id === 'gbr') {
+        return `
+          <div data-ridx="${idx}" data-cid="${card.id}" onclick="handleRolodexCardClick(${idx})"
+               class="rolodex-card tone-light cursor-pointer"
+               style="background: linear-gradient(125deg, #E1EADA 0%, #F1EAD3 50%, #D9E5D2 100%);">
+            <svg class="pointer-events-none absolute inset-0 w-full h-full opacity-[0.15]" style="mix-blend-mode: multiply;" viewBox="0 0 340 222" fill="none">
+              <circle cx="272" cy="116" r="44" stroke="#365314" stroke-width="0.6" stroke-dasharray="2 2"/>
+              <circle cx="272" cy="116" r="30" stroke="#854D0E" stroke-width="0.55"/>
+              <path d="M0 166 Q85 152 170 166 T340 166" stroke="#3F6212" stroke-width="0.55"/>
+            </svg>
+            <div class="card-top-horizon">
+              <div class="flex items-center gap-2 min-w-0">
+                <div class="w-[48px] flex items-center justify-center shrink-0">
+                  <svg class="w-6 h-5 text-[#243B2B]" viewBox="0 0 32 24" fill="none" stroke="currentColor" stroke-width="1.15">
+                    <path d="M11 6h10v8c0 3.5-5 6-5 6s-5-2.5-5-6V6z"/>
+                    <path d="M5 17c1.5-4 3-7 5.5-8M27 17c-1.5-4-3-7-5.5-8" stroke-linecap="round"/>
+                    <path d="M13 4l3-2 3 2"/>
+                  </svg>
+                </div>
+                <span class="font-mono-doc text-[12px] font-black tracking-[0.04em] text-[#14261A] truncate">UK ENTRY CLEARANCE</span>
+              </div>
+              <div class="holo-uk-seal shrink-0 flex-col !w-[27px] !h-[27px] leading-none">
+                <svg class="w-2.5 h-2 text-slate-800/80" viewBox="0 0 24 16" fill="currentColor">
+                  <path d="M2 13l2.5-9 7.5 5 7.5-5 2.5 9H2z"/>
+                </svg>
+                <span class="font-mono-doc text-[5.5px] font-black tracking-tighter text-slate-800/85">UK</span>
+              </div>
+            </div>
+            <div class="card-mid-zone py-0.5">
+              <div class="flex items-center gap-3">
+                ${buildPortraitBox('UKVI', { w: 48, h: 64, r: 9, border: 'rgba(36,59,43,0.32)', ink: 'rgba(36,59,43,0.48)', footerColor: '#243B2B' })}
+                <div class="flex-1 min-w-0 font-mono-doc space-y-1.5 tabular-nums">
+                  <div class="text-[10px] font-black tracking-[0.03em] text-[#14261A] leading-none">UK ENTRY CLEARANCE</div>
+                  <div class="text-[9.2px] font-extrabold text-[#1F3A28] leading-none">VALID FROM 12/05/26 UNTIL 11/05/28</div>
+                  <div class="text-[8.8px] font-extrabold text-[#14261A] leading-tight">CAT: C - VISIT · NUMBER OF ENTRIES: MULT</div>
+                  <div class="text-[7.8px] font-extrabold text-[#243B2B] leading-snug pt-0.5" style="border-top: 0.5px solid rgba(36,59,43,0.20);">
+                    CONDITIONS: 180 DAYS; NO WORK OR RECOURSE TO PUBLIC FUNDS
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="card-bottom-horizon tabular-nums" style="border-top: 0.5px solid rgba(36,59,43,0.14); background: rgba(255,255,255,0.34);">
+              <span class="font-mono-doc text-[8.5px] font-bold text-[#1F3A28] truncate pr-2">${p.name} · ${card.visaNo}</span>
+              <span class="font-mono-doc text-[9.5px] font-bold text-[#14261A] shrink-0">11/05/28</span>
+            </div>
+          </div>`;
+      }
+
+      /* 7. South Korea Paper Visa */
+      if (card.id === 'kor') {
+        return `
+          <div data-ridx="${idx}" data-cid="${card.id}" onclick="handleRolodexCardClick(${idx})"
+               class="rolodex-card tone-light cursor-pointer"
+               style="background: linear-gradient(125deg, #E2EFFB 0%, #F7EAE8 55%, #EAF3F9 100%);">
+            <div class="kinegram-left-strip !w-[22px] flex flex-col items-center justify-between py-2.5">
+              <svg class="w-3 h-10 opacity-55" viewBox="0 0 12 40" fill="none" stroke="#1E3A8A" stroke-width="0.9">
+                <path d="M6 2 L10 6 L6 10 L2 6 Z M6 14 L10 18 L6 22 L2 18 Z M6 26 L10 30 L6 34 L2 30 Z"/>
+              </svg>
+              <div class="w-[16px] h-[16px] rounded-full border border-white/90 flex items-center justify-center text-[7px] text-[#1E3A8A] font-bold"
+                   style="background: conic-gradient(from 45deg, #BAE6FD, #FBCFE8, #FEF08A, #BAE6FD);">✿</div>
+              <svg class="w-3 h-10 opacity-55" viewBox="0 0 12 40" fill="none" stroke="#991B1B" stroke-width="0.9">
+                <path d="M6 6 L10 10 L6 14 L2 10 Z M6 18 L10 22 L6 26 L2 22 Z M6 30 L10 34 L6 38 L2 34 Z"/>
+              </svg>
+            </div>
+            <svg class="pointer-events-none absolute inset-0 w-full h-full opacity-[0.11]" style="mix-blend-mode: multiply;" viewBox="0 0 340 222" fill="none">
+              <path d="M230 40 L310 120 M254 40 L334 120 M310 40 L230 120 M334 40 L254 120" stroke="#1D4ED8" stroke-width="0.6"/>
+              <circle cx="282" cy="144" r="24" stroke="#B91C1C" stroke-width="0.7" stroke-dasharray="2 2"/>
+            </svg>
+            <div class="card-top-horizon pl-8">
+              <div class="flex items-center gap-1.5 min-w-0">
+                ${card.emblemSvg}
+                <span class="text-[11px] font-bold text-[#1E3A8A] truncate">대한민국 사증 / REPUBLIC OF KOREA VISA</span>
+              </div>
+              <span class="font-mono-doc text-[10px] font-bold text-[#991B1B] shrink-0 ml-1">${card.visaNo}</span>
+            </div>
+            <div class="card-mid-zone pl-8 py-0.5">
+              <div class="grid grid-cols-2 gap-x-3 gap-y-1.5 tabular-nums">
+                <div class="pb-1" style="border-bottom: 0.5px solid rgba(30,58,138,0.18);">
+                  <div class="text-[7px] text-[#334155]/85">체류자격 / <span class="font-mono-doc">Status</span></div>
+                  <div class="font-mono-doc text-[10.5px] font-extrabold text-[#0F172A] mt-0.5">C-3-9</div>
+                </div>
+                <div class="pb-1" style="border-bottom: 0.5px solid rgba(30,58,138,0.18);">
+                  <div class="text-[7px] text-[#334155]/85">체류기간 / <span class="font-mono-doc">Period of Sojourn</span></div>
+                  <div class="font-mono-doc text-[10.5px] font-extrabold text-[#1E3A8A] mt-0.5">90 DAYS</div>
+                </div>
+                <div class="pb-1" style="border-bottom: 0.5px solid rgba(30,58,138,0.18);">
+                  <div class="text-[7px] text-[#334155]/85">종류 / <span class="font-mono-doc">Entries</span></div>
+                  <div class="font-mono-doc text-[10.5px] font-extrabold text-[#0F172A] mt-0.5">MULTIPLE (M)</div>
+                </div>
+                <div class="pb-1" style="border-bottom: 0.5px solid rgba(30,58,138,0.18);">
+                  <div class="text-[7px] text-[#334155]/85">발급지 / <span class="font-mono-doc">Issued at</span></div>
+                  <div class="font-mono-doc text-[10.5px] font-extrabold text-[#0F172A] mt-0.5">BEIJING</div>
+                </div>
+              </div>
+              <div class="mt-1.5 flex items-center justify-between text-[8.8px] font-mono-doc text-[#1E293B]">
+                <span class="truncate">${p.name}</span>
+                <span class="text-[8px] text-[#475569] shrink-0">2024.03.22 — 2029.03.21</span>
+              </div>
+            </div>
+            <div class="card-bottom-horizon pl-8 tabular-nums" style="border-top: 0.5px solid rgba(30,58,138,0.14); background: rgba(255,255,255,0.34);">
+              <span class="font-mono-doc text-[8.5px] text-[#1E3A8A] truncate pr-2">${card.mrz1.slice(0, 26)}</span>
+              <span class="font-mono-doc text-[9.5px] font-bold text-[#1E3A8A] shrink-0">C-3-9 · MULT</span>
+            </div>
+          </div>`;
+      }
+
+      /* 8. Thailand Paper Visa */
+      if (card.id === 'tha') {
+        return `
+          <div data-ridx="${idx}" data-cid="${card.id}" onclick="handleRolodexCardClick(${idx})"
+               class="rolodex-card tone-light cursor-pointer"
+               style="background: linear-gradient(128deg, #D5EEE2 0%, #E5E2F4 54%, #DEF0E6 100%);">
+            <div class="thai-thread"></div>
+            <svg class="pointer-events-none absolute inset-0 w-full h-full opacity-[0.17]" style="mix-blend-mode: multiply;" viewBox="0 0 340 222" fill="none">
+              <g transform="translate(170, 108)">
+                <path d="M0 -42 L10 -24 L36 -28 L18 -6 L32 14 L8 10 L0 32 L-8 10 L-32 14 L-18 -6 L-36 -28 L-10 -24 Z" stroke="#991B1B" stroke-width="1.05" fill="rgba(217,119,6,0.08)"/>
+                <circle cx="0" cy="-4" r="38" stroke="#B45309" stroke-width="0.65" stroke-dasharray="2 2.5"/>
+              </g>
+              <path d="M0 162 Q85 144 170 162 T340 162 M0 172 Q85 154 170 172 T340 172" stroke="#0F5132" stroke-width="0.6"/>
+            </svg>
+            <div class="card-top-horizon pl-7">
+              <div class="flex items-center gap-2 min-w-0">
+                ${card.emblemSvg}
+                <span class="text-[13.5px] font-black tracking-[0.06em] text-[#0F5132] truncate">THAILAND VISA</span>
+              </div>
+              <span class="font-mono-doc text-[13px] font-extrabold tracking-[0.06em] shrink-0" style="color: #C81E1E;">${card.controlNo}</span>
+            </div>
+            <div class="card-mid-zone pl-7 py-0.5">
+              <div class="space-y-1.5 tabular-nums">
+                <div class="flex items-baseline justify-between gap-2 pb-1 font-mono-doc" style="border-bottom: 1px dotted rgba(15,81,50,0.45);">
+                  <span class="text-[9.5px] font-bold text-[#0F5132]">CATEGORY: <strong class="text-[11px] font-black text-[#0B3B24]">TR</strong></span>
+                  <span class="text-[9.5px] font-bold text-[#0F5132]">NO. OF ENTRY: <strong class="text-[11px] font-black text-[#0B3B24]">MULTIPLE</strong></span>
+                </div>
+                <div class="flex items-baseline justify-between gap-2 pb-1 font-mono-doc text-[9px]" style="border-bottom: 1px dotted rgba(15,81,50,0.45);">
+                  <span class="text-[#0F5132]/80">DATE OF ISSUE: <strong class="text-[#111827]">10 JAN 2026</strong></span>
+                  <span class="text-[#0F5132]/80">PASSPORT: <strong class="text-[#111827]">${p.passportRaw}</strong></span>
+                </div>
+                <div class="font-mono-doc text-[8.4px] font-black tracking-[0.02em] text-[#0B3B24] leading-snug">
+                  GOOD FOR MULTIPLE JOURNEYS. ENTER BEFORE 09 JAN 2027
+                </div>
+                <div class="flex items-end justify-between pt-0.5">
+                  <span class="font-mono-doc text-[9px] font-semibold text-[#1E293B] truncate">${p.name}</span>
+                  <div class="flex flex-col items-end shrink-0">
+                    <svg class="w-18 h-4 text-[#1E3A8A]/90" viewBox="0 0 90 22" fill="none" stroke="currentColor" stroke-width="1.35" stroke-linecap="round">
+                      <path d="M5 17 C14 3 22 3 18 16 C24 9 34 7 32 15 C38 10 47 11 49 15 C55 10 63 8 67 15 C73 13 79 12 86 9"/>
+                    </svg>
+                    <div class="w-20 pt-0.5 text-right text-[5.8px] font-mono-doc uppercase tracking-wider text-[#0F5132]/75" style="border-top: 0.75px solid rgba(15,81,50,0.45);">
+                      SIGNED · ROYAL THAI EMBASSY
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="card-bottom-horizon pl-7 tabular-nums" style="border-top: 0.5px solid rgba(15,81,50,0.15); background: rgba(255,255,255,0.32);">
+              <span class="font-mono-doc text-[9px] font-semibold text-[#0F5132]">${card.visaNo} · BEIJING</span>
+              <span class="font-mono-doc text-[9.5px] font-bold text-[#0B3B24]">STAY 60 DAYS</span>
+            </div>
+          </div>`;
+      }
+
+      /* 9. Philippines Paper Visa */
+      if (card.id === 'phl') {
+        return `
+          <div data-ridx="${idx}" data-cid="${card.id}" onclick="handleRolodexCardClick(${idx})"
+               class="rolodex-card tone-light cursor-pointer"
+               style="background: linear-gradient(125deg, #FBF2DC 0%, #F8E5DA 50%, #E3F1E8 100%);">
+            <svg class="pointer-events-none absolute inset-0 w-full h-full opacity-[0.15]" style="mix-blend-mode: multiply;" viewBox="0 0 340 222" fill="none">
+              <g transform="translate(170, 110)">
+                <path d="M-24 -22 H24 V4 C24 22 0 32 0 32 C0 32 -24 22 -24 4 Z" stroke="#B45309" stroke-width="0.95"/>
+                <circle cx="0" cy="-2" r="10" stroke="#B45309" stroke-width="0.9"/>
+                <path d="M0 -22 V-15 M0 11 V18 M-20 -2 H-13 M13 -2 H20 M-14 -16 L-9 -11 M9 7 L14 12 M14 -16 L9 -11 M-9 7 L-14 12" stroke="#B45309" stroke-width="0.95"/>
+              </g>
+            </svg>
+            <div class="card-top-horizon">
+              <div class="flex items-center gap-1.5 min-w-0">
+                ${card.emblemSvg}
+                <span class="text-[11px] font-bold tracking-[0.02em] text-[#1E3A5F] truncate" style="font-family: Georgia, 'Times New Roman', serif;">
+                  REPUBLIC OF THE PHILIPPINES · VISA
+                </span>
+              </div>
+              <span class="font-mono-doc text-[11px] font-black tracking-[0.14em] shrink-0 px-1 rounded"
+                    style="color: #B91C1C; border: 0.75px dotted rgba(185,28,28,0.55); background: rgba(185,28,28,0.04);">
+                ${card.controlNo}
+              </span>
+            </div>
+            <div class="card-mid-zone py-0.5 relative">
+              <div class="grid grid-cols-12 gap-2.5 tabular-nums items-start">
+                <div class="col-span-6 space-y-1.5 pr-1" style="border-right: 0.5px dashed rgba(120,53,15,0.24);">
+                  <div>
+                    <div class="text-[6.5px] font-mono-doc uppercase text-[#78350F]/75">BEARER / HOLDER</div>
+                    <div class="font-mono-doc text-[10px] font-extrabold text-[#1E293B] truncate">${p.name}</div>
+                  </div>
+                  <div>
+                    <div class="text-[6.5px] font-mono-doc uppercase text-[#78350F]/75">PASSPORT NO.</div>
+                    <div class="font-mono-doc text-[9.5px] font-bold text-[#1E293B]">${p.passportRaw}</div>
+                  </div>
+                  <div>
+                    <div class="text-[6.5px] font-mono-doc uppercase text-[#78350F]/75">ISSUED AT / DATE</div>
+                    <div class="font-mono-doc text-[9px] font-bold text-[#1E293B]">BEIJING PE · 05AUG26</div>
+                  </div>
+                </div>
+                <div class="col-span-6 pl-0.5 flex flex-col justify-between">
+                  <div>
+                    <div class="text-[6.5px] font-mono-doc uppercase text-[#78350F]/75">SECTION / CATEGORY</div>
+                    <div class="font-mono-doc text-[10px] font-black text-[#1E293B] leading-tight">9(A) TEMPORARY VISITOR</div>
+                  </div>
+                  <div class="mt-1">
+                    <div class="text-[6.5px] font-mono-doc uppercase text-[#78350F]/75">AUTHORIZED STAY</div>
+                    <div class="font-mono-doc text-[11px] font-black text-[#1D4ED8]">59 DAYS</div>
+                  </div>
+                </div>
+              </div>
+              <div class="pointer-events-none absolute right-4 bottom-0.5 flex items-end gap-1">
+                <svg class="w-14 h-4 text-[#1E293B]/85 -mr-3 z-10" viewBox="0 0 80 20" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round">
+                  <path d="M4 15 C16 3 24 16 36 8 C48 2 56 15 76 6"/>
+                </svg>
+                <div class="w-[50px] h-[50px] rounded-full border-[1.4px] border-dashed border-[#1D4ED8]/60 flex items-center justify-center -rotate-12"
+                     style="background: radial-gradient(circle, rgba(29,78,216,0.08) 0%, rgba(185,28,28,0.04) 100%);">
+                  <div class="w-[40px] h-[40px] rounded-full border border-[#B91C1C]/45 flex flex-col items-center justify-center text-center leading-none font-mono-doc">
+                    <span class="text-[5px] font-bold text-[#1D4ED8]/80">PHILIPPINE</span>
+                    <span class="text-[6px] font-black text-[#B91C1C]/80 my-0.5">CONSULATE</span>
+                    <span class="text-[4.8px] font-bold text-[#1D4ED8]/80">BEIJING</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="card-bottom-horizon tabular-nums" style="border-top: 0.5px solid rgba(120,53,15,0.14); background: rgba(255,255,255,0.34);">
+              <span class="font-mono-doc text-[9px] font-semibold text-[#78350F]">VISA NO. ${card.visaNo}</span>
+              <span class="font-mono-doc text-[9.5px] font-bold text-[#1E3A5F]">VALID UNTIL ${card.expiryDate}</span>
+            </div>
+          </div>`;
+      }
+
+      /* 10. Singapore Paper Visa */
+      if (card.id === 'sgp') {
+        return `
+          <div data-ridx="${idx}" data-cid="${card.id}" onclick="handleRolodexCardClick(${idx})"
+               class="rolodex-card tone-light cursor-pointer"
+               style="background: linear-gradient(125deg, #E1F3EB 0%, #ECE5F6 54%, #EEF7F2 100%);">
+            <svg class="pointer-events-none absolute inset-0 w-full h-full opacity-[0.15]" style="mix-blend-mode: multiply;" viewBox="0 0 340 222" fill="none">
+              <g transform="translate(170, 108)">
+                <path d="M-18 -20 L0 -26 L18 -20 V0 C18 14 0 24 0 24 C0 24 -18 14 -18 0 Z" stroke="#9F1239" stroke-width="0.95"/>
+                <path d="M-34 16 C-28 0 -22 -12 -18 -14 M34 16 C28 0 22 -12 18 -14" stroke="#9F1239" stroke-width="0.9"/>
+                <path d="M-28 22 Q0 14 28 22" stroke="#065F46" stroke-width="0.8"/>
+              </g>
+              <path d="M0 156 Q85 142 170 156 T340 156 M0 166 Q85 152 170 166 T340 166" stroke="#065F46" stroke-width="0.6"/>
+            </svg>
+            <div class="card-top-horizon">
+              <div class="flex items-center gap-1.5 min-w-0">
+                ${card.emblemSvg}
+                <span class="text-[11.5px] font-black tracking-[0.03em] text-[#1E293B] truncate">REPUBLIC OF SINGAPORE · VISA</span>
+              </div>
+              <span class="font-mono-doc text-[11.5px] font-extrabold tracking-wider shrink-0" style="color: #C81E1E;">${card.controlNo}</span>
+            </div>
+            <div class="card-mid-zone py-0.5">
+              <div class="flex items-end justify-between gap-2.5 tabular-nums">
+                <div class="flex-1 min-w-0 font-mono-doc space-y-1.5">
+                  <div>
+                    <div class="text-[7px] text-[#065F46]/80">Type of Visa:</div>
+                    <div class="text-[10.5px] font-black text-[#0F172A]">MULTIPLE JOURNEY</div>
+                  </div>
+                  <div class="grid grid-cols-2 gap-2">
+                    <div>
+                      <div class="text-[7px] text-[#065F46]/80">Valid Until:</div>
+                      <div class="text-[10px] font-bold text-[#9F1239]">13 OCT 2027</div>
+                    </div>
+                    <div>
+                      <div class="text-[7px] text-[#065F46]/80">Issued By:</div>
+                      <div class="text-[10px] font-bold text-[#0F172A]">BEIJING</div>
+                    </div>
+                  </div>
+                  <div class="text-[9px] font-bold text-[#1E293B] truncate">${p.name} · ${p.passportRaw}</div>
+                </div>
+                <div class="shrink-0 flex flex-col items-center bg-white/80 px-2 py-1.5 rounded-[4px] border border-slate-800/15">
+                  <svg class="w-[84px] h-[30px]" viewBox="0 0 84 30" fill="#0F172A">
+                    <rect x="0" y="0" width="2" height="30"/><rect x="3.5" y="0" width="1" height="30"/><rect x="6" y="0" width="3" height="30"/>
+                    <rect x="11" y="0" width="1.2" height="30"/><rect x="14" y="0" width="2.4" height="30"/><rect x="18" y="0" width="1" height="30"/>
+                    <rect x="21" y="0" width="3.2" height="30"/><rect x="26" y="0" width="1.2" height="30"/><rect x="29" y="0" width="2" height="30"/>
+                    <rect x="33" y="0" width="1" height="30"/><rect x="36" y="0" width="3" height="30"/><rect x="41" y="0" width="1.4" height="30"/>
+                    <rect x="44" y="0" width="2" height="30"/><rect x="48" y="0" width="3.2" height="30"/><rect x="53" y="0" width="1" height="30"/>
+                    <rect x="56" y="0" width="2.4" height="30"/><rect x="60" y="0" width="1.2" height="30"/><rect x="63" y="0" width="3" height="30"/>
+                    <rect x="68" y="0" width="1.4" height="30"/><rect x="71" y="0" width="2.2" height="30"/><rect x="75" y="0" width="1" height="30"/>
+                    <rect x="78" y="0" width="2.5" height="30"/><rect x="82" y="0" width="1.2" height="30"/>
+                  </svg>
+                  <span class="font-mono-doc text-[6.5px] tracking-[0.22em] text-[#1E293B] mt-0.5">${card.visaNo}</span>
+                </div>
+              </div>
+            </div>
+            <div class="card-bottom-horizon tabular-nums" style="border-top: 0.5px solid rgba(6,95,70,0.14); background: rgba(255,255,255,0.34);">
+              <span class="font-mono-doc text-[9px] font-semibold text-[#065F46]">STAY 30 DAYS EACH ENTRY</span>
+              <span class="font-mono-doc text-[9.5px] font-bold text-[#1E293B]">${card.visaNo}</span>
+            </div>
+          </div>`;
+      }
+
+      /* 11. Australia Paper Visa */
+      if (card.id === 'aus') {
+        return `
+          <div data-ridx="${idx}" data-cid="${card.id}" onclick="handleRolodexCardClick(${idx})"
+               class="rolodex-card tone-light cursor-pointer"
+               style="background: linear-gradient(122deg, #F6E8CA 0%, #DDECE0 56%, #F3E6CA 100%);">
+            <div class="kinegram-left-strip !w-[22px] flex flex-col items-center justify-around py-3">
+              <svg class="w-3.5 h-3.5 text-slate-700/75" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 2l2.1 5.6 5.9-.8-3.7 4.7 4.5 3.9-5.8 1.2-.8 5.9L12 17.2l-2.2 5.3-.8-5.9-5.8-1.2 4.5-3.9-3.7-4.7 5.9.8z"/>
+              </svg>
+              <svg class="w-4 h-4 text-amber-900/70" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M17 5c1.2 0 2 .9 2 2 0 1.4-1.5 2.5-3 3.2l-2 2.8 3 4.5h-2l-2.5-3.5-3.5 3.5H4l4.5-4.5c1-2.5 2.5-4.5 5-5.5L15 6c.5-.6 1.2-1 2-1z"/>
+              </svg>
+              <svg class="w-3 h-3 text-slate-700/75" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 2l2.1 5.6 5.9-.8-3.7 4.7 4.5 3.9-5.8 1.2-.8 5.9L12 17.2l-2.2 5.3-.8-5.9-5.8-1.2 4.5-3.9-3.7-4.7 5.9.8z"/>
+              </svg>
+            </div>
+            <svg class="pointer-events-none absolute inset-0 w-full h-full opacity-[0.13]" style="mix-blend-mode: multiply;" viewBox="0 0 340 222" fill="none">
+              <circle cx="272" cy="112" r="36" stroke="#1E4631" stroke-width="0.65" stroke-dasharray="2 2.5"/>
+              <path d="M254 98 H290 V120 C290 134 272 142 272 142 C272 142 254 134 254 120 Z" stroke="#92400E" stroke-width="0.8"/>
+            </svg>
+            <div class="card-top-horizon pl-8">
+              <div class="flex items-center gap-2 min-w-0">
+                ${card.emblemSvg}
+                <span class="text-[13px] font-black tracking-[0.06em] text-[#1E4631] truncate">AUSTRALIAN VISA</span>
+              </div>
+              <span class="font-mono-doc text-[11.5px] font-extrabold tracking-[0.06em] shrink-0" style="color: #C81E1E;">${card.visaNo}</span>
+            </div>
+            <div class="card-mid-zone pl-8 py-0.5">
+              <div class="font-mono-doc text-[10px] leading-[1.58] tracking-[0.03em] text-[#16291E] tabular-nums">
+                <div class="flex items-baseline justify-between">
+                  <span class="font-extrabold">GRANT NUMBER &nbsp;${card.controlNo}</span>
+                  <span class="text-[9px] font-bold text-[#1E4631]">01JUL25</span>
+                </div>
+                <div class="flex items-baseline justify-between">
+                  <span class="font-black text-[10.5px]">TRAVEL MULTIPLE</span>
+                  <span class="font-black text-[10.5px] text-[#1E4631]">SUBCLASS 600</span>
+                </div>
+                <div class="font-extrabold text-[#16291E]">STAY FOR/UNTIL &nbsp;3 MONTHS</div>
+                <div class="flex items-baseline justify-between text-[8.8px] text-[#365314] pt-0.5">
+                  <span class="font-bold truncate">${p.name} · ${p.passportRaw}</span>
+                  <span class="shrink-0 font-bold">8101 NO WORK</span>
+                </div>
+              </div>
+            </div>
+            <div class="card-bottom-horizon pl-8 tabular-nums" style="border-top: 0.5px solid rgba(30,70,49,0.14); background: rgba(255,255,255,0.32);">
+              <span class="font-mono-doc text-[8.8px] font-bold text-[#1E4631]">MUST NOT ARRIVE AFTER 30JUN28</span>
+              <span class="font-mono-doc text-[9.5px] font-bold text-[#16291E]">SUBCLASS 600</span>
+            </div>
+          </div>`;
+      }
+
+      /* 12. New Zealand Paper Visa */
+      if (card.id === 'nzl') {
+        return `
+          <div data-ridx="${idx}" data-cid="${card.id}" onclick="handleRolodexCardClick(${idx})"
+               class="rolodex-card tone-light cursor-pointer"
+               style="background: linear-gradient(132deg, #DCEEF9 0%, #F4F9FD 52%, #D4E6F5 100%);">
+            <svg class="pointer-events-none absolute inset-0 w-full h-full opacity-[0.17]" style="mix-blend-mode: multiply;" viewBox="0 0 340 222" fill="none">
+              <path d="M236 194 C250 140 278 96 322 66" stroke="#0F3554" stroke-width="1.2" stroke-linecap="round"/>
+              <path d="M246 164 l16 -8 M254 146 l18 -8 M264 128 l18 -7 M276 110 l16 -6 M290 94 l14 -5" stroke="#0F3554" stroke-width="0.85" stroke-linecap="round"/>
+              <path d="M244 164 l-14 -12 M252 146 l-14 -12 M262 128 l-13 -11 M274 110 l-11 -9" stroke="#0F3554" stroke-width="0.8" stroke-linecap="round"/>
+              <path d="M300 176 c-14 0-22-10-20-20 c2-8 10-12 16-8 c4 3 4 9 0 11" stroke="#0369A1" stroke-width="0.85" stroke-linecap="round"/>
+            </svg>
+            <div class="card-top-horizon">
+              <div class="flex items-center gap-1.5 min-w-0">
+                <div class="w-[18px] h-[18px] rounded-full border border-white/90 flex items-center justify-center shrink-0 shadow-inner"
+                     style="background: conic-gradient(from 90deg, #BAE6FD, #E0E7FF, #A7F3D0, #FDE68A, #BAE6FD);">
+                  <svg class="w-2.5 h-2.5 text-[#0F3554]" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M3 13C5 9 8 5 13 3"/></svg>
+                </div>
+                ${card.emblemSvg}
+                <span class="text-[12.5px] font-black tracking-[0.05em] text-[#0F3554] truncate">NEW ZEALAND VISA</span>
+              </div>
+              <span class="font-mono-doc text-[11px] font-extrabold tracking-wider text-[#991B1B] shrink-0">${card.visaNo}</span>
+            </div>
+            <div class="card-mid-zone py-0.5">
+              <div class="w-full px-2.5 py-1 rounded-[4px] flex items-center justify-between text-white font-mono-doc mb-1.5"
+                   style="background: linear-gradient(90deg, #0F3554 0%, #164870 100%);">
+                <span class="text-[10px] font-black tracking-[0.06em]">VISITOR VISA · MULTIPLE</span>
+                <span class="text-[8px] font-semibold text-sky-200">INZ BEIJING</span>
+              </div>
+              <div class="grid grid-cols-2 gap-x-3 gap-y-1 font-mono-doc tabular-nums">
+                <div>
+                  <div class="text-[6.6px] uppercase text-[#0F3554]/65">FIRST ENTRY BEFORE</div>
+                  <div class="text-[10px] font-extrabold text-[#0C253B]">N/A · ANYTIME</div>
+                </div>
+                <div>
+                  <div class="text-[6.6px] uppercase text-[#0F3554]/65">EXPIRY DATE TRAVEL</div>
+                  <div class="text-[10px] font-extrabold text-[#991B1B]">17 FEB 2030</div>
+                </div>
+                <div class="col-span-2 pt-0.5" style="border-top: 0.5px solid rgba(15,53,84,0.16);">
+                  <div class="text-[8.5px] font-black text-[#0F3554] tracking-[0.02em]">CONDITIONS: STAY UP TO 90 DAYS</div>
+                  <div class="text-[8.5px] font-semibold text-[#1E3A5F] truncate mt-0.5">${p.name} · PASSPORT ${p.passportRaw}</div>
+                </div>
+              </div>
+            </div>
+            <div class="card-bottom-horizon tabular-nums" style="border-top: 0.5px solid rgba(15,53,84,0.14); background: rgba(255,255,255,0.36);">
+              <span class="font-mono-doc text-[8.8px] font-semibold text-[#0F3554]">IMMIGRATION NEW ZEALAND</span>
+              <span class="font-mono-doc text-[9.5px] font-bold text-[#0C253B]">17 FEB 2030</span>
+            </div>
+          </div>`;
+      }
+
+      /* 13. Zurich Warm Cotton Generic Fallback */
+      return `
+        <div data-ridx="${idx}" data-cid="${card.id}" onclick="handleRolodexCardClick(${idx})"
+             class="rolodex-card tone-light cursor-pointer"
+             style="background: linear-gradient(155deg, #FAF9F5 0%, #F2F0E8 100%);">
+          <svg class="pointer-events-none absolute inset-0 w-full h-full opacity-[0.045]">
+            <filter id="cottonNoise_${idx}"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2"/></filter>
+            <rect width="100%" height="100%" filter="url(#cottonNoise_${idx})"/>
+          </svg>
+          <div class="cover-inner-frame cover-inner-frame-debossed"></div>
+          <svg class="pointer-events-none absolute right-5 top-12 w-5 h-5 opacity-[0.18]" viewBox="0 0 20 20" fill="none" stroke="#1C1C1E" stroke-width="0.7">
+            <circle cx="10" cy="10" r="5"/><line x1="10" y1="1" x2="10" y2="19"/><line x1="1" y1="10" x2="19" y2="10"/>
+          </svg>
+          <div class="card-top-horizon">
+            <div class="flex items-center gap-2 min-w-0">
+              ${card.emblemSvg}
+              <span class="text-[13px] font-semibold tracking-tight text-[#1C1C1E] truncate">${card.title}</span>
+            </div>
+            <span class="font-mono-doc text-[10.5px] font-semibold text-[#1C1C1E]/55 shrink-0 ml-2">${card.countryCode}</span>
+          </div>
+          <div class="card-mid-zone py-1">
+            <div class="text-[8.5px] font-mono-doc uppercase tracking-[0.09em] text-[#1C1C1E]/50 truncate">${card.midHeader}</div>
+            <div class="mt-2 grid grid-cols-3 gap-2 py-2 tabular-nums" style="border-top: 0.5px solid rgba(28,28,30,0.10); border-bottom: 0.5px solid rgba(28,28,30,0.10);">
+              <div class="min-w-0">
+                <div class="text-[7px] font-mono-doc uppercase text-[#1C1C1E]/50">CATEGORY</div>
+                <div class="text-[11px] font-mono-doc font-bold text-[#1C1C1E] truncate mt-0.5">V-1 VISITOR</div>
+              </div>
+              <div class="min-w-0">
+                <div class="text-[7px] font-mono-doc uppercase text-[#1C1C1E]/50">ENTRIES</div>
+                <div class="text-[11px] font-mono-doc font-bold text-[#1C1C1E] truncate mt-0.5">MULTIPLE</div>
+              </div>
+              <div class="text-right min-w-0">
+                <div class="text-[7px] font-mono-doc uppercase text-[#1C1C1E]/50">STAY</div>
+                <div class="text-[11px] font-mono-doc font-bold text-[#1C1C1E] truncate mt-0.5">${card.stayDays}</div>
+              </div>
+            </div>
+            <div class="mt-1.5 flex items-center justify-between gap-2 tabular-nums">
+              <span class="text-[10px] font-mono-doc text-[#1C1C1E]/55 truncate">${p.name}</span>
+              <span class="text-[10.5px] font-mono-doc font-bold tracking-wider text-[#1C1C1E] shrink-0">${card.controlNo}</span>
+            </div>
+          </div>
+          <div class="card-bottom-horizon tabular-nums" style="border-top: 0.5px solid rgba(28,28,30,0.10);">
+            <span class="font-mono-doc text-[9px] tracking-[0.05em] text-[#1C1C1E]/55 truncate pr-2">${card.mrz1.slice(0, 26)}</span>
+            <span class="font-mono-doc text-[10px] font-semibold text-[#1C1C1E] shrink-0">至 ${card.expiryDate}</span>
+          </div>
+        </div>`;
+    }
+
+    function updateRolodexTransforms() {
+      const total = rolodex.cards.length;
+      if (total === 0) return;
+
+      const els = document.querySelectorAll('#rolodexStage .rolodex-card');
+      const activeIdx = Math.max(0, Math.min(total - 1, Math.round(rolodex.scrollPos)));
+      const velTilt = Math.max(-7.5, Math.min(7.5, rolodex.vel * 0.58));
+
+      els.forEach((el, idx) => {
+        const d = idx - rolodex.scrollPos;
+        const absD = Math.abs(d);
+        const sign = d < 0 ? -1 : 1;
+
+        let y = 0;
+        if (absD <= 1) y = d * 46;
+        else if (absD <= 2) y = sign * (46 + (absD - 1) * 38);
+        else y = sign * (84 + (absD - 2) * 30);
+
+        const scale = Math.max(0.72, 1 - absD * 0.06);
+        const rotX = Math.max(-16, Math.min(16, -d * 3.1 - velTilt));
+        let opacity = 1;
+        if (absD > 3.15) opacity = Math.max(0, 1 - (absD - 3.15) * 1.15);
+
+        const zIdx = Math.round(200 - absD * 18);
+        const isActive = absD < 0.36;
+
+        el.style.transform = `translate3d(0, ${y.toFixed(2)}px, 0) scale(${scale.toFixed(4)}) rotateX(${rotX.toFixed(2)}deg)`;
+        el.style.opacity = opacity.toFixed(3);
+        el.style.zIndex = zIdx;
+        el.style.pointerEvents = opacity > 0.08 ? 'auto' : 'none';
+        el.classList.toggle('is-active', isActive);
+      });
+
+      const idxEl = document.getElementById('rolodexFooterIndex');
+      const catEl = document.getElementById('rolodexFooterCat');
+      const activeCard = rolodex.cards[activeIdx];
+      if (activeCard) {
+        state.activeCardId = activeCard.id;
+        if (idxEl) idxEl.textContent = `${String(activeIdx + 1).padStart(2, '0')} / ${String(total).padStart(2, '0')}`;
+        if (catEl) {
+          catEl.textContent = activeCard.kind === 'doc'
+            ? '主证照'
+            : activeCard.isZurichPaper ? '通用棉纸模板' : '真实纸质贴签';
+        }
+      }
+    }
+
+    // iOS 26 Fluid Underdamped Spring Physics (stiffness=210, damping=16.5 -> zeta≈0.57)
+    function ensureRolodexLoop() {
+      if (rolodex.rafId) return;
+      rolodex.lastTickTime = performance.now();
+      const stiffness = 210;
+      const damping = 16.5;
+
+      const tick = (now) => {
+        if (rolodex.dragging) { rolodex.rafId = null; return; }
+        const dt = Math.min(0.032, Math.max(0.004, (now - rolodex.lastTickTime) / 1000));
+        rolodex.lastTickTime = now;
+
+        const disp = rolodex.scrollPos - rolodex.targetPos;
+        const accel = -stiffness * disp - damping * rolodex.vel;
+        rolodex.vel += accel * dt;
+        rolodex.scrollPos += rolodex.vel * dt;
+
+        updateRolodexTransforms();
+
+        if (Math.abs(disp) > 0.0006 || Math.abs(rolodex.vel) > 0.006) {
+          rolodex.rafId = requestAnimationFrame(tick);
+        } else {
+          rolodex.scrollPos = rolodex.targetPos;
+          rolodex.vel = 0;
+          updateRolodexTransforms();
+          rolodex.rafId = null;
+        }
+      };
+      rolodex.rafId = requestAnimationFrame(tick);
+    }
+
+    function snapRolodexTo(idx, injectVel = null) {
+      const maxIdx = Math.max(0, rolodex.cards.length - 1);
+      const clamped = Math.max(0, Math.min(maxIdx, Math.round(idx)));
+      const dir = Math.sign(clamped - rolodex.scrollPos);
+      rolodex.targetPos = clamped;
+      if (injectVel !== null) {
+        rolodex.vel = injectVel;
+      } else if (dir !== 0 && Math.abs(rolodex.vel) < 1.2) {
+        rolodex.vel += dir * 2.2;
+      }
+      ensureRolodexLoop();
+    }
+
+    function handleRolodexCardClick(idx) {
+      if (rolodex.movedDist > 7) return;
+      const dist = Math.abs(idx - rolodex.scrollPos);
+      if (dist > 0.28) { snapRolodexTo(idx); return; }
+      const card = rolodex.cards[idx];
+      if (!card) return;
+      if (card.kind === 'doc') openPassportDetailSheet(card.docType);
+      else openVisaSheet(card.id);
+    }
+
+    function rubberBandOffset(over) {
+      return over / (1 + Math.abs(over) * 0.58);
+    }
+
+    function bindRolodexEvents() {
+      const stage = document.getElementById('rolodexStage');
+      if (!stage) return;
+
+      stage.addEventListener('pointerdown', (e) => {
+        if (e.target.closest('button')) return;
+        rolodex.dragging = true;
+        rolodex.lastY = e.clientY;
+        rolodex.lastTime = performance.now();
+        rolodex.vel = 0;
+        rolodex.movedDist = 0;
+        if (rolodex.rafId) { cancelAnimationFrame(rolodex.rafId); rolodex.rafId = null; }
+        stage.classList.add('is-dragging');
+        if (stage.setPointerCapture) { try { stage.setPointerCapture(e.pointerId); } catch (_) {} }
+      });
+
+      stage.addEventListener('pointermove', (e) => {
+        if (!rolodex.dragging) return;
+        const now = performance.now();
+        const dy = e.clientY - rolodex.lastY;
+        const dtSec = Math.max(0.006, (now - rolodex.lastTime) / 1000);
+        rolodex.movedDist += Math.abs(dy);
+
+        const dCards = -dy / 60;
+        const instVel = dCards / dtSec;
+        rolodex.vel = rolodex.vel * 0.42 + instVel * 0.58;
+        rolodex.lastY = e.clientY;
+        rolodex.lastTime = now;
+
+        const maxIdx = Math.max(0, rolodex.cards.length - 1);
+        let rawNext = rolodex.targetPos + dCards;
+        rolodex.targetPos = rawNext;
+
+        if (rawNext < 0) rolodex.scrollPos = rubberBandOffset(rawNext);
+        else if (rawNext > maxIdx) rolodex.scrollPos = maxIdx + rubberBandOffset(rawNext - maxIdx);
+        else rolodex.scrollPos = rawNext;
+
+        updateRolodexTransforms();
+      });
+
+      const endDrag = () => {
+        if (!rolodex.dragging) return;
+        rolodex.dragging = false;
+        stage.classList.remove('is-dragging');
+        const clampedVel = Math.max(-20, Math.min(20, rolodex.vel));
+        const projected = rolodex.scrollPos + clampedVel * 0.18;
+        snapRolodexTo(projected, clampedVel * 0.72);
+      };
+
+      stage.addEventListener('pointerup', endDrag);
+      stage.addEventListener('pointercancel', endDrag);
+
+      stage.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        const maxIdx = Math.max(0, rolodex.cards.length - 1);
+        const delta = Math.abs(e.deltaY) > Math.abs(e.deltaX) ? e.deltaY : e.deltaX;
+        const isNotchedWheel = Math.abs(delta) >= 48 && Math.abs(delta) % 10 === 0;
+
+        if (isNotchedWheel) {
+          const dir = Math.sign(delta);
+          const nextIdx = Math.max(0, Math.min(maxIdx, Math.round(rolodex.targetPos) + dir));
+          rolodex.targetPos = nextIdx;
+          rolodex.vel = Math.max(-14, Math.min(14, rolodex.vel + dir * 4.5));
+          ensureRolodexLoop();
+          return;
+        }
+
+        const step = delta * 0.0085;
+        let next = rolodex.targetPos + step;
+        if (next < -0.5) next = -0.5;
+        if (next > maxIdx + 0.5) next = maxIdx + 0.5;
+        rolodex.targetPos = next;
+        rolodex.vel = Math.max(-15, Math.min(15, rolodex.vel + step * 18));
+        ensureRolodexLoop();
+
+        clearTimeout(rolodex.wheelTimer);
+        rolodex.wheelTimer = setTimeout(() => {
+          const projected = rolodex.scrollPos + rolodex.vel * 0.11;
+          snapRolodexTo(projected, rolodex.vel * 0.65);
+        }, 68);
+      }, { passive: false });
+    }
+
+    function setWalletFilter(filter) {
+      if (state.walletFilter === filter) return;
+      state.walletFilter = filter;
+      if (filter === 'docs') state.activeCardId = 'passport';
+      else if (filter === 'visas') state.activeCardId = visas[0]?.id || 'usa';
+      renderWalletTab(true);
+    }
+
+    function renderWalletTab(resetIndex = false) {
+      const mount = document.getElementById('walletDynamicMount');
+      if (!mount) return;
+      const totalDocs = 2;
+      const totalVisas = visas.length;
+      const totalAll = totalDocs + totalVisas;
+
+      rolodex.cards = getAllDeckCards();
+      let targetIdx = rolodex.cards.findIndex(c => c.id === state.activeCardId);
+      if (targetIdx < 0) targetIdx = state.walletFilter === 'all' ? Math.min(2, rolodex.cards.length - 1) : 0;
+      if (resetIndex) {
+        rolodex.scrollPos = targetIdx === 0 ? 0.55 : targetIdx - 0.65;
+        rolodex.vel = targetIdx === 0 ? -2.6 : 2.6;
+      } else {
+        rolodex.scrollPos = targetIdx;
+        rolodex.vel = 0;
+      }
+      rolodex.targetPos = targetIdx;
+
+      const filterIdxMap = { all: 0, docs: 1, visas: 2 };
+      const thumbStep = filterIdxMap[state.walletFilter] || 0;
+
+      mount.innerHTML = `
+        <div class="rolodex-capsule-bar mb-2.5 shrink-0">
+          <div id="rolodexCapsuleThumb" class="rolodex-capsule-thumb" style="transform: translateX(${thumbStep * 100}%);"></div>
+          <button onclick="setWalletFilter('all')" class="rolodex-capsule-btn ${state.walletFilter === 'all' ? 'active' : ''}">全部 (${totalAll})</button>
+          <button onclick="setWalletFilter('docs')" class="rolodex-capsule-btn ${state.walletFilter === 'docs' ? 'active' : ''}">主证照 (${totalDocs})</button>
+          <button onclick="setWalletFilter('visas')" class="rolodex-capsule-btn ${state.walletFilter === 'visas' ? 'active' : ''}">签证与签注 (${totalVisas})</button>
+        </div>
+        <div id="rolodexStage" class="rolodex-stage">
+          ${rolodex.cards.map((card, idx) => buildRolodexCardHtml(card, idx)).join('')}
+        </div>
+        <div class="mt-1 px-2 flex items-center justify-between text-[11px] shrink-0 tabular-nums" style="color: var(--text-tertiary);">
+          <div class="flex items-center gap-2">
+            <span id="rolodexFooterIndex" class="font-mono-doc font-medium" style="color: var(--text-secondary);">01 / ${totalAll}</span>
+            <span>·</span>
+            <span id="rolodexFooterCat">真实纸质贴签</span>
+          </div>
+          <span>上下滑动翻阅 · 轻点 C 位看详情</span>
+        </div>`;
+
+      bindRolodexEvents();
+      updateRolodexTransforms();
+      if (resetIndex) ensureRolodexLoop();
+    }
+
+    function openPassportDetailSheet(docType) {
+      const p = personData[state.person];
+      const body = document.getElementById('passportDetailBody');
+      if (!body) return;
+      if (docType === 'hkpermit') {
+        body.innerHTML = `
+          <div class="flex items-center justify-between mb-3.5">
+            <h3 class="text-[18px] font-semibold tracking-tight">往来港澳通行证</h3>
+            <button onclick="closeSheet('passportDetailSheet')" class="text-[15px] font-semibold" style="color: var(--accent);">完成</button>
+          </div>
+          <div class="ios-group divide-y divide-[var(--border-hairline)] mb-4 text-[14px] tabular-nums">
+            <div class="px-4 py-3 flex justify-between"><span style="color: var(--text-secondary);">持证人</span><span class="font-medium">${p.name} · ${p.cnName}</span></div>
+            <div class="px-4 py-3 flex justify-between"><span style="color: var(--text-secondary);">证件号码</span><span class="font-mono-doc font-semibold">${p.hkPermit.no}</span></div>
+            <div class="px-4 py-3 flex justify-between"><span style="color: var(--text-secondary);">有效期</span><span class="font-mono-doc">${p.hkPermit.issueDate} — ${p.hkPermit.expiry}</span></div>
+          </div>
+          <div class="px-2 mb-1.5 text-[12px] font-medium" style="color: var(--text-secondary);">卡内有效签注</div>
+          <div class="ios-group divide-y divide-[var(--border-hairline)] mb-4 tabular-nums">
+            <div class="px-4 py-3 flex items-center justify-between">
+              <div><div class="text-[14.5px] font-medium">赴港个人旅游签注 (G 签)</div><div class="text-[12px] mt-0.5" style="color: var(--text-secondary);">一年两次 · 每次最长停留 7 天 · 至 2027.03.09</div></div>
+              <span class="px-2.5 py-1 rounded-full text-[12px] font-semibold bg-[#0E4D4A]/12 text-[#0E4D4A]">余 ${p.hkPermit.hkLeft} 次</span>
+            </div>
+            <div class="px-4 py-3 flex items-center justify-between">
+              <div><div class="text-[14.5px] font-medium">赴澳个人旅游签注 (G 签)</div><div class="text-[12px] mt-0.5" style="color: var(--text-secondary);">一年一次 · 每次最长停留 7 天 · 至 2027.03.09</div></div>
+              <span class="px-2.5 py-1 rounded-full text-[12px] font-semibold bg-amber-500/12 text-amber-700">余 ${p.hkPermit.moLeft} 次</span>
+            </div>
+          </div>`;
+        openSheet('passportDetailSheet');
+        return;
+      }
+      body.innerHTML = `
+        <div class="flex items-center justify-between mb-3.5">
+          <h3 class="text-[18px] font-semibold tracking-tight">护照资料页</h3>
+          <button onclick="closeSheet('passportDetailSheet')" class="text-[15px] font-semibold" style="color: var(--accent);">完成</button>
+        </div>
+        <div class="polycarbonate-card p-4 mb-4">
+          <div class="flex items-center justify-between text-[10px] font-mono-doc tracking-[0.08em] opacity-55 mb-3"><span>PASSPORT · CHN</span><span>NFC VERIFIED</span></div>
+          <div class="flex gap-4">
+            <div onclick="state.etchedAvatar=!state.etchedAvatar; openPassportDetailSheet('passport');" class="w-[74px] h-[94px] rounded-[12px] overflow-hidden shrink-0 flex items-end justify-center cursor-pointer" style="background: linear-gradient(180deg, rgba(120,120,128,0.12) 0%, rgba(120,120,128,0.24) 100%);">
+              <svg viewBox="0 0 80 100" class="w-full h-full opacity-80"><path d="M12,100 C12,76 25,69 40,69 C55,69 68,76 68,100 Z" fill="currentColor" fill-opacity="0.65"/><rect x="34" y="54" width="12" height="16" rx="4" fill="currentColor" fill-opacity="0.34"/><ellipse cx="40" cy="40" rx="14.5" ry="17.5" fill="currentColor" fill-opacity="0.28"/><path d="M25.5,36 C25.5,20 33,17 42,17 C51,17 55.5,22 54.5,35 C51.5,28 45,25 36,26 C30,26 27,31 25.5,36 Z" fill="currentColor" fill-opacity="0.72"/></svg>
+            </div>
+            <div class="flex-1 min-w-0 flex flex-col justify-between py-0.5 tabular-nums">
+              <div><div class="text-[9.5px] uppercase opacity-50">NAME / 姓名</div><div class="text-[14px] font-semibold leading-tight mt-0.5 truncate">${p.name} · ${p.cnName}</div></div>
+              <div class="grid grid-cols-2 gap-2"><div><div class="text-[9.5px] uppercase opacity-50">PASSPORT NO.</div><div class="text-[13px] font-mono-doc font-semibold mt-0.5">${p.passportNo}</div></div><div><div class="text-[9.5px] uppercase opacity-50">DOB / 出生</div><div class="text-[13px] font-mono-doc font-medium mt-0.5">${p.dob}</div></div></div>
+              <div class="grid grid-cols-2 gap-2"><div><div class="text-[9.5px] uppercase opacity-50">ISSUED / 签发</div><div class="text-[12px] font-mono-doc mt-0.5 opacity-85">${p.issueDate}</div></div><div><div class="text-[9.5px] uppercase opacity-50">EXPIRY / 到期</div><div class="text-[12px] font-mono-doc font-medium mt-0.5">${p.expiryDate}</div></div></div>
+            </div>
+          </div>
+          <div class="mt-3.5 pt-2.5 font-mono-doc text-[9.5px] leading-[1.45] tracking-[0.06em] opacity-65 overflow-hidden" style="border-top: 0.5px solid rgba(128,128,128,0.22);"><div class="truncate">${p.mrz1}</div><div class="truncate">${p.mrz2}</div></div>
+        </div>
+        ${p.oldPassportNo ? `<div class="ios-group px-4 py-3 mb-4 flex items-center justify-between text-[13.5px] tabular-nums"><span style="color: var(--text-secondary);">关联旧护照号</span><button onclick="copyText('${p.oldPassportNo.replace(/\s+/g, '')}', '旧护照号已复制')" class="font-mono-doc font-medium">${p.oldPassportNo}</button></div>` : ''}`;
+      openSheet('passportDetailSheet');
+    }
+
+    function openVisaSheet(visaId) {
+      const v = visas.find(item => item.id === visaId);
+      const body = document.getElementById('visaDetailSheetBody');
+      if (!v || !body) return;
+      body.innerHTML = `
+        <div class="flex items-center justify-between mb-4">
+          <div class="flex items-center gap-2.5 min-w-0">${v.emblemSvg || ''}<div class="min-w-0"><h3 class="text-[18px] font-semibold tracking-tight truncate">${v.title}</h3><p class="text-[11.5px] mt-0.5 truncate" style="color: var(--text-secondary);">${v.midHeader}</p></div></div>
+          <button onclick="closeSheet('visaDetailSheet')" class="text-[15px] font-semibold shrink-0 ml-2" style="color: var(--accent);">完成</button>
+        </div>
+        <div class="ios-group divide-y divide-[var(--border-hairline)] mb-3.5 text-[14px] tabular-nums">
+          <div class="px-4 py-3 flex items-center justify-between"><span style="color: var(--text-secondary);">签证号</span><button onclick="copyText('${v.visaNo}', '签证号已复制')" class="font-mono-doc font-semibold inline-flex items-center gap-1.5" style="color: var(--accent);"><span>${v.visaNo}</span><span class="text-[11px] font-sans font-medium opacity-75">复制</span></button></div>
+          <div class="px-4 py-3 flex justify-between"><span style="color: var(--text-secondary);">控制号 / 签发标注</span><span class="font-mono-doc font-semibold">${v.controlNo}</span></div>
+          <div class="px-4 py-3 flex justify-between"><span style="color: var(--text-secondary);">单次停留</span><span class="font-medium">${v.stayDays}</span></div>
+          <div class="px-4 py-3 flex justify-between"><span style="color: var(--text-secondary);">有效期</span><span class="font-mono-doc">${v.issueDate} — ${v.expiryDate}</span></div>
+        </div>
+        <div class="ios-group px-4 py-3 mb-3.5 font-mono-doc text-[10px] leading-[1.5] tracking-[0.06em] overflow-hidden" style="color: var(--text-secondary);">
+          <div class="text-[9.5px] uppercase tracking-wider mb-1 opacity-60">Machine Readable Zone</div>
+          <div class="truncate">${v.mrz1}</div><div class="truncate">${v.mrz2}</div>
+        </div>
+        <div class="ios-group p-4 text-[13px] leading-relaxed" style="color: var(--text-secondary);">${v.detailNote}</div>`;
+      openSheet('visaDetailSheet');
+    }
+
+    function toggleDarkMode() {
+      state.mode = state.mode === 'light' ? 'dark' : 'light';
+      document.getElementById('phoneRoot').setAttribute('data-mode', state.mode);
+      document.getElementById('labelThemeMode').textContent = state.mode === 'light' ? '浅色模式' : '深色模式';
+      renderWalletTab();
+    }
+
+    function switchPerson(who) {
+      state.person = who;
+      document.getElementById('currentPersonBadge').textContent = personData[who].badge;
+      document.getElementById('familyCheckSelf').classList.toggle('hidden', who !== 'self');
+      document.getElementById('familyCheckFamily').classList.toggle('hidden', who !== 'family');
+      document.getElementById('btnPersonSelf').className = who === 'self' ? 'px-2.5 py-1 rounded-[9px] text-[11px] font-medium transition bg-white text-black' : 'px-2.5 py-1 rounded-[9px] text-[11px] font-medium transition text-zinc-400 hover:text-white';
+      document.getElementById('btnPersonFamily').className = who === 'family' ? 'px-2.5 py-1 rounded-[9px] text-[11px] font-medium transition bg-[#FF453A] text-white' : 'px-2.5 py-1 rounded-[9px] text-[11px] font-medium transition text-zinc-400 hover:text-white';
+      renderWalletTab();
+      showToast(who === 'family' ? '已切换至家人 · 预警态' : '已切换至本人 · 正常态');
+    }
+
+    function togglePrivacyMask() {
+      state.privacyMasked = !state.privacyMasked;
+      renderWalletTab();
+      showToast(state.privacyMasked ? '证件号码已隐藏' : '证件号码已显示');
+    }
+
+    function copyText(txt, msg) {
+      try { navigator.clipboard?.writeText(txt); } catch (_) {}
+      showToast(msg || '已复制');
+    }
+    function openSheet(id) { document.getElementById(id)?.classList.add('open'); }
+    function closeSheet(id) { document.getElementById(id)?.classList.remove('open'); }
+    function closeSheetOnBg(e, id) { if (e.target.id === id) closeSheet(id); }
+    let toastTimer = null;
+    function showToast(msg) {
+      const t = document.getElementById('iosToast');
+      if (!t) return;
+      t.textContent = msg;
+      t.classList.remove('opacity-0');
+      t.classList.add('opacity-100');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => { t.classList.remove('opacity-100'); t.classList.add('opacity-0'); }, 2000);
+    }
+
+    window.addEventListener('keydown', (e) => {
+      if (document.querySelector('.sheet-backdrop.open')) return;
+      if (e.key === 'ArrowDown' || e.key === 'ArrowRight') { e.preventDefault(); snapRolodexTo(Math.round(rolodex.targetPos) + 1); }
+      else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') { e.preventDefault(); snapRolodexTo(Math.round(rolodex.targetPos) - 1); }
+    });
+
+    window.addEventListener('DOMContentLoaded', () => renderWalletTab());
+  </script>
+</body>
+</html>
